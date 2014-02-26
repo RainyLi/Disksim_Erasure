@@ -58,7 +58,7 @@
  * DiskSim Storage Subsystem Simulation Environment
  * Authors: Greg Ganger, Bruce Worthington, Yale Patt
  *
- * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan 
+ * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan
  *
  * This software is being provided by the copyright holders under the
  * following license. By obtaining, using and/or copying this software,
@@ -113,128 +113,128 @@
 #define CACHE_HASHMASK		(0x00000000 | (CACHE_HASHSIZE - 1))
 
 typedef struct cachelockh {
-   struct ioreq_ev *entry[CACHE_LOCKSPERSTRUCT];
-   struct cachelockh *next;
+	struct ioreq_ev *entry[CACHE_LOCKSPERSTRUCT];
+	struct cachelockh *next;
 } cache_lockholders;
 
 typedef struct cachelockw {
-   struct cache_mem_event *entry[CACHE_LOCKSPERSTRUCT];
-   struct cachelockw *next;
+	struct cache_mem_event *entry[CACHE_LOCKSPERSTRUCT];
+	struct cachelockw *next;
 } cache_lockwaiters;
 
 typedef struct cacheatom {
-   struct cacheatom *hash_next;
-   struct cacheatom *hash_prev;
-   struct cacheatom *line_next;
-   struct cacheatom *line_prev;
-   int devno;
-   int lbn;
-   int state;
-   struct cacheatom *lru_next;
-   struct cacheatom *lru_prev;
-   cache_lockholders *readlocks;
-   ioreq_event *writelock;
-   cache_lockwaiters *lockwaiters;
-   int busno;
-   int slotno;
+	struct cacheatom *hash_next;
+	struct cacheatom *hash_prev;
+	struct cacheatom *line_next;
+	struct cacheatom *line_prev;
+	int devno;
+	int lbn;
+	int state;
+	struct cacheatom *lru_next;
+	struct cacheatom *lru_prev;
+	cache_lockholders *readlocks;
+	ioreq_event *writelock;
+	cache_lockwaiters *lockwaiters;
+	int busno;
+	int slotno;
 } cache_atom;
 
 struct cache_mem_event {
-   double time;
-   int type;
-   struct cache_mem_event *next;
-   struct cache_mem_event *prev;
-   void (**donefunc)(void *,ioreq_event *);	/* Function to call when complete */
-   void *doneparam;		/* parameter for donefunc */
-   int flags;
-   ioreq_event *req;
-   int accblkno;		/* start blkno of waited for ioacc */
-   cache_atom *cleaned;
-   cache_atom *lineprev;
-   int locktype;
-   int lockstop;
-   int allocstop;
-   struct cache_mem_event *waitees;
-   int validpoint;
+	double time;
+	int type;
+	struct cache_mem_event *next;
+	struct cache_mem_event *prev;
+	void (**donefunc)(void *,ioreq_event *);	/* Function to call when complete */
+	void *doneparam;		/* parameter for donefunc */
+	int flags;
+	ioreq_event *req;
+	int accblkno;		/* start blkno of waited for ioacc */
+	cache_atom *cleaned;
+	cache_atom *lineprev;
+	int locktype;
+	int lockstop;
+	int allocstop;
+	struct cache_mem_event *waitees;
+	int validpoint;
 };
 
 
-struct cache_mem_stats { 
-   int reads;
-   int readatoms;
-   int readhitsfull;
-   int readhitsfront;
-   int readhitsback;
-   int readhitsmiddle;
-   int readmisses;
-   int fillreads;
-   int fillreadatoms;
-   int writes;
-   int writeatoms;
-   int writehitsclean;
-   int writehitsdirty;
-   int writemisses;
-   int writeinducedfills;
-   int writeinducedfillatoms;
-   int destagewrites;
-   int destagewriteatoms;
-   int getblockreadstarts;
-   int getblockreaddones;
-   int getblockwritestarts;
-   int getblockwritedones;
-   int freeblockcleans;
-   int freeblockdirtys;
+struct cache_mem_stats {
+	int reads;
+	int readatoms;
+	int readhitsfull;
+	int readhitsfront;
+	int readhitsback;
+	int readhitsmiddle;
+	int readmisses;
+	int fillreads;
+	int fillreadatoms;
+	int writes;
+	int writeatoms;
+	int writehitsclean;
+	int writehitsdirty;
+	int writemisses;
+	int writeinducedfills;
+	int writeinducedfillatoms;
+	int destagewrites;
+	int destagewriteatoms;
+	int getblockreadstarts;
+	int getblockreaddones;
+	int getblockwritestarts;
+	int getblockwritedones;
+	int freeblockcleans;
+	int freeblockdirtys;
 };
 
 typedef struct {                    /* per-set structure for set-associative */
-   cache_atom *freelist;
-   int space;
-   cache_atom *lru[CACHE_MAXSEGMENTS];
-   int numactive[CACHE_MAXSEGMENTS];
-   int maxactive[CACHE_MAXSEGMENTS];
+	cache_atom *freelist;
+	int space;
+	cache_atom *lru[CACHE_MAXSEGMENTS];
+	int numactive[CACHE_MAXSEGMENTS];
+	int maxactive[CACHE_MAXSEGMENTS];
 } cache_mapentry;
 
 struct cache_mem {
-  struct cache_if hdr;
-   cache_atom *hash[CACHE_HASHSIZE];
-   void (**issuefunc)(void *,ioreq_event *);	/* to issue a disk access    */
-   void *issueparam;				/* first param for issuefunc */
-   struct ioq * (**queuefind)(void *,int);	/* to get ioqueue ptr for dev*/
-   void *queuefindparam;			/* first param for queuefind */
-   //void (**wakeupfunc)(void *, void *);	/* to re-activate slept proc */
-   void (**wakeupfunc)(void *, struct cacheevent *);	/* to re-activate slept proc */
-   void *wakeupparam;				/* first param for wakeupfunc */
-   int size;					/* in 512B blks  */
-   int atomsize;
-   int numsegs;					/* for S-LRU */
-   int linesize;
-   int atomsperbit;
-   int lockgran;
-   int sharedreadlocks;
-   int maxreqsize;
-   int replacepolicy;
-   int mapmask;
-   int writescheme;
-   int read_prefetch_type;
-   int writefill_prefetch_type;
-   int prefetch_waitfor_locks;
-   int startallflushes;
-   int allocatepolicy;
-   int read_line_by_line;
-   int write_line_by_line;
-   int maxscatgath;
-   int no_write_allocate;
-   int flush_policy;
-   double flush_period;
-   double flush_idledelay;
-   int flush_maxlinecluster;
-   cache_mapentry *map;
-   int linebylinetmp;
-   struct cache_mem_event *IOwaiters;
-   struct cache_mem_event *partwrites;
-   struct cache_mem_event *linewaiters;
-   struct cache_mem_stats stat;
-   char *name;
+	struct cache_if hdr;
+	cache_atom *hash[CACHE_HASHSIZE];
+	void (**issuefunc)(void *,ioreq_event *);	/* to issue a disk access    */
+	void *issueparam;				/* first param for issuefunc */
+	struct ioq * (**queuefind)(void *,int);	/* to get ioqueue ptr for dev*/
+	void *queuefindparam;			/* first param for queuefind */
+	//void (**wakeupfunc)(void *, void *);	/* to re-activate slept proc */
+	void (**wakeupfunc)(void *, struct cacheevent *);	/* to re-activate slept proc */
+	void *wakeupparam;				/* first param for wakeupfunc */
+	int size;					/* in 512B blks  */
+	int atomsize;
+	int numsegs;					/* for S-LRU */
+	int linesize;
+	int atomsperbit;
+	int lockgran;
+	int sharedreadlocks;
+	int maxreqsize;
+	int replacepolicy;
+	int mapmask;
+	int writescheme;
+	int read_prefetch_type;
+	int writefill_prefetch_type;
+	int prefetch_waitfor_locks;
+	int startallflushes;
+	int allocatepolicy;
+	int read_line_by_line;
+	int write_line_by_line;
+	int maxscatgath;
+	int no_write_allocate;
+	int flush_policy;
+	double flush_period;
+	double flush_idledelay;
+	int flush_maxlinecluster;
+	cache_mapentry *map;
+	int linebylinetmp;
+	struct cache_mem_event *IOwaiters;
+	struct cache_mem_event *partwrites;
+	struct cache_mem_event *linewaiters;
+	struct cache_mem_stats stat;
+	char *name;
 };
 
 

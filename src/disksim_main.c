@@ -60,21 +60,20 @@
 
 int main (int argc, char **argv)
 {
-  int len;
+	int len;
 
 
-  setlinebuf(stdout);
-  setlinebuf(stderr);
+	setlinebuf(stdout);
+	setlinebuf(stderr);
 
-  if(argc == 2) {
-     disksim_restore_from_checkpoint (argv[1]);
-  } 
-  else {
-    disksim = calloc(1, sizeof(struct disksim));
-    disksim_initialize_disksim_structure(disksim);
-    disksim_setup_disksim (argc, argv);
-  }
-  disksim_run_simulation ();
-  disksim_cleanup_and_printstats ();
-  exit(0);
+	if(argc == 2) {
+		disksim_restore_from_checkpoint (argv[1]);
+	} else {
+		disksim = calloc(1, sizeof(struct disksim));
+		disksim_initialize_disksim_structure(disksim);
+		disksim_setup_disksim (argc, argv);
+	}
+	disksim_run_simulation ();
+	disksim_cleanup_and_printstats ();
+	exit(0);
 }

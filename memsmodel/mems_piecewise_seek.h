@@ -52,8 +52,8 @@ find_dist_nm(double start_offset, double end_offset);
 
 double
 find_seek_time_piecewise(double start_offset_nm, double end_offset_nm,
-			 double spring_factor, double acceleration_nm_s_s,
-			 double length_nm, double velocity_nm_s);
+						 double spring_factor, double acceleration_nm_s_s,
+						 double length_nm, double velocity_nm_s);
 
 double find_dist_nm(double start_offset, double end_offset);
 #endif

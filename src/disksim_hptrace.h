@@ -58,7 +58,7 @@
  * DiskSim Storage Subsystem Simulation Environment
  * Authors: Greg Ganger, Bruce Worthington, Yale Patt
  *
- * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan 
+ * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan
  *
  * This software is being provided by the copyright holders under the
  * following license. By obtaining, using and/or copying this software,
@@ -116,7 +116,7 @@
 # advertising or publicity pertaining the software without specific,
 # written prior permission.  Permission to distribute this software
 # requires specific, written prior permission.
-# 
+#
 # Hewlett-Packard Company makes no representations about the suitability
 # of this software for any purpose. It is provided "as is" without
 # express or implied warranty.
@@ -148,10 +148,10 @@
 
 /*
 File tr_buf.h from HPL TraceAccess code
-// These buffer types are taken from HP-UX vers 8.0.  In future versions, the 
+// These buffer types are taken from HP-UX vers 8.0.  In future versions, the
 // actual bit positions of these types may change (as did in 9.0 when B_SYNC
 // became 0x00800000.  So these are what the SRT files use as the flags.
-// The only trick comes in converting KI files to srt files and knowing that 
+// The only trick comes in converting KI files to srt files and knowing that
 // the B_SYNC in the particular version of HP-UX that was traced needs to map
 // to this value of B_SYNC.
 
@@ -197,26 +197,26 @@ File tr_buf.h from HPL TraceAccess code
 #define HPL_NETBUF        0x04000000    /* buffer in network pool */
 
 typedef struct {
-   u_int32_t size;    /* record size */
-   u_int32_t id;      /* record type */
-   u_int32_t sec;     /* time of     */
-   u_int32_t usec;    /*       event */
+	u_int32_t size;    /* record size */
+	u_int32_t id;      /* record type */
+	u_int32_t sec;     /* time of     */
+	u_int32_t usec;    /*       event */
 } hpl_record_id;
 
 typedef struct {
-   hpl_record_id   rec_id;
-   u_int32_t       start;      /* Start time of I/O in usec from enqueue time */
-   u_int32_t       stop;       /* Stop time of I/O in usec from enqueue time */
-   u_int32_t       size;       /* size in bytes */
-   u_int32_t       sectno;     /* sector number on disk addressed */
-   u_int32_t       devno;      /* device addressed */
-   u_int32_t       drivertype; /* type of driver used by this disk */
-   u_int32_t       cylno;      /* cylinder number of the access */
-   u_int32_t       ioflags;    /* I/O flags for the device */
-   u_int32_t       info;       /* information about where this I/O originated */
-   u_int32_t       queuelen;   /* length of the queue */
-   u_int32_t       susflags;   /* flags indicating error (for suspectIO) */
-   char space[4];
+	hpl_record_id   rec_id;
+	u_int32_t       start;      /* Start time of I/O in usec from enqueue time */
+	u_int32_t       stop;       /* Stop time of I/O in usec from enqueue time */
+	u_int32_t       size;       /* size in bytes */
+	u_int32_t       sectno;     /* sector number on disk addressed */
+	u_int32_t       devno;      /* device addressed */
+	u_int32_t       drivertype; /* type of driver used by this disk */
+	u_int32_t       cylno;      /* cylinder number of the access */
+	u_int32_t       ioflags;    /* I/O flags for the device */
+	u_int32_t       info;       /* information about where this I/O originated */
+	u_int32_t       queuelen;   /* length of the queue */
+	u_int32_t       susflags;   /* flags indicating error (for suspectIO) */
+	char space[4];
 } hpl_short_iorec_ki;
 
 #endif /* HPTRACE_H */

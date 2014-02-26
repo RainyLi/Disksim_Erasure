@@ -24,50 +24,50 @@
  * MELLON UNIVERSITY DOES NOT MAKE ANY WARRANTY OF ANY KIND WITH
  * RESPECT TO FREEDOM FROM PATENT, TRADEMARK, OR COPYRIGHT
  * INFRINGEMENT.  COPYRIGHT HOLDERS WILL BEAR NO LIABILITY FOR ANY USE
- * OF THIS SOFTWARE OR DOCUMENTATION.  
+ * OF THIS SOFTWARE OR DOCUMENTATION.
  */
 
 
 #include "test.h"
 
-void testsUsage(void) {
-  fprintf(stderr, "usage: layout_simple_0t <model>\n");
+void testsUsage(void)
+{
+	fprintf(stderr, "usage: layout_simple_0t <model>\n");
 }
 
 int
 layout_test_simple_0t(struct dm_disk_if *d)
 {
-  int bad = 0;
-  int lbn1, lbn2, rc;
-  struct dm_pbn pbn;
+	int bad = 0;
+	int lbn1, lbn2, rc;
+	struct dm_pbn pbn;
 
-  for(lbn1 = 0; lbn1 < d->dm_sectors; lbn1++) {
-    rc = d->layout->dm_translate_ltop_0t(d, lbn1, MAP_FULL, &pbn, 0);
-    if(rc == DM_NX) {
-      bad++;
-      continue;
-    }
+	for(lbn1 = 0; lbn1 < d->dm_sectors; lbn1++) {
+		rc = d->layout->dm_translate_ltop_0t(d, lbn1, MAP_FULL, &pbn, 0);
+		if(rc == DM_NX) {
+			bad++;
+			continue;
+		}
 
-    lbn2 = d->layout->dm_translate_ptol_0t(d, &pbn, 0);
-    if(lbn2 < 0) {
-      bad++;
-      continue;
-    }
-    else if(lbn2 != lbn1) {
-      printf("*** %d -> (%d,%d,%d) -> %d\n",
-	     lbn1, pbn.cyl, pbn.head, pbn.sector, lbn2);
-      bad++;
-      continue;
-    }
-   
-  }
+		lbn2 = d->layout->dm_translate_ptol_0t(d, &pbn, 0);
+		if(lbn2 < 0) {
+			bad++;
+			continue;
+		} else if(lbn2 != lbn1) {
+			printf("*** %d -> (%d,%d,%d) -> %d\n",
+				   lbn1, pbn.cyl, pbn.head, pbn.sector, lbn2);
+			bad++;
+			continue;
+		}
 
-  return bad;
+	}
+
+	return bad;
 }
 
 int minargs = 0;
 
 int doTests(struct dm_disk_if *d, int argc, char **argv)
 {
-  return layout_test_simple_0t(d);
+	return layout_test_simple_0t(d);
 }

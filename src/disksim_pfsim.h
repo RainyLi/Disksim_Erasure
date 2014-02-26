@@ -58,7 +58,7 @@
  * DiskSim Storage Subsystem Simulation Environment
  * Authors: Greg Ganger, Bruce Worthington, Yale Patt
  *
- * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan 
+ * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan
  *
  * This software is being provided by the copyright holders under the
  * following license. By obtaining, using and/or copying this software,
@@ -146,142 +146,142 @@
 #define PF_IO_WAKEUP_TIME		0.0
 
 typedef struct process {
-   int pid;
-   int idler;
-   u_int pfflags;
-   u_int stat;
-   u_int runcpu;
-   u_int flags;
-   void *chan;
-   int  ios;
-   int  ioreads;
-   int  cswitches;
-   int	active;
-   int  sleeps;
-   int  iosleep;
-   int  iosleeps;
-   double runiosleep;
-   double lastsleep;
-   double runsleep;
-   double runtime;
-   double falseidletime;
-   double lasteventtime;
-   statgen readtimelimitstats;
-   statgen writetimelimitstats;
-   statgen readmisslimitstats;
-   statgen writemisslimitstats;
-   ioreq_event *ioreq;
-   event *eventlist;
-   char *space;
-   struct process *livelist;
-   struct process *link;
-   struct process *next;
+	int pid;
+	int idler;
+	u_int pfflags;
+	u_int stat;
+	u_int runcpu;
+	u_int flags;
+	void *chan;
+	int  ios;
+	int  ioreads;
+	int  cswitches;
+	int	active;
+	int  sleeps;
+	int  iosleep;
+	int  iosleeps;
+	double runiosleep;
+	double lastsleep;
+	double runsleep;
+	double runtime;
+	double falseidletime;
+	double lasteventtime;
+	statgen readtimelimitstats;
+	statgen writetimelimitstats;
+	statgen readmisslimitstats;
+	statgen writemisslimitstats;
+	ioreq_event *ioreq;
+	event *eventlist;
+	char *space;
+	struct process *livelist;
+	struct process *link;
+	struct process *next;
 } process;
 
 typedef struct {
-   double      time;
-   int         type;
-   event      *next;
-   event      *prev;
-   int         cpunum;
-   process    *procp;
-   intr_event *intrp;
+	double      time;
+	int         type;
+	event      *next;
+	event      *prev;
+	int         cpunum;
+	process    *procp;
+	intr_event *intrp;
 } cpu_event;
 
 typedef struct {
-   double     scale;
-   int        state;
-   cpu_event *current;
-   int        runpreempt;
-   event     *idleevents;
-   double     idlestart;
-   double     idletime;
-   double     falseidletime;
-   double     idleworktime;
-   int        intrs;
-   int        iointrs;
-   int        clockintrs;
-   int        tickintrs;
-   int        extintrs;
-   double     runintrtime;
-   double     runiointrtime;
-   double     runclockintrtime;
-   double     runtickintrtime;
-   double     runextintrtime;
-   int        cswitches;
-   double     runswitchtime;
+	double     scale;
+	int        state;
+	cpu_event *current;
+	int        runpreempt;
+	event     *idleevents;
+	double     idlestart;
+	double     idletime;
+	double     falseidletime;
+	double     idleworktime;
+	int        intrs;
+	int        iointrs;
+	int        clockintrs;
+	int        tickintrs;
+	int        extintrs;
+	double     runintrtime;
+	double     runiointrtime;
+	double     runclockintrtime;
+	double     runtickintrtime;
+	double     runextintrtime;
+	int        cswitches;
+	double     runswitchtime;
 } cpu;
 
 typedef struct {
-   double time;
-   int    type;
-   event * next;
-   event * prev;
-   int    vector;
+	double time;
+	int    type;
+	event * next;
+	event * prev;
+	int    vector;
 } intend_event;
 
 typedef struct {
-   double time;
-   int    type;
-   event * next;
-   event * prev;
-   process *newprocp;
+	double time;
+	int    type;
+	event * next;
+	event * prev;
+	process *newprocp;
 } cswitch_event;
 
 typedef struct {
-   double time;
-   int    type;
-   event * next;
-   event * prev;
+	double time;
+	int    type;
+	event * next;
+	event * prev;
 } idleloop_event;
 
 typedef struct {
-   double time;
-   int    type;
-   event * next;
-   event * prev;
-   int    info;
-   void  *chan;
-   int    iosleep;
-   int    sleeptime;
+	double time;
+	int    type;
+	event * next;
+	event * prev;
+	int    info;
+	void  *chan;
+	int    iosleep;
+	int    sleeptime;
 } sleep_event;
 
 typedef struct {
-   double time;
-   int    type;
-   event * next;
-   event * prev;
-   int    info;
-   void  *chan;
-   int    dropit;
+	double time;
+	int    type;
+	event * next;
+	event * prev;
+	int    info;
+	void  *chan;
+	int    dropit;
 } wakeup_event;
 
 typedef struct pf_info {
-   /* stuff originating in disksim_pfsim.c */
-   cpu *cpus;
-   int  numcpus;
-   process *process_livelist;
-   process *extra_process_q;
-   int  extra_process_qlen;
-   int  curlbolt;
-   ioreq_event *pendiolist;
-   ioreq_event *doneiolist;
-   process *synthlist;
-   double  pfscale;
-   double lastuser;
-   double idlein;
-   int  idlereset;
-   int pf_printhack;
-   statgen timecritrespstats;
-   statgen timelimitrespstats;
-   statgen timenoncritrespstats;
-   int pf_print_perprocessstats;
-   int pf_print_percpustats;
-   int pf_print_intrstats;
-   int pf_print_sleepstats;
-   /* stuff originating in disksim_pfdisp.c */
-   process *pf_dispq;
-   process *sleepqueue;
+	/* stuff originating in disksim_pfsim.c */
+	cpu *cpus;
+	int  numcpus;
+	process *process_livelist;
+	process *extra_process_q;
+	int  extra_process_qlen;
+	int  curlbolt;
+	ioreq_event *pendiolist;
+	ioreq_event *doneiolist;
+	process *synthlist;
+	double  pfscale;
+	double lastuser;
+	double idlein;
+	int  idlereset;
+	int pf_printhack;
+	statgen timecritrespstats;
+	statgen timelimitrespstats;
+	statgen timenoncritrespstats;
+	int pf_print_perprocessstats;
+	int pf_print_percpustats;
+	int pf_print_intrstats;
+	int pf_print_sleepstats;
+	/* stuff originating in disksim_pfdisp.c */
+	process *pf_dispq;
+	process *sleepqueue;
 } pf_info_t;
 
 

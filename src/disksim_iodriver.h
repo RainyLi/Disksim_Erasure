@@ -58,7 +58,7 @@
  * DiskSim Storage Subsystem Simulation Environment
  * Authors: Greg Ganger, Bruce Worthington, Yale Patt
  *
- * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan 
+ * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan
  *
  * This software is being provided by the copyright holders under the
  * following license. By obtaining, using and/or copying this software,
@@ -142,42 +142,42 @@
 
 
 typedef struct iodriver {
-  int		type;
-  int		usequeue;
-  int		numoutbuses;
-  int		outbus;
-  double	consttime;     /* Use value if positive, or traced if neg. */
-  double	scale;
-  int		numdevices;
-  int		numctlrs;
-  struct ioq *	queue;
-  device *	devices;
-  ctlr *	ctlrs;
-  char        *name;
+	int		type;
+	int		usequeue;
+	int		numoutbuses;
+	int		outbus;
+	double	consttime;     /* Use value if positive, or traced if neg. */
+	double	scale;
+	int		numdevices;
+	int		numctlrs;
+	struct ioq *	queue;
+	device *	devices;
+	ctlr *	ctlrs;
+	char        *name;
 } iodriver;
 
 
 typedef struct iodriver_info {
-   int numiodrivers;
-   iodriver **iodrivers;
-   int iodrivers_len;
-   int numsysorgs;
-   struct logorg **sysorgs;
-   int sysorgs_len;
-   struct ioq *overallqueue;
-   int drv_printsizestats;
-   int drv_printlocalitystats;
-   int drv_printblockingstats;
-   int drv_printinterferestats;
-   int drv_printqueuestats;
-   int drv_printcritstats;
-   int drv_printidlestats;
-   int drv_printintarrstats;
-   int drv_printstreakstats;
-   int drv_printstampstats;
-   int drv_printperdiskstats;
-   statgen emptyqueuestats;
-   statgen initiatenextstats;
+	int numiodrivers;
+	iodriver **iodrivers;
+	int iodrivers_len;
+	int numsysorgs;
+	struct logorg **sysorgs;
+	int sysorgs_len;
+	struct ioq *overallqueue;
+	int drv_printsizestats;
+	int drv_printlocalitystats;
+	int drv_printblockingstats;
+	int drv_printinterferestats;
+	int drv_printqueuestats;
+	int drv_printcritstats;
+	int drv_printidlestats;
+	int drv_printintarrstats;
+	int drv_printstreakstats;
+	int drv_printstampstats;
+	int drv_printperdiskstats;
+	statgen emptyqueuestats;
+	statgen initiatenextstats;
 } iodriver_info_t;
 
 

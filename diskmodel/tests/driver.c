@@ -24,7 +24,7 @@
  * MELLON UNIVERSITY DOES NOT MAKE ANY WARRANTY OF ANY KIND WITH
  * RESPECT TO FREEDOM FROM PATENT, TRADEMARK, OR COPYRIGHT
  * INFRINGEMENT.  COPYRIGHT HOLDERS WILL BEAR NO LIABILITY FOR ANY USE
- * OF THIS SOFTWARE OR DOCUMENTATION.  
+ * OF THIS SOFTWARE OR DOCUMENTATION.
  */
 
 #include <diskmodel/dm.h>
@@ -46,109 +46,114 @@ extern int minargs;
 
 
 struct timingbucket {
-  double tot;
-  int n;
-  double start;
-  char *name;
+	double tot;
+	int n;
+	double start;
+	char *name;
 };
 
 #define MAXBUCKETS 10
 struct timingbucket buckets[MAXBUCKETS];
 int buckets_len = 0;
 
-int addBucket(char *name) {
-  struct timingbucket *b;
-  ddbg_assert(buckets_len+1 < MAXBUCKETS);
-  b = &buckets[buckets_len];
-  b->name = name;
-  b->tot = 0.0;
-  b->n = 0;
+int addBucket(char *name)
+{
+	struct timingbucket *b;
+	ddbg_assert(buckets_len+1 < MAXBUCKETS);
+	b = &buckets[buckets_len];
+	b->name = name;
+	b->tot = 0.0;
+	b->n = 0;
 
-  buckets_len++;
+	buckets_len++;
 }
 
-double tv2d(struct timeval *tv) {
-  double result = tv->tv_usec;
-  result += tv->tv_sec * 1000000;
-  return result;
+double tv2d(struct timeval *tv)
+{
+	double result = tv->tv_usec;
+	result += tv->tv_sec * 1000000;
+	return result;
 }
 
-double now(void) {
-  struct timeval tv;
-  gettimeofday(&tv, 0);
-  return tv2d(&tv);
+double now(void)
+{
+	struct timeval tv;
+	gettimeofday(&tv, 0);
+	return tv2d(&tv);
 }
 
 // one outstanding time per bucket
-int startClock(int b) {
-  buckets[b].start = now();
-}
-
-int stopClock(int b) {
-  buckets[b].tot += now() - buckets[b].start;
-  buckets[b].n++;
-}
-
-int printTimes(void) {
-  int i;
-  for(i = 0; i < buckets_len; i++) {
-    struct timingbucket *b = &buckets[i];
-    printf("%s: n %d mean %f\n", b->name, b->n, b->tot / b->n);
-  }
-}
-
-int main(int argc, char **argv) 
+int startClock(int b)
 {
-  int c;
-  int badct;
-  FILE *modelfile;
-  struct dm_disk_if *disk;
-  char *modelname;
-  
-  ddbg_assert_setfile(stderr);
+	buckets[b].start = now();
+}
 
-  if(argc < (minargs+2)) {
-    testsUsage();
-    exit(1);
-  }
+int stopClock(int b)
+{
+	buckets[b].tot += now() - buckets[b].start;
+	buckets[b].n++;
+}
 
-  modelfile = fopen(argv[1], "r");
-  if(!modelfile) {
-    fprintf(stderr, "*** error: failed to open \"%s\"\n", argv[1]);
-  }
+int printTimes(void)
+{
+	int i;
+	for(i = 0; i < buckets_len; i++) {
+		struct timingbucket *b = &buckets[i];
+		printf("%s: n %d mean %f\n", b->name, b->n, b->tot / b->n);
+	}
+}
 
-  for(c = 0; c <= DM_MAX_MODULE; c++) {
-    struct lp_mod *mod;
+int main(int argc, char **argv)
+{
+	int c;
+	int badct;
+	FILE *modelfile;
+	struct dm_disk_if *disk;
+	char *modelname;
 
-    if(c == DM_MOD_DISK) {
-      mod = dm_mods[c];
-    }
-    else {
-      mod = dm_mods[c];
-    }
+	ddbg_assert_setfile(stderr);
 
-    lp_register_module(mod);
-  }
+	if(argc < (minargs+2)) {
+		testsUsage();
+		exit(1);
+	}
 
-  lp_init_typetbl();
-  lp_loadfile(modelfile, 0, 0, argv[1], 0, 0);
-  fclose(modelfile);
-  
-  modelname = argc >= 3 ? argv[2] : 0;
-  
-  disk = (struct dm_disk_if *)lp_instantiate("foo", modelname);
-  //  printf("*** got a dm_disk with %d sectors!\n", disk->dm_sectors);
+	modelfile = fopen(argv[1], "r");
+	if(!modelfile) {
+		fprintf(stderr, "*** error: failed to open \"%s\"\n", argv[1]);
+	}
 
-  printf("*** %s starting\n", argv[0]);
+	for(c = 0; c <= DM_MAX_MODULE; c++) {
+		struct lp_mod *mod;
 
-  badct = doTests(disk, argc, argv);
+		if(c == DM_MOD_DISK) {
+			mod = dm_mods[c];
+		} else {
+			mod = dm_mods[c];
+		}
 
-  printf("*** %s finished: %d bad\n", argv[0], badct);
+		lp_register_module(mod);
+	}
+
+	lp_init_typetbl();
+	lp_loadfile(modelfile, 0, 0, argv[1], 0, 0);
+	fclose(modelfile);
+
+	modelname = argc >= 3 ? argv[2] : 0;
+
+	disk = (struct dm_disk_if *)lp_instantiate("foo", modelname);
+	//  printf("*** got a dm_disk with %d sectors!\n", disk->dm_sectors);
+
+	printf("*** %s starting\n", argv[0]);
+
+	badct = doTests(disk, argc, argv);
+
+	printf("*** %s finished: %d bad\n", argv[0], badct);
 
 
-  printTimes();
+	printTimes();
 
-  exit(0);
-  // NOTREACHED
-  return 0;
+	exit(0);
+	// NOTREACHED
+	return 0;
 }

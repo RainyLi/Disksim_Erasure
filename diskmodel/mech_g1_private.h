@@ -24,7 +24,7 @@
  * MELLON UNIVERSITY DOES NOT MAKE ANY WARRANTY OF ANY KIND WITH
  * RESPECT TO FREEDOM FROM PATENT, TRADEMARK, OR COPYRIGHT
  * INFRINGEMENT.  COPYRIGHT HOLDERS WILL BEAR NO LIABILITY FOR ANY USE
- * OF THIS SOFTWARE OR DOCUMENTATION.  
+ * OF THIS SOFTWARE OR DOCUMENTATION.
  */
 
 // g1 layout seek function prototypes.
@@ -33,41 +33,41 @@
 #define _DM_MECH_G1_PRIVATE_H
 
 
-dm_time_t 
+dm_time_t
 dm_mech_g1_seek_const(struct dm_disk_if *d,
-		      struct dm_mech_state *begin,
-		      struct dm_mech_state *end,
-		      int rw);
+					  struct dm_mech_state *begin,
+					  struct dm_mech_state *end,
+					  int rw);
 
-dm_time_t 
+dm_time_t
 dm_mech_g1_seek_3pt_curve(struct dm_disk_if *d,
-			  struct dm_mech_state *begin,
-			  struct dm_mech_state *end,
-			  int rw);
+						  struct dm_mech_state *begin,
+						  struct dm_mech_state *end,
+						  int rw);
 
-dm_time_t 
+dm_time_t
 dm_mech_g1_seek_3pt_line(struct dm_disk_if *d,
-			 struct dm_mech_state *begin,
-			 struct dm_mech_state *end,
-			 int rw);
+						 struct dm_mech_state *begin,
+						 struct dm_mech_state *end,
+						 int rw);
 
-dm_time_t 
+dm_time_t
 dm_mech_g1_seek_hpl(struct dm_disk_if *d,
-		    struct dm_mech_state *begin,
-		    struct dm_mech_state *end,
-		    int rw);
+					struct dm_mech_state *begin,
+					struct dm_mech_state *end,
+					int rw);
 
-dm_time_t 
-dm_mech_g1_seek_1st10_plus_hpl(struct dm_disk_if *d, 
-			       struct dm_mech_state *begin,
-			       struct dm_mech_state *end,
-			       int rw);
+dm_time_t
+dm_mech_g1_seek_1st10_plus_hpl(struct dm_disk_if *d,
+							   struct dm_mech_state *begin,
+							   struct dm_mech_state *end,
+							   int rw);
 
-dm_time_t 
+dm_time_t
 dm_mech_g1_seek_extracted(struct dm_disk_if *d,
-			  struct dm_mech_state *begin,
-			  struct dm_mech_state *end,
-			  int rw);
+						  struct dm_mech_state *begin,
+						  struct dm_mech_state *end,
+						  int rw);
 
 
 extern dm_mech_g1_seekfn dm_mech_g1_seekfns[];

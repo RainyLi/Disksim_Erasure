@@ -58,7 +58,7 @@
  * DiskSim Storage Subsystem Simulation Environment
  * Authors: Greg Ganger, Bruce Worthington, Yale Patt
  *
- * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan 
+ * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan
  *
  * This software is being provided by the copyright holders under the
  * following license. By obtaining, using and/or copying this software,
@@ -128,9 +128,9 @@
 
 #define LAYOUT_NORMAL           0
 #define LAYOUT_CYLSWITCHONSURF1 1   /* cyl. switches stay on same surface  */
-                                    /* -- first cyl of each zone is normal */
+/* -- first cyl of each zone is normal */
 #define LAYOUT_CYLSWITCHONSURF2 2   /* cyl. switches stay on same surface  */
-                                    /* -- all even-#d cyls are normal      */
+/* -- all even-#d cyls are normal      */
 #define LAYOUT_SERPENTINE       3   /* planning for the future */
 #define LAYOUT_RAWFILE          4   /* the layout is in block-to-block file*/
 #define LAYOUT_MAX              4
@@ -167,54 +167,54 @@ int disk_translate_pbn_to_lbn (struct disk *currdisk, struct band *currband, int
 
 double disk_map_pbn_skew (struct disk *currdisk, struct band *currband, int cylno, int surfaceno);
 
-void disk_get_lbn_boundaries_for_track (struct disk *currdisk, 
-					struct band *currband, 
-					int cylno, 
-					int surfaceno, 
-					int *startptr, 
-					int *endptr);
+void disk_get_lbn_boundaries_for_track (struct disk *currdisk,
+										struct band *currband,
+										int cylno,
+										int surfaceno,
+										int *startptr,
+										int *endptr);
 
 void disk_check_numblocks (struct disk *currdisk);
 
 int disk_compute_blksinband (struct disk *currdisk, struct band *currband);
 
 
-int disk_pbn_to_lbn_sectpertrackspare(struct disk *currdisk, 
-				      struct band *currband,
-				      int cylno, int surfaceno,
-				      int blkno);
+int disk_pbn_to_lbn_sectpertrackspare(struct disk *currdisk,
+									  struct band *currband,
+									  int cylno, int surfaceno,
+									  int blkno);
 
-int disk_pbn_to_lbn_sectpercylspare(struct disk *currdisk, 
-				    struct band *currband,
-				    int cylno, int surfaceno,
-				    int blkno);
+int disk_pbn_to_lbn_sectpercylspare(struct disk *currdisk,
+									struct band *currband,
+									int cylno, int surfaceno,
+									int blkno);
 
-int disk_pbn_to_lbn_sectperrangespare(struct disk *currdisk, 
-				      struct band *currband,
-				      int cylno, int surfaceno,
-				      int blkno);
+int disk_pbn_to_lbn_sectperrangespare(struct disk *currdisk,
+									  struct band *currband,
+									  int cylno, int surfaceno,
+									  int blkno);
 
-int disk_pbn_to_lbn_sectperzonespare(struct disk *currdisk, 
-				     struct band *currband,
-				     int cylno, int surfaceno,
-				     int blkno);
+int disk_pbn_to_lbn_sectperzonespare(struct disk *currdisk,
+									 struct band *currband,
+									 int cylno, int surfaceno,
+									 int blkno);
 
-int disk_pbn_to_lbn_trackspare(struct disk *currdisk, 
-			       struct band *currband,
-			       int cylno, int surfaceno, 
-			       int blkno);
+int disk_pbn_to_lbn_trackspare(struct disk *currdisk,
+							   struct band *currband,
+							   int cylno, int surfaceno,
+							   int blkno);
 
 
-int disk_pbn_to_lbn_nospare(struct disk *currdisk, 
-			       struct band *currband,
-			       int cylno, int surfaceno, 
-			       int blkno);
+int disk_pbn_to_lbn_nospare(struct disk *currdisk,
+							struct band *currband,
+							int cylno, int surfaceno,
+							int blkno);
 
-int disk_pbn_to_lbn_rawlayout(struct disk *currdisk, 
-			      struct band *currband, 
-			      int cylno,
-			      int surfaceno, 
-			      int blkno);
+int disk_pbn_to_lbn_rawlayout(struct disk *currdisk,
+							  struct band *currband,
+							  int cylno,
+							  int surfaceno,
+							  int blkno);
 
 
 

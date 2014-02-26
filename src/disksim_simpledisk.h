@@ -104,44 +104,44 @@ extern struct device_header simpledisk_hdr_initializer;
 
 
 typedef struct {
-   statgen acctimestats;
-   double  requestedbus;
-   double  waitingforbus;
-   int     numbuswaits;
+	statgen acctimestats;
+	double  requestedbus;
+	double  waitingforbus;
+	int     numbuswaits;
 } simpledisk_stat_t;
 
 
 typedef struct simpledisk {
-  struct device_header hdr;
-   double acctime;
-   double overhead;
-   double bus_transaction_latency;
-   int numblocks;
-   int devno;
-   int inited;
-   struct ioq *queue;
-   int media_busy;
-   int reconnect_reason;
+	struct device_header hdr;
+	double acctime;
+	double overhead;
+	double bus_transaction_latency;
+	int numblocks;
+	int devno;
+	int inited;
+	struct ioq *queue;
+	int media_busy;
+	int reconnect_reason;
 
-   double blktranstime;
-   int maxqlen;
-   int busowned;
-   ioreq_event *buswait;
-   int neverdisconnect;
-   int numinbuses;
-   int inbuses[MAXINBUSES];
-   int depth[MAXINBUSES];
-   int slotno[MAXINBUSES];
+	double blktranstime;
+	int maxqlen;
+	int busowned;
+	ioreq_event *buswait;
+	int neverdisconnect;
+	int numinbuses;
+	int inbuses[MAXINBUSES];
+	int depth[MAXINBUSES];
+	int slotno[MAXINBUSES];
 
-   int printstats;
-   simpledisk_stat_t stat;
+	int printstats;
+	simpledisk_stat_t stat;
 } simpledisk_t;
 
 
 typedef struct simpledisk_info {
-   struct simpledisk **simpledisks;
-   int numsimpledisks;
-  int simpledisks_len; /* allocated size of simpledisks */
+	struct simpledisk **simpledisks;
+	int numsimpledisks;
+	int simpledisks_len; /* allocated size of simpledisks */
 } simplediskinfo_t;
 
 

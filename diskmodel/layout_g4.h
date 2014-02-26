@@ -24,7 +24,7 @@
  * MELLON UNIVERSITY DOES NOT MAKE ANY WARRANTY OF ANY KIND WITH
  * RESPECT TO FREEDOM FROM PATENT, TRADEMARK, OR COPYRIGHT
  * INFRINGEMENT.  COPYRIGHT HOLDERS WILL BEAR NO LIABILITY FOR ANY USE
- * OF THIS SOFTWARE OR DOCUMENTATION.  
+ * OF THIS SOFTWARE OR DOCUMENTATION.
  */
 
 #ifndef _DM_LAYOUT_G4_H
@@ -36,102 +36,106 @@ struct pat;
 struct rect;
 
 struct slip {
-  int off;
-  int count;  // positive for slips, negative for spares
+	int off;
+	int count;  // positive for slips, negative for spares
 };
 
 // Integrate skew data with ltop tree or have a separate 0l0t tree?
 // For things that reset to zero periodically, etc, this may save
-// copies of structures or more insts... "fake zones" again ... 
+// copies of structures or more insts... "fake zones" again ...
 
 
 struct remap {
-  int off;
-  int count;
-  struct dm_pbn dest;
+	int off;
+	int count;
+	struct dm_pbn dest;
 
-  // Have to put phys spt here too.  If we had a separate 0l->0t tree...
-  int spt;
-  dm_angle_t sw;  // sector_width
+	// Have to put phys spt here too.  If we had a separate 0l->0t tree...
+	int spt;
+	dm_angle_t sw;  // sector_width
 };
 
 struct track;
 struct idx;
 
 typedef enum { IDX, TRACK } g4_node_t;
-union g4_node { struct track *t; struct idx *i; void *x; };
+union g4_node {
+	struct track *t;
+	struct idx *i;
+	void *x;
+};
 
 struct track {
-  int low;
-  int high;
+	int low;
+	int high;
 
-  int spt;
-  dm_angle_t sw;  // sector_width
+	int spt;
+	dm_angle_t sw;  // sector_width
 };
 
 
 struct idx_ent {
 
-  // Offset
+	// Offset
 
-  int lbn;      // absolute if top-level, relative otherwise
-  int cyl;      // ditto
+	int lbn;      // absolute if top-level, relative otherwise
+	int cyl;      // ditto
 
-  // skew to the start of each inst relative to the start of the
-  // enclosing pat.
-  dm_angle_t off;
+	// skew to the start of each inst relative to the start of the
+	// enclosing pat.
+	dm_angle_t off;
 
-  // Child Length
+	// Child Length
 
-  // if this is RLE'd, the offset of the next inst relative to the
-  // start of this one.  I don't think we need arunlen because
-  // we never need to know the number of radians that a thing covers...
-  int len;      
-  int cyllen;
-  dm_angle_t alen; 
-
-
-  // Run Length -- indicates RLE if runlen > len, etc
-
-  int runlen;
-  int cylrunlen;  
+	// if this is RLE'd, the offset of the next inst relative to the
+	// start of this one.  I don't think we need arunlen because
+	// we never need to know the number of radians that a thing covers...
+	int len;
+	int cyllen;
+	dm_angle_t alen;
 
 
-  g4_node_t childtype;
-  union g4_node child;
-  int head; // only for childtype==TRACK
+	// Run Length -- indicates RLE if runlen > len, etc
+
+	int runlen;
+	int cylrunlen;
+
+
+	g4_node_t childtype;
+	union g4_node child;
+	int head; // only for childtype==TRACK
 };
 
 
 struct idx {
-  // invariant (?) .. all of the ents children are the same type --
-  // IDX or TRACK
-  struct idx_ent *ents;
-  int ents_len;
+	// invariant (?) .. all of the ents children are the same type --
+	// IDX or TRACK
+	struct idx_ent *ents;
+	int ents_len;
 };
 
 struct dm_layout_g4 {
-  struct dm_layout_if hdr;
+	struct dm_layout_if hdr;
 
-  struct dm_disk_if *parent;
+	struct dm_disk_if *parent;
 
-  struct track *track;
-  int track_len;
+	struct track *track;
+	int track_len;
 
-  struct idx *idx;
-  int idx_len;
+	struct idx *idx;
+	int idx_len;
 
 
-  // In principle, we could have some screwy layout that the lbn order
-  // isn't the same as the cylinder order, in which case we'd have 2
-  // pat trees, one sorted by lbn and the other by cyl.
-  struct idx *root; // always an OP
+	// In principle, we could have some screwy layout that the lbn order
+	// isn't the same as the cylinder order, in which case we'd have 2
+	// pat trees, one sorted by lbn and the other by cyl.
+	struct idx *root; // always an OP
 
-  struct slip *slips;
-  int slips_len;
+	struct slip *slips;
+	int slips_len;
 
-  struct remap *remaps;
-  int remaps_len;
+	struct remap *remaps;
+	int remaps_len;
 
 
 };

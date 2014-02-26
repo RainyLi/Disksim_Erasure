@@ -24,7 +24,7 @@
  * MELLON UNIVERSITY DOES NOT MAKE ANY WARRANTY OF ANY KIND WITH
  * RESPECT TO FREEDOM FROM PATENT, TRADEMARK, OR COPYRIGHT
  * INFRINGEMENT.  COPYRIGHT HOLDERS WILL BEAR NO LIABILITY FOR ANY USE
- * OF THIS SOFTWARE OR DOCUMENTATION.  
+ * OF THIS SOFTWARE OR DOCUMENTATION.
  */
 
 #include <diskmodel/dm.h>
@@ -42,53 +42,52 @@ extern void testsUsage(void);
 extern int minargs;
 
 
-int main(int argc, char **argv) 
+int main(int argc, char **argv)
 {
-  int c;
-  FILE *modelfile;
-  struct dm_disk_if *disk;
-  char *modelname;
-  
-  ddbg_assert_setfile(stderr);
+	int c;
+	FILE *modelfile;
+	struct dm_disk_if *disk;
+	char *modelname;
 
-  if(argc < minargs) {
-    usage();
-    exit(1);
-  }
+	ddbg_assert_setfile(stderr);
 
-  modelfile = fopen(argv[1], "r");
-  if(!modelfile) {
-    fprintf(stderr, "*** error: failed to open \"%s\"\n", argv[1]);
-  }
+	if(argc < minargs) {
+		usage();
+		exit(1);
+	}
 
-  for(c = 0; c <= DM_MAX_MODULE; c++) {
-    struct lp_mod *mod;
+	modelfile = fopen(argv[1], "r");
+	if(!modelfile) {
+		fprintf(stderr, "*** error: failed to open \"%s\"\n", argv[1]);
+	}
 
-    if(c == DM_MOD_DISK) {
-      mod = dm_mods[c];
-    }
-    else {
-      mod = dm_mods[c];
-    }
+	for(c = 0; c <= DM_MAX_MODULE; c++) {
+		struct lp_mod *mod;
 
-    lp_register_module(mod);
-  }
+		if(c == DM_MOD_DISK) {
+			mod = dm_mods[c];
+		} else {
+			mod = dm_mods[c];
+		}
 
-  lp_init_typetbl();
-  lp_loadfile(modelfile, 0, 0, argv[1], 0, 0);
-  fclose(modelfile);
-  
-  modelname = argc >= 3 ? argv[2] : 0;
-  
-  disk = lp_instantiate("foo", modelname);
-  printf("*** got a dm_disk with %d sectors!\n", disk->dm_sectors);
+		lp_register_module(mod);
+	}
 
-  
-  doTests(disk, argc, argv);
+	lp_init_typetbl();
+	lp_loadfile(modelfile, 0, 0, argv[1], 0, 0);
+	fclose(modelfile);
+
+	modelname = argc >= 3 ? argv[2] : 0;
+
+	disk = lp_instantiate("foo", modelname);
+	printf("*** got a dm_disk with %d sectors!\n", disk->dm_sectors);
 
 
+	doTests(disk, argc, argv);
 
-  exit(0);
-  // NOTREACHED
-  return 0;
+
+
+	exit(0);
+	// NOTREACHED
+	return 0;
 }

@@ -25,7 +25,7 @@
  * MELLON UNIVERSITY DOES NOT MAKE ANY WARRANTY OF ANY KIND WITH
  * RESPECT TO FREEDOM FROM PATENT, TRADEMARK, OR COPYRIGHT
  * INFRINGEMENT.  COPYRIGHT HOLDERS WILL BEAR NO LIABILITY FOR ANY USE
- * OF THIS SOFTWARE OR DOCUMENTATION.  
+ * OF THIS SOFTWARE OR DOCUMENTATION.
  */
 
 
@@ -34,7 +34,7 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif 
+#endif
 
 
 // this ought to work and I can't figure out why it doesn't
@@ -70,7 +70,7 @@ typedef uint64_t dm_pbn_t;
 
 #ifdef __cplusplus
 }
-#endif 
+#endif
 
 
 #endif  // _DM_TYPES_H

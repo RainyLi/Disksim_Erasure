@@ -58,7 +58,7 @@
  * DiskSim Storage Subsystem Simulation Environment
  * Authors: Greg Ganger, Bruce Worthington, Yale Patt
  *
- * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan 
+ * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan
  *
  * This software is being provided by the copyright holders under the
  * following license. By obtaining, using and/or copying this software,
@@ -114,17 +114,17 @@ struct ioq;
 
 void  logorg_param_override (struct logorg **logorgs, int numlogorgs, char *paramname, char *paramval, int first, int last);
 
-void logorg_initialize (struct logorg **logorgs, 
-			int numlogorgs, 
-			struct ioq **queueset,
-			int printlocalitystats,
-			int printblockingstats, 
-			int printinterferestats, 
-			int printstreakstats, 
-			int printstampstats, 
-			int printintarrstats, 
-			int printidlestats, 
-			int printsizestats);
+void logorg_initialize (struct logorg **logorgs,
+						int numlogorgs,
+						struct ioq **queueset,
+						int printlocalitystats,
+						int printblockingstats,
+						int printinterferestats,
+						int printstreakstats,
+						int printstampstats,
+						int printintarrstats,
+						int printidlestats,
+						int printsizestats);
 
 void  logorg_resetstats (struct logorg **logorgs, int numlogorgs);
 void  logorg_printstats (struct logorg **logorgs, int numlogorgs, char *sourcestr);

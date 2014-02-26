@@ -38,7 +38,7 @@
 /*-=-=-=-=-=-=-=-=-=-=-=-=-  Internal Data Types  -=-=-=-=-=-=-=-=-=-=-=-=-*/
 
 typedef struct mems_internal_statistics {
-  int i;  /*  this is bogus as well...  */
+	int i;  /*  this is bogus as well...  */
 } mems_internal_statistics_t;
 
 /*-=-=-=-=-=-=-=-=-=-=-=-=-  Constants and macros  -=-=-=-=-=-=-=-=-=-=-=-=-*/
@@ -112,8 +112,8 @@ void mems_coord_t_copy(coord_t *source, coord_t *dest);
  *
  */
 
-void mems_tipsector_coord_set_t_copy (tipsector_coord_set_t *source, 
-				      tipsector_coord_set_t *dest);
+void mems_tipsector_coord_set_t_copy (tipsector_coord_set_t *source,
+									  tipsector_coord_set_t *dest);
 
 /*
  * mems_get_current_position()
@@ -143,7 +143,7 @@ coord_t *mems_get_current_position(mems_sled_t *sled);
  *          double *turnaround_number - pointer into which to return the number of turnarounds
  *
  * outputs: double - the total seek time
- * 
+ *
  * modifies: x_seek_time - if not NULL, returns the seek time in the X dimension
  *           y_seek_time - if not NULL, returns the seek time in the Y dimension
  *           turnaround_time - if not NULL, returns the turnaround time
@@ -152,9 +152,9 @@ coord_t *mems_get_current_position(mems_sled_t *sled);
  */
 
 double mems_seek_time(mems_sled_t *sled,
-		      coord_t *begin, coord_t *end,
-		      double *return_x_seek_time, double *return_y_seek_time,
-		      double *return_turnaround_time, int *return_turnaround_number);
+					  coord_t *begin, coord_t *end,
+					  double *return_x_seek_time, double *return_y_seek_time,
+					  double *return_turnaround_time, int *return_turnaround_number);
 
 /* mems_seek_time_seekcache()
  *
@@ -163,18 +163,18 @@ double mems_seek_time(mems_sled_t *sled,
  */
 
 double mems_seek_time_seekcache (mems_sled_t *sled,
-				 coord_t *begin, 
-				 coord_t *end,
-				 double *return_x_seek_time,
-				 double *return_y_seek_time,
-				 double *return_turnaround_time,
-				 int *return_turnaround_number);
+								 coord_t *begin,
+								 coord_t *end,
+								 double *return_x_seek_time,
+								 double *return_y_seek_time,
+								 double *return_turnaround_time,
+								 int *return_turnaround_number);
 
 
 double
 mems_find_precomputed_seek_time(mems_sled_t *sled,
-				double start_offset_nm, double end_offset_nm,
-				int direction);
+								double start_offset_nm, double end_offset_nm,
+								int direction);
 
 /*
  * mems_media_access_time()
@@ -191,10 +191,10 @@ mems_find_precomputed_seek_time(mems_sled_t *sled,
  */
 
 double mems_media_access_time(mems_sled_t *sled,
-			      coord_t *start, coord_t *end);
+							  coord_t *start, coord_t *end);
 
 double find_turnaround_time(double offset_nm, double velocity_nm_s, double base_accel_nm_s_s,
-			    double spring_factor, double length_nm);
+							double spring_factor, double length_nm);
 
 /*
  * mems_commit_move()
@@ -211,12 +211,12 @@ double find_turnaround_time(double offset_nm, double velocity_nm_s, double base_
  */
 
 void mems_commit_move(mems_sled_t *sled,
-		      coord_t *pos);
+					  coord_t *pos);
 
 void mems_precompute_seek_curve(mems_t *dev);
 
 double mems_find_precomputed_seek_time(mems_sled_t *sled,
-				       double start_offset_nm,
-				       double end_offset_nm,
-				       int direction);
+									   double start_offset_nm,
+									   double end_offset_nm,
+									   int direction);
 #endif

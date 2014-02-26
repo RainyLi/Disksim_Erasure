@@ -24,7 +24,7 @@
  * MELLON UNIVERSITY DOES NOT MAKE ANY WARRANTY OF ANY KIND WITH
  * RESPECT TO FREEDOM FROM PATENT, TRADEMARK, OR COPYRIGHT
  * INFRINGEMENT.  COPYRIGHT HOLDERS WILL BEAR NO LIABILITY FOR ANY USE
- * OF THIS SOFTWARE OR DOCUMENTATION.  
+ * OF THIS SOFTWARE OR DOCUMENTATION.
  */
 
 // #include <sys/types.h>
@@ -34,58 +34,56 @@
 // bucy
 // really simple; does binary search of the square root space;
 // square roots must be in [1,65536]
-uint32_t sqrt32(uint32_t x) {
-  int c;
-  uint32_t old = 0, result = 32767; 
+uint32_t sqrt32(uint32_t x)
+{
+	int c;
+	uint32_t old = 0, result = 32767;
 
-  if(x == 0) return 0;
-  else if(x == 1) return 1;
+	if(x == 0) return 0;
+	else if(x == 1) return 1;
 
-  for(c = 0; c <= 16; c++) {
-    uint32_t xsq = result * result;
-    if((xsq <= x )
-       && (((result + 1) * (result + 1)) > x))
-      {
+	for(c = 0; c <= 16; c++) {
+		uint32_t xsq = result * result;
+		if((xsq <= x )
+		   && (((result + 1) * (result + 1)) > x)) {
+			return result;
+		}
+
+		old = result;
+		if(xsq > x) {
+			result -= (1 << (15 - c));
+		} else {
+			result += (result == 65535 ? 0 : (1 << (15 - c)));
+		}
+		/*      printf("%d -> %d\n", old, result); */
+	}
+
 	return result;
-      }
-
-    old = result;
-    if(xsq > x) {
-      result -= (1 << (15 - c));
-    }
-    else {
-      result += (result == 65535 ? 0 : (1 << (15 - c)));
-    }
-/*      printf("%d -> %d\n", old, result); */
-  }
-
-  return result;
 }
 
-uint64_t sqrt64(uint64_t x) {
-  int c;
-  uint64_t old = 0, result = 2147483647; 
+uint64_t sqrt64(uint64_t x)
+{
+	int c;
+	uint64_t old = 0, result = 2147483647;
 
-  if(x == 0) return 0;
-  else if(x == 1) return 1;
+	if(x == 0) return 0;
+	else if(x == 1) return 1;
 
-  for(c = 0; c <= 32; c++) {
-    uint64_t xsq = result * result;
-    if((xsq <= x )
-       && (((result + 1) * (result + 1)) > x))
-      {
+	for(c = 0; c <= 32; c++) {
+		uint64_t xsq = result * result;
+		if((xsq <= x )
+		   && (((result + 1) * (result + 1)) > x)) {
+			return result;
+		}
+
+		old = result;
+		if(xsq > x) {
+			result -= ((uint64_t)1 << (31 - c));
+		} else {
+			result += (result == 2147483647 ? 0 : ((uint64_t)1 << (31 - c)));
+		}
+	}
+
 	return result;
-      }
-
-    old = result;
-    if(xsq > x) {
-      result -= ((uint64_t)1 << (31 - c));
-    }
-    else {
-      result += (result == 2147483647 ? 0 : ((uint64_t)1 << (31 - c)));
-    }
-  }
-
-  return result;
 }
 

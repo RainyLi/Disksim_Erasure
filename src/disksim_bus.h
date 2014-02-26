@@ -58,7 +58,7 @@
  * DiskSim Storage Subsystem Simulation Environment
  * Authors: Greg Ganger, Bruce Worthington, Yale Patt
  *
- * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan 
+ * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan
  *
  * This software is being provided by the copyright holders under the
  * following license. By obtaining, using and/or copying this software,
@@ -109,55 +109,55 @@
 
 
 typedef struct {
-   int    devtype;
-   int    devno;
-  /* eventually want to add pointer to device here to avoid table
-     lookups */
+	int    devtype;
+	int    devno;
+	/* eventually want to add pointer to device here to avoid table
+	   lookups */
 } slot;
 
 typedef struct bus_ev {
-   double time;
-   int type;
-   struct bus_ev *next;
-   struct bus_ev *prev;
-   int devno;
-   int devtype;
-   int busno;
-   int slotno;
-   ioreq_event *delayed_event;
-   double wait_start;
+	double time;
+	int type;
+	struct bus_ev *next;
+	struct bus_ev *prev;
+	int devno;
+	int devtype;
+	int busno;
+	int slotno;
+	ioreq_event *delayed_event;
+	double wait_start;
 } bus_event;
 
 
 
 typedef struct businfo {
-   struct bus **buses;
-   int buses_len; /* allocated size of buses array */
-   int numbuses;
-   int bus_printidlestats;
-   int bus_printarbwaitstats;
+	struct bus **buses;
+	int buses_len; /* allocated size of buses array */
+	int numbuses;
+	int bus_printidlestats;
+	int bus_printarbwaitstats;
 } businfo_t;
 
 #define numbuses	(disksim->businfo->numbuses)
 
 typedef struct bus {
-  int           state;
-  int           type;
-  int           arbtype;
-  bus_event    *owners;
-  double        arbtime;
-  double        readblktranstime;
-  double        writeblktranstime;
-  bus_event    *arbwinner;
-  int		printstats;
-  int           depth;
-  int           numslots;
-  slot         *slots;
-  double	lastowned;
-  double	runidletime;
-  statgen	arbwaitstats;
-  statgen	busidlestats;
-  char         *name;
+	int           state;
+	int           type;
+	int           arbtype;
+	bus_event    *owners;
+	double        arbtime;
+	double        readblktranstime;
+	double        writeblktranstime;
+	bus_event    *arbwinner;
+	int		printstats;
+	int           depth;
+	int           numslots;
+	slot         *slots;
+	double	lastowned;
+	double	runidletime;
+	statgen	arbwaitstats;
+	statgen	busidlestats;
+	char         *name;
 } bus;
 
 
@@ -186,7 +186,7 @@ void    bus_printstats (void);
 void    bus_cleanstats (void);
 struct bus *getbusbyname(char *name, int *num);
 
-int load_bus_topo(struct lp_topospec *t, int *parentctlno); 
+int load_bus_topo(struct lp_topospec *t, int *parentctlno);
 
 #endif    /* DISKSIM_BUS_H */
 

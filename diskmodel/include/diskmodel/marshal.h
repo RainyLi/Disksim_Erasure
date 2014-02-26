@@ -25,7 +25,7 @@
  * MELLON UNIVERSITY DOES NOT MAKE ANY WARRANTY OF ANY KIND WITH
  * RESPECT TO FREEDOM FROM PATENT, TRADEMARK, OR COPYRIGHT
  * INFRINGEMENT.  COPYRIGHT HOLDERS WILL BEAR NO LIABILITY FOR ANY USE
- * OF THIS SOFTWARE OR DOCUMENTATION.  
+ * OF THIS SOFTWARE OR DOCUMENTATION.
  */
 
 
@@ -34,26 +34,26 @@
 #define _DM_MARSHAL_H
 
 struct dm_marshal_hdr {
-  int len; // includes this hdr
-  int type;
-}; 
+	int len; // includes this hdr
+	int type;
+};
 
-char *dm_unmarshal_disk(struct dm_marshal_hdr *, 
-			 void **,
-			 void *parent);
+char *dm_unmarshal_disk(struct dm_marshal_hdr *,
+						void **,
+						void *parent);
 
 // returns a ptr to the next byte in the buffer
 // 2nd argument is set to the address of the unmarshaled thing
 // 3rd argument is a pointer to the structure that is the
 // "parent" of this structure so back-pointers can be fixed
 typedef char*(*dm_unmarshal_t)(struct dm_marshal_hdr *,
-				void **result,
-				void *parent);
+							   void **result,
+							   void *parent);
 
 struct dm_marshal_module {
-  dm_unmarshal_t unmarshal; /* unmarshaler */
-  void **fn_table;
-  int fn_table_len;
+	dm_unmarshal_t unmarshal; /* unmarshaler */
+	void **fn_table;
+	int fn_table_len;
 };
 
 extern struct dm_marshal_module dm_disk_marshal_mod;
@@ -72,9 +72,9 @@ void marshal_fns(void **fns, int fns_len, char *b, int typ);
 void unmarshal_fns(void **fns, int fns_len, char *b, int typ);
 
 typedef enum {
-  DM_DISK_TYP,
-  DM_LAYOUT_G1_TYP,
-  DM_MECH_G1_TYP,
+	DM_DISK_TYP,
+	DM_LAYOUT_G1_TYP,
+	DM_MECH_G1_TYP,
 } dm_marshal_type_t;
 
 #define DM_MARSHAL_MOD_MAX 3

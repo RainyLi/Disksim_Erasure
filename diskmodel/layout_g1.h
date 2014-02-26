@@ -24,7 +24,7 @@
  * MELLON UNIVERSITY DOES NOT MAKE ANY WARRANTY OF ANY KIND WITH
  * RESPECT TO FREEDOM FROM PATENT, TRADEMARK, OR COPYRIGHT
  * INFRINGEMENT.  COPYRIGHT HOLDERS WILL BEAR NO LIABILITY FOR ANY USE
- * OF THIS SOFTWARE OR DOCUMENTATION.  
+ * OF THIS SOFTWARE OR DOCUMENTATION.
  */
 
 /*
@@ -54,7 +54,7 @@
  * DiskSim Storage Subsystem Simulation Environment
  * Authors: Greg Ganger, Bruce Worthington, Yale Patt
  *
- * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan 
+ * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan
  *
  * This software is being provided by the copyright holders under the
  * following license. By obtaining, using and/or copying this software,
@@ -103,29 +103,29 @@
 
 // Disk sparing schemes (for replacing bad media)
 typedef enum {
-  NO_SPARING                           = 0,
-  TRACK_SPARING                        = 1,
-  SECTPERCYL_SPARING                   = 2,
-  SECTPERTRACK_SPARING                 = 3,
-  SECTPERCYL_SPARING_SLIPTOEND         = 4,
-  SECTPERCYL_SPARING_ATFRONT           = 5,
-  SECTPERCYL_SPARING_ATFRONT_SLIPTOEND = 6,
-  SECTATEND_SPARING                    = 7,
-  SECTPERRANGE_SPARING                 = 8,
-  SECTSPERZONE_SPARING                 = 9,
-  SECTSPERZONE_SPARING_SLIPTOEND       = 10
+	NO_SPARING                           = 0,
+	TRACK_SPARING                        = 1,
+	SECTPERCYL_SPARING                   = 2,
+	SECTPERTRACK_SPARING                 = 3,
+	SECTPERCYL_SPARING_SLIPTOEND         = 4,
+	SECTPERCYL_SPARING_ATFRONT           = 5,
+	SECTPERCYL_SPARING_ATFRONT_SLIPTOEND = 6,
+	SECTATEND_SPARING                    = 7,
+	SECTPERRANGE_SPARING                 = 8,
+	SECTSPERZONE_SPARING                 = 9,
+	SECTSPERZONE_SPARING_SLIPTOEND       = 10
 } dm_layout_g1_spare_t;
 #define MAXSPARESCHEME SECTSPERZONE_SPARING_SLIPTOEND
 
 // layout types
 typedef enum {
-  LAYOUT_NORMAL           = 0,
-  LAYOUT_CYLSWITCHONSURF1 = 1,  /* cyl. switches stay on same surface  
-                                 * -- first cyl of each zone is normal 
+	LAYOUT_NORMAL           = 0,
+	LAYOUT_CYLSWITCHONSURF1 = 1,  /* cyl. switches stay on same surface
+                                 * -- first cyl of each zone is normal
 				 */
 
-  LAYOUT_CYLSWITCHONSURF2 = 2   /* cyl. switches stay on same surface  
-				 * -- all even-#d cyls are normal      
+	LAYOUT_CYLSWITCHONSURF2 = 2   /* cyl. switches stay on same surface
+				 * -- all even-#d cyls are normal
 				 */
 } dm_layout_g1_map_t;
 
@@ -155,52 +155,52 @@ struct dm_layout_g1_band;
 
 
 struct dm_layout_g1 {
-  struct dm_layout_if hdr;
-  struct dm_disk_if *disk; // back pointer
+	struct dm_layout_if hdr;
+	struct dm_disk_if *disk; // back pointer
 
-  dm_layout_g1_spare_t  sparescheme;
-  int                   rangesize;
-  dm_layout_g1_map_t    mapping;
+	dm_layout_g1_spare_t  sparescheme;
+	int                   rangesize;
+	dm_layout_g1_map_t    mapping;
 
 
-  struct dm_layout_g1_band *bands;
-  int bands_len;
-  int         *band_blknos;    // first lbn per band indexed by band
-  dm_skew_unit_t skew_units;
+	struct dm_layout_g1_band *bands;
+	int bands_len;
+	int         *band_blknos;    // first lbn per band indexed by band
+	dm_skew_unit_t skew_units;
 };
 
 
 
 struct dm_layout_g1_band {
-  int    startcyl;
-  int    endcyl;
-  int    blkspertrack;
-  int    deadspace;
+	int    startcyl;
+	int    endcyl;
+	int    blkspertrack;
+	int    deadspace;
 
-  dm_angle_t firstblkangle;
-  dm_angle_t cylskew;
-  dm_angle_t trackskew;
+	dm_angle_t firstblkangle;
+	dm_angle_t cylskew;
+	dm_angle_t trackskew;
 
-  int    blksinband;
-  int    sparecnt;
-  int    numslips;
-  int    numdefects;
-  int   *slip;
-  int   *defect;
-  int   *remap;
-  int   num; /* number of this band */
-  /*     int  *remap; */
+	int    blksinband;
+	int    sparecnt;
+	int    numslips;
+	int    numdefects;
+	int   *slip;
+	int   *defect;
+	int   *remap;
+	int   num; /* number of this band */
+	/*     int  *remap; */
 
-  dm_angle_t sector_width;
+	dm_angle_t sector_width;
 
-  // dead space at the end of each track
-  // blkspertrack * sector_width + trkspace should equal the number of 
-  // ticks in a circle
-  dm_angle_t trkspace;  
+	// dead space at the end of each track
+	// blkspertrack * sector_width + trkspace should equal the number of
+	// ticks in a circle
+	dm_angle_t trkspace;
 
 
-  dm_skew_unit_t skew_units;
-}; 
+	dm_skew_unit_t skew_units;
+};
 
 
 // the interfaces

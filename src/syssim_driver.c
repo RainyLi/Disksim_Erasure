@@ -57,9 +57,9 @@
 #define	BLOCK2SECTOR	(BLOCK/SECTOR)
 
 typedef	struct	{
-  int n;
-  double sum;
-  double sqr;
+	int n;
+	double sum;
+	double sqr;
 } Stat;
 
 
@@ -72,28 +72,28 @@ static Stat st;
 void
 panic(const char *s)
 {
-  perror(s);
-  exit(1);
+	perror(s);
+	exit(1);
 }
 
 
 void
 add_statistics(Stat *s, double x)
 {
-  s->n++;
-  s->sum += x;
-  s->sqr += x*x;
+	s->n++;
+	s->sum += x;
+	s->sqr += x*x;
 }
 
 
 void
 print_statistics(Stat *s, const char *title)
 {
-  double avg, std;
+	double avg, std;
 
-  avg = s->sum/s->n;
-  std = sqrt((s->sqr - 2*avg*s->sum + s->n*avg*avg) / s->n);
-  printf("%s: n=%d average=%f std. deviation=%f\n", title, s->n, avg, std);
+	avg = s->sum/s->n;
+	std = sqrt((s->sqr - 2*avg*s->sum + s->n*avg*avg) / s->n);
+	printf("%s: n=%d average=%f std. deviation=%f\n", title, s->n, avg, std);
 }
 
 
@@ -103,11 +103,11 @@ print_statistics(Stat *s, const char *title)
  * The callback is for the earliest event.
  */
 void
-syssim_schedule_callback(disksim_interface_callback_t fn, 
-			 SysTime t, 
-			 void *ctx)
+syssim_schedule_callback(disksim_interface_callback_t fn,
+						 SysTime t,
+						 void *ctx)
 {
-  next_event = t;
+	next_event = t;
 }
 
 
@@ -117,78 +117,78 @@ syssim_schedule_callback(disksim_interface_callback_t fn,
 void
 syssim_deschedule_callback(double t, void *ctx)
 {
-  next_event = -1;
+	next_event = -1;
 }
 
 
 void
 syssim_report_completion(SysTime t, struct disksim_request *r, void *ctx)
 {
-  completed = 1;
-  now = t;
-  add_statistics(&st, t - r->start);
+	completed = 1;
+	now = t;
+	add_statistics(&st, t - r->start);
 }
 
 
 int
 main(int argc, char *argv[])
 {
-  int i;
-  int nsectors;
-  struct stat buf;
-  struct disksim_request r;
-  struct disksim_interface *disksim;
+	int i;
+	int nsectors;
+	struct stat buf;
+	struct disksim_request r;
+	struct disksim_interface *disksim;
 
-  if (argc != 4 || (nsectors = atoi(argv[3])) <= 0) {
-    fprintf(stderr, "usage: %s <param file> <output file> <#sectors>\n",
-	    argv[0]);
-    exit(1);
-  }
+	if (argc != 4 || (nsectors = atoi(argv[3])) <= 0) {
+		fprintf(stderr, "usage: %s <param file> <output file> <#sectors>\n",
+				argv[0]);
+		exit(1);
+	}
 
-  if (stat(argv[1], &buf) < 0)
-    panic(argv[1]);
+	if (stat(argv[1], &buf) < 0)
+		panic(argv[1]);
 
-  disksim = disksim_interface_initialize(argv[1], 
-					 argv[2],
-					 syssim_report_completion,
-					 syssim_schedule_callback,
-					 syssim_deschedule_callback,
-					 0,
-					 0,
-					 0);
+	disksim = disksim_interface_initialize(argv[1],
+										   argv[2],
+										   syssim_report_completion,
+										   syssim_schedule_callback,
+										   syssim_deschedule_callback,
+										   0,
+										   0,
+										   0);
 
-  /* NOTE: it is bad to use this internal disksim call from external... */
-  DISKSIM_srand48(1);
+	/* NOTE: it is bad to use this internal disksim call from external... */
+	DISKSIM_srand48(1);
 
-  for (i=0; i < 1000; i++) {
-    r.start = now;
-    r.flags = DISKSIM_READ;
-    r.devno = 0;
+	for (i=0; i < 1000; i++) {
+		r.start = now;
+		r.flags = DISKSIM_READ;
+		r.devno = 0;
 
-    /* NOTE: it is bad to use this internal disksim call from external... */
-    r.blkno = BLOCK2SECTOR*(DISKSIM_lrand48()%(nsectors/BLOCK2SECTOR));
-    r.bytecount = BLOCK;
-    completed = 0;
-    disksim_interface_request_arrive(disksim, now, &r);
+		/* NOTE: it is bad to use this internal disksim call from external... */
+		r.blkno = BLOCK2SECTOR*(DISKSIM_lrand48()%(nsectors/BLOCK2SECTOR));
+		r.bytecount = BLOCK;
+		completed = 0;
+		disksim_interface_request_arrive(disksim, now, &r);
 
-    /* Process events until this I/O is completed */
-    while(next_event >= 0) {
-      now = next_event;
-      next_event = -1;
-      disksim_interface_internal_event(disksim, now, 0);
-    }
+		/* Process events until this I/O is completed */
+		while(next_event >= 0) {
+			now = next_event;
+			next_event = -1;
+			disksim_interface_internal_event(disksim, now, 0);
+		}
 
-    if (!completed) {
-      fprintf(stderr,
-	      "%s: internal error. Last event not completed %d\n",
-	      argv[0], i);
-      exit(1);
-    }
-  }
+		if (!completed) {
+			fprintf(stderr,
+					"%s: internal error. Last event not completed %d\n",
+					argv[0], i);
+			exit(1);
+		}
+	}
 
-  disksim_interface_shutdown(disksim, now);
+	disksim_interface_shutdown(disksim, now);
 
-  print_statistics(&st, "response time");
+	print_statistics(&st, "response time");
 
-  exit(0);
+	exit(0);
 }

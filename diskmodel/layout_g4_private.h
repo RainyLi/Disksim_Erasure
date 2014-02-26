@@ -24,24 +24,24 @@
  * MELLON UNIVERSITY DOES NOT MAKE ANY WARRANTY OF ANY KIND WITH
  * RESPECT TO FREEDOM FROM PATENT, TRADEMARK, OR COPYRIGHT
  * INFRINGEMENT.  COPYRIGHT HOLDERS WILL BEAR NO LIABILITY FOR ANY USE
- * OF THIS SOFTWARE OR DOCUMENTATION.  
+ * OF THIS SOFTWARE OR DOCUMENTATION.
  */
 
 #define G4_ALLOC_PATH 16
 
 struct g4_path_node {
-  g4_node_t type;
-  int i; // index into ents
-  union g4_node n;
+	g4_node_t type;
+	int i; // index into ents
+	union g4_node n;
 
-  // RLE
-  // Do these mean the same thing for LBN/PBN arg to recurse???
-  int quot;
-  int resid; 
+	// RLE
+	// Do these mean the same thing for LBN/PBN arg to recurse???
+	int quot;
+	int resid;
 };
 
 struct g4_path {
-  struct g4_path_node path[G4_ALLOC_PATH];
-  int length;
+	struct g4_path_node path[G4_ALLOC_PATH];
+	int length;
 };
 

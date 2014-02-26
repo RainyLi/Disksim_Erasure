@@ -58,7 +58,7 @@
  * DiskSim Storage Subsystem Simulation Environment
  * Authors: Greg Ganger, Bruce Worthington, Yale Patt
  *
- * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan 
+ * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan
  *
  * This software is being provided by the copyright holders under the
  * following license. By obtaining, using and/or copying this software,
@@ -105,29 +105,29 @@
 
 void intr_request (event *curr)
 {
-   intr_event *intrp;
+	intr_event *intrp;
 
-   StaticAssert (sizeof(intr_event) <= DISKSIM_EVENT_SIZE);
-   if (curr->type != IO_INTERRUPT) {
-      io_catch_stray_events((ioreq_event *) curr);
-      return;
-   }
-   intrp = (intr_event *) getfromextraq();
-   intrp->infoptr = curr;
-   intrp->time = simtime + curr->time;
-   intrp->type = INTR_EVENT;
-   intrp->vector = curr->type;
-   intrp->eventlist = NULL;
-   addtointq((event *)intrp);
+	StaticAssert (sizeof(intr_event) <= DISKSIM_EVENT_SIZE);
+	if (curr->type != IO_INTERRUPT) {
+		io_catch_stray_events((ioreq_event *) curr);
+		return;
+	}
+	intrp = (intr_event *) getfromextraq();
+	intrp->infoptr = curr;
+	intrp->time = simtime + curr->time;
+	intrp->type = INTR_EVENT;
+	intrp->vector = curr->type;
+	intrp->eventlist = NULL;
+	addtointq((event *)intrp);
 }
 
 
 void intr_acknowledge (event *intrp)
 {
-   if (disksim->synthgen) {
-      pf_handle_intr_event ((intr_event *)intrp, 0);
-   } else {
-      io_interrupt_arrive ((ioreq_event *)intrp);
-   }
+	if (disksim->synthgen) {
+		pf_handle_intr_event ((intr_event *)intrp, 0);
+	} else {
+		io_interrupt_arrive ((ioreq_event *)intrp);
+	}
 }
 

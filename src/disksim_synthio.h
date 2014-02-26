@@ -58,7 +58,7 @@
  * DiskSim Storage Subsystem Simulation Environment
  * Authors: Greg Ganger, Bruce Worthington, Yale Patt
  *
- * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan 
+ * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan
  *
  * This software is being provided by the copyright holders under the
  * following license. By obtaining, using and/or copying this software,
@@ -123,49 +123,49 @@ void synthio_param_override (char *paramname, char *paramval, int first, int las
 
 
 typedef struct dist {
-   double base;
-   double mean;
-   double var;
-   int    type;
+	double base;
+	double mean;
+	double var;
+	int    type;
 } synthio_distr;
 
 
 typedef struct gen {
-   FILE          *tracefile;
-   double         probseq;
-   double         probloc;
-   double         probread;
-   double         probtmcrit;
-   double         probtmlim;
-   int            number;
-   ioreq_event *  pendio;
-   sleep_event *  limits;
-   int            numdisks;
-   int            *devno;
-   int            numblocks;
-   int            sectsperdisk;
-   int            blksperdisk;
-   int            blocksize;
-   synthio_distr  tmlimit;
-   synthio_distr  genintr;
-   synthio_distr  seqintr;
-   synthio_distr  locintr;
-   synthio_distr  locdist;
-   synthio_distr  sizedist;
+	FILE          *tracefile;
+	double         probseq;
+	double         probloc;
+	double         probread;
+	double         probtmcrit;
+	double         probtmlim;
+	int            number;
+	ioreq_event *  pendio;
+	sleep_event *  limits;
+	int            numdisks;
+	int            *devno;
+	int            numblocks;
+	int            sectsperdisk;
+	int            blksperdisk;
+	int            blocksize;
+	synthio_distr  tmlimit;
+	synthio_distr  genintr;
+	synthio_distr  seqintr;
+	synthio_distr  locintr;
+	synthio_distr  locdist;
+	synthio_distr  sizedist;
 } synthio_generator;
 
 
 typedef struct synthio_info {
-   synthio_generator **synthio_gens;
-   int    synthio_gencnt;
-   int    synthio_gens_len; /* allocated size of array */
+	synthio_generator **synthio_gens;
+	int    synthio_gencnt;
+	int    synthio_gens_len; /* allocated size of array */
 
-   int    synthio_iocnt;
-   int    synthio_endiocnt;
-   double synthio_endtime;
-   int    synthio_syscalls;
-   double synthio_syscall_time;
-   double synthio_sysret_time;
+	int    synthio_iocnt;
+	int    synthio_endiocnt;
+	double synthio_endtime;
+	int    synthio_syscalls;
+	double synthio_syscall_time;
+	double synthio_sysret_time;
 } synthio_info_t;
 
 

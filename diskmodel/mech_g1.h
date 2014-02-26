@@ -24,7 +24,7 @@
  * MELLON UNIVERSITY DOES NOT MAKE ANY WARRANTY OF ANY KIND WITH
  * RESPECT TO FREEDOM FROM PATENT, TRADEMARK, OR COPYRIGHT
  * INFRINGEMENT.  COPYRIGHT HOLDERS WILL BEAR NO LIABILITY FOR ANY USE
- * OF THIS SOFTWARE OR DOCUMENTATION.  
+ * OF THIS SOFTWARE OR DOCUMENTATION.
  */
 
 /*
@@ -54,7 +54,7 @@
  * DiskSim Storage Subsystem Simulation Environment
  * Authors: Greg Ganger, Bruce Worthington, Yale Patt
  *
- * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan 
+ * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan
  *
  * This software is being provided by the copyright holders under the
  * following license. By obtaining, using and/or copying this software,
@@ -100,14 +100,14 @@
 
 #include "dm.h"
 
-// Seek types 
+// Seek types
 typedef enum {
-  SEEK_CONST,                        
-  SEEK_3PT_LINE,              
-  SEEK_3PT_CURVE,                
-  SEEK_HPL,
-  SEEK_1ST10_PLUS_HPL,
-  SEEK_EXTRACTED
+	SEEK_CONST,
+	SEEK_3PT_LINE,
+	SEEK_3PT_CURVE,
+	SEEK_HPL,
+	SEEK_1ST10_PLUS_HPL,
+	SEEK_EXTRACTED
 } disk_seek_t;
 
 #define DM_MECH_G1_MAX_SEEK SEEK_EXTRACTED
@@ -115,86 +115,86 @@ typedef enum {
 
 // Latency types
 typedef enum {
-  AVGROTATE               = -1,
-  SKEWED_FOR_TRACK_SWITCH = -2,
-  NON_SKEWED              = -3
+	AVGROTATE               = -1,
+	SKEWED_FOR_TRACK_SWITCH = -2,
+	NON_SKEWED              = -3
 } disk_latency_t;
 
 
 typedef dm_time_t(*dm_mech_g1_seekfn)(struct dm_disk_if *d,
-				      struct dm_mech_state *begin,
-				      struct dm_mech_state *end,
-				      int rw);
+									  struct dm_mech_state *begin,
+									  struct dm_mech_state *end,
+									  int rw);
 
 struct dm_mech_g1 {
-  struct dm_mech_if hdr;
+	struct dm_mech_if hdr;
 
-  // a seek time function
-  dm_mech_g1_seekfn seekfn;
+	// a seek time function
+	dm_mech_g1_seekfn seekfn;
 
-  struct dm_disk_if *disk; // back pointer to disk this goes with
-
-
-  //
-  // Seek Time related
-  //
-
-  // comes from "Constant access time" and "Access time type"
-  dm_time_t       acctime;
-
-  disk_seek_t  seektype;
-  // "Constant seek time"
-  dm_time_t       seektime;
-
-  // single cylinder seek
-  dm_time_t       seekone; // only used by non-extracted algs
-
-  // average seek time
-  dm_time_t       seekavg;
-
-  // full stroke seek time
-  dm_time_t       seekfull; // only used by non-extracted algs
-
-  // extra settling time for writes
-  dm_time_t       seekwritedelta;
-
-  int             hpseek_v1; // v_1 from hpl seek equation (is in cyls)
-  dm_time_t       hpseek[6]; // v_2..v_6 .. in 1..6 (0 not used)
-  dm_time_t       first10seeks[10];
-
-  // extracted seek curve
-  int	        xseekcnt;
-  int          *xseekdists;
-  dm_time_t    *xseektimes;
+	struct dm_disk_if *disk; // back pointer to disk this goes with
 
 
-  dm_time_t       headswitch;
+	//
+	// Seek Time related
+	//
+
+	// comes from "Constant access time" and "Access time type"
+	dm_time_t       acctime;
+
+	disk_seek_t  seektype;
+	// "Constant seek time"
+	dm_time_t       seektime;
+
+	// single cylinder seek
+	dm_time_t       seekone; // only used by non-extracted algs
+
+	// average seek time
+	dm_time_t       seekavg;
+
+	// full stroke seek time
+	dm_time_t       seekfull; // only used by non-extracted algs
+
+	// extra settling time for writes
+	dm_time_t       seekwritedelta;
+
+	int             hpseek_v1; // v_1 from hpl seek equation (is in cyls)
+	dm_time_t       hpseek[6]; // v_2..v_6 .. in 1..6 (0 not used)
+	dm_time_t       first10seeks[10];
+
+	// extracted seek curve
+	int	        xseekcnt;
+	int          *xseekdists;
+	dm_time_t    *xseektimes;
 
 
-  // if positive, latency in msecs, otherwise 
-  // values from latency_t
-
-  disk_latency_t  latency;
-  dm_time_t       rotatetime;
-
-  uint64_t        rpmerr;
-  uint64_t        rpm;
+	dm_time_t       headswitch;
 
 
-  // zero-latency io parameters
-  int		immedread;
-  int		immedwrite;
-  int		immed;
+	// if positive, latency in msecs, otherwise
+	// values from latency_t
+
+	disk_latency_t  latency;
+	dm_time_t       rotatetime;
+
+	uint64_t        rpmerr;
+	uint64_t        rpm;
 
 
-  // "Bulk sector transfer time"
-  dm_time_t     blktranstime;
+	// zero-latency io parameters
+	int		immedread;
+	int		immedwrite;
+	int		immed;
+
+
+	// "Bulk sector transfer time"
+	dm_time_t     blktranstime;
 
 
 
 };
 
-    
+
 
 extern struct dm_mech_if dm_mech_g1;
 

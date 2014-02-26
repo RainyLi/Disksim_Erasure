@@ -63,49 +63,49 @@
 
 
 typedef enum {
-  DEVICETYPE_DISK	= 1,
-  DEVICETYPE_SIMPLEDISK	= 2,
-  DEVICETYPE_MEMS      = 3,
+	DEVICETYPE_DISK	= 1,
+	DEVICETYPE_SIMPLEDISK	= 2,
+	DEVICETYPE_MEMS      = 3,
 
-  // this is something of a hack so that things like synthgen can
-  // refer to a logorg by name.  All we care here is that it has a
-  // name and an underlying device number.
+	// this is something of a hack so that things like synthgen can
+	// refer to a logorg by name.  All we care here is that it has a
+	// name and an underlying device number.
 } device_type_t;
 #define DEVICETYPE_MIN DEVICETYPE_DISK
 #define DEVICETYPE_MAX DEVICETYPE_MEMS
 
 
 typedef struct device_info {
-   int numdevices;
+	int numdevices;
 
-   int *devicetypes;	/* actual type of device;
-			 * this will go away with new device iface 
+	int *devicetypes;	/* actual type of device;
+			 * this will go away with new device iface
 			 */
 
-   int *devicenos;	/* number among devices of that device type */
-  
-   int maxdeviceno[DEVICETYPE_MAX];	/* maximum deviceno of each
+	int *devicenos;	/* number among devices of that device type */
+
+	int maxdeviceno[DEVICETYPE_MAX];	/* maximum deviceno of each
                                          * devicetype -- may already be
 					 * defunct */
 
-   char **devicenames;  /* pointers to name fields in actual
+	char **devicenames;  /* pointers to name fields in actual
                          * device objects */
 
-   struct device_header **devices;
+	struct device_header **devices;
 
-   int devs_len;        /* allocated size of above arrays */
+	int devs_len;        /* allocated size of above arrays */
 
-   int device_printqueuestats;
-   int device_printcritstats;
-   int device_printidlestats;
-   int device_printintarrstats;
-   int device_printsizestats;
-   int device_printseekstats;
-   int device_printlatencystats;
-   int device_printxferstats;
-   int device_printacctimestats;
-   int device_printinterferestats;
-   int device_printbufferstats;
+	int device_printqueuestats;
+	int device_printcritstats;
+	int device_printidlestats;
+	int device_printintarrstats;
+	int device_printsizestats;
+	int device_printseekstats;
+	int device_printlatencystats;
+	int device_printxferstats;
+	int device_printacctimestats;
+	int device_printinterferestats;
+	int device_printbufferstats;
 
 } device_info_t;
 
@@ -149,13 +149,13 @@ int     device_get_numdevices (void);
 void device_add(struct device_header *d, int);
 
 
-struct device_header *getdevbyname(char *name, 
-				   int *gdevnum, /* unique for all
+struct device_header *getdevbyname(char *name,
+								   int *gdevnum, /* unique for all
                                                     devices */
-				   int *ldevnum, /* unique for all
+								   int *ldevnum, /* unique for all
                                                     devices of same
                                                     type */
-				   int *type);
+								   int *type);
 
 /* map a global device number to a device-type specific device number */
 INLINE int dev_map_devno(int n);
@@ -167,62 +167,62 @@ void device_initialize_deviceinfo(void);
 
 
 struct device_header {
-  int device_type;
-  int device_len;  // used? necessary?
-  char *device_name;
-  struct device_header*(*dev_copy)(struct device_header *);
+	int device_type;
+	int device_len;  // used? necessary?
+	char *device_name;
+	struct device_header*(*dev_copy)(struct device_header *);
 
-  int     (*set_depth)(int diskno, int inbusno, int depth, int slotno);
-  int     (*get_depth)(int diskno);
-  int     (*get_inbus)(int diskno);
-  int     (*get_busno)(ioreq_event *curr);
-  int     (*get_slotno)(int diskno);
-
-
-  int     (*get_number_of_blocks)(int diskno);
-  int     (*get_maxoutstanding)(int diskno);
-  int     (*get_numcyls)(int diskno);
-  double  (*get_blktranstime)(ioreq_event *curr);
-  int     (*get_avg_sectpercyl)(int devno);
-  
-  void    (*get_mapping)(int maptype, 
-			 int diskno, 
-			 int blkno, 
-			 int *cylptr, 
-			 int *surfaceptr, 
-			 int *blkptr);
-  
-  void    (*event_arrive)(ioreq_event *curr);
-  
-  int     (*get_distance)(int diskno, 
-			  ioreq_event *req, 
-			  int exact, 
-			  int direction);
-  
-  double  (*get_servtime)(int diskno, 
-			  ioreq_event *req, 
-			  int checkcache, 
-			  double maxtime);
+	int     (*set_depth)(int diskno, int inbusno, int depth, int slotno);
+	int     (*get_depth)(int diskno);
+	int     (*get_inbus)(int diskno);
+	int     (*get_busno)(ioreq_event *curr);
+	int     (*get_slotno)(int diskno);
 
 
-  double  (*get_seektime)(int diskno, 
-			  ioreq_event *req, 
-			  int checkcache, 
-			  double maxtime);
-  
-  double  (*get_acctime)(int diskno, 
-			 ioreq_event *req, 
-			 double maxtime);
-  
-  void    (*bus_delay_complete)(int devno, 
-				ioreq_event *curr, 
-				int sentbusno);
-  
-  void    (*bus_ownership_grant)(int devno, 
-				 ioreq_event *curr, 
-				 int busno, 
-				 double arbdelay);
-  
+	int     (*get_number_of_blocks)(int diskno);
+	int     (*get_maxoutstanding)(int diskno);
+	int     (*get_numcyls)(int diskno);
+	double  (*get_blktranstime)(ioreq_event *curr);
+	int     (*get_avg_sectpercyl)(int devno);
+
+	void    (*get_mapping)(int maptype,
+						   int diskno,
+						   int blkno,
+						   int *cylptr,
+						   int *surfaceptr,
+						   int *blkptr);
+
+	void    (*event_arrive)(ioreq_event *curr);
+
+	int     (*get_distance)(int diskno,
+							ioreq_event *req,
+							int exact,
+							int direction);
+
+	double  (*get_servtime)(int diskno,
+							ioreq_event *req,
+							int checkcache,
+							double maxtime);
+
+
+	double  (*get_seektime)(int diskno,
+							ioreq_event *req,
+							int checkcache,
+							double maxtime);
+
+	double  (*get_acctime)(int diskno,
+						   ioreq_event *req,
+						   double maxtime);
+
+	void    (*bus_delay_complete)(int devno,
+								  ioreq_event *curr,
+								  int sentbusno);
+
+	void    (*bus_ownership_grant)(int devno,
+								   ioreq_event *curr,
+								   int busno,
+								   double arbdelay);
+
 };
 
 
@@ -239,43 +239,43 @@ int     device_get_numcyls (int diskno);
 double  device_get_blktranstime (ioreq_event *curr);
 int     device_get_avg_sectpercyl (int devno);
 
-void    device_get_mapping (int maptype, 
-			    int diskno, 
-			    int blkno, 
-			    int *cylptr, 
-			    int *surfaceptr, 
-			    int *blkptr);
+void    device_get_mapping (int maptype,
+							int diskno,
+							int blkno,
+							int *cylptr,
+							int *surfaceptr,
+							int *blkptr);
 
 void    device_event_arrive (ioreq_event *curr);
 
-int     device_get_distance (int diskno, 
-			     ioreq_event *req, 
-			     int exact, 
-			     int direction);
+int     device_get_distance (int diskno,
+							 ioreq_event *req,
+							 int exact,
+							 int direction);
 
-double  device_get_servtime (int diskno, 
-			     ioreq_event *req, 
-			     int checkcache, 
-			     double maxtime);
+double  device_get_servtime (int diskno,
+							 ioreq_event *req,
+							 int checkcache,
+							 double maxtime);
 
 
-double  device_get_seektime (int diskno, 
-			     ioreq_event *req, 
-			     int checkcache, 
-			     double maxtime);
+double  device_get_seektime (int diskno,
+							 ioreq_event *req,
+							 int checkcache,
+							 double maxtime);
 
-double  device_get_acctime (int diskno, 
-			    ioreq_event *req, 
-			    double maxtime);
+double  device_get_acctime (int diskno,
+							ioreq_event *req,
+							double maxtime);
 
-void    device_bus_delay_complete (int devno, 
-				   ioreq_event *curr, 
-				   int sentbusno);
+void    device_bus_delay_complete (int devno,
+								   ioreq_event *curr,
+								   int sentbusno);
 
-void    device_bus_ownership_grant (int devno, 
-				    ioreq_event *curr, 
-				    int busno, 
-				    double arbdelay);
+void    device_bus_ownership_grant (int devno,
+									ioreq_event *curr,
+									int busno,
+									double arbdelay);
 
 
 

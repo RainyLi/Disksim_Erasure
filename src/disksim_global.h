@@ -58,7 +58,7 @@
  * DiskSim Storage Subsystem Simulation Environment
  * Authors: Greg Ganger, Bruce Worthington, Yale Patt
  *
- * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan 
+ * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan
  *
  * This software is being provided by the copyright holders under the
  * following license. By obtaining, using and/or copying this software,
@@ -189,20 +189,20 @@ typedef      unsigned u_int;
 
 #include "disksim_reqflags.h"
 
-#define WRITE		DISKSIM_WRITE		
-#define READ		DISKSIM_READ		
-#define TIME_CRITICAL	DISKSIM_TIME_CRITICAL	
-#define TIME_LIMITED	DISKSIM_TIME_LIMITED	
-#define TIMED_OUT	DISKSIM_TIMED_OUT	
-#define HALF_OUT	DISKSIM_HALF_OUT	
-#define MAPPED		DISKSIM_MAPPED		
-#define READ_AFTR_WRITE DISKSIM_READ_AFTR_WRITE 
+#define WRITE		DISKSIM_WRITE
+#define READ		DISKSIM_READ
+#define TIME_CRITICAL	DISKSIM_TIME_CRITICAL
+#define TIME_LIMITED	DISKSIM_TIME_LIMITED
+#define TIMED_OUT	DISKSIM_TIMED_OUT
+#define HALF_OUT	DISKSIM_HALF_OUT
+#define MAPPED		DISKSIM_MAPPED
+#define READ_AFTR_WRITE DISKSIM_READ_AFTR_WRITE
 #define SYNCHRONOUS	DISKSIM_SYNC
 #define ASYNCHRONOUS	DISKSIM_ASYNC
-#define IO_FLAG_PAGEIO	DISKSIM_IO_FLAG_PAGEIO	
-#define SEQ		DISKSIM_SEQ		
-#define LOCAL           DISKSIM_LOCAL	     
-#define BATCH_COMPLETE  DISKSIM_BATCH_COMPLETE  
+#define IO_FLAG_PAGEIO	DISKSIM_IO_FLAG_PAGEIO
+#define SEQ		DISKSIM_SEQ
+#define LOCAL           DISKSIM_LOCAL
+#define BATCH_COMPLETE  DISKSIM_BATCH_COMPLETE
 
 /* Event Type Ranges */
 
@@ -229,7 +229,7 @@ typedef      unsigned u_int;
 
 #define MSECS_PER_MIN		60000
 
-/* 
+/*
    this threshold allows some difference between disksim's
    internal time and simos' time.  it was determined by
    trial and error and may require some adjustment.
@@ -237,81 +237,81 @@ typedef      unsigned u_int;
 #define DISKSIM_TIME_THRESHOLD  0.0013
 
 typedef union {
-   u_int32_t	value;
-   char		byte[4];
+	u_int32_t	value;
+	char		byte[4];
 } intchar;
 
 #define StaticAssert(c) switch (c) case 0: case (c):
 
 typedef struct foo {
-   double time;
-   int type;
-   struct ev *next;
-   struct ev *prev;
-   int    temp;
+	double time;
+	int type;
+	struct ev *next;
+	struct ev *prev;
+	int    temp;
 } foo;
 
 #define DISKSIM_EVENT_SIZE	128
 #define DISKSIM_EVENT_SPACESIZE	(DISKSIM_EVENT_SIZE - sizeof(struct foo))
 
 typedef struct ev {
-   double time;
-   int type;
-   struct ev *next;
-   struct ev *prev;
-   int    temp;
-   char space[DISKSIM_EVENT_SPACESIZE];
+	double time;
+	int type;
+	struct ev *next;
+	struct ev *prev;
+	int    temp;
+	char space[DISKSIM_EVENT_SPACESIZE];
 } event;
 
 typedef struct ioreq_ev {
-   double time;
-   int    type;
-   struct ioreq_ev *next;
-   struct ioreq_ev *prev;
-   int    bcount;
-   int    blkno;
-   u_int  flags;
-   u_int  busno;
-   u_int  slotno;
-   int    devno;
-   int    opid;
-   void  *buf;
-   int    cause;
-   int    tempint1;
-   int    tempint2;
-   void  *tempptr1;
-   void  *tempptr2;
-   void  *mems_sled;	 /* mems sled associated with a particular event */
-   void  *mems_reqinfo; /* per-request info for mems subsystem */
-   double start_time;    /* temporary; used for memulator timing */
-   int    batchno;
-   int    batch_complete;
-   int    batch_size;
-   struct ioreq_ev *batch_next;
-   struct ioreq_ev *batch_prev;
+	double time;
+	int    type;
+	struct ioreq_ev *next;
+	struct ioreq_ev *prev;
+	int    bcount;
+	int    blkno;
+	u_int  flags;
+	u_int  busno;
+	u_int  slotno;
+	int    devno;
+	int    opid;
+	void  *buf;
+	int    cause;
+	int    tempint1;
+	int    tempint2;
+	void  *tempptr1;
+	void  *tempptr2;
+	void  *mems_sled;	 /* mems sled associated with a particular event */
+	void  *mems_reqinfo; /* per-request info for mems subsystem */
+	double start_time;    /* temporary; used for memulator timing */
+	int    batchno;
+	int    batch_complete;
+	int    batch_size;
+	struct ioreq_ev *batch_next;
+	struct ioreq_ev *batch_prev;
 } ioreq_event;
 
 typedef struct timer_ev {
-   double time;
-   int type;
-   struct timer_ev *next;
-   struct timer_ev *prev;
-   void (**func)(struct timer_ev *);
-   int    val;
-   void  *ptr;
+	double time;
+	int type;
+	struct timer_ev *next;
+	struct timer_ev *prev;
+	void (**func)(struct timer_ev *);
+	int    val;
+	void  *ptr;
 } timer_event;
 
 typedef struct intr_ev {
-   double time;
-   int    type;
-   struct intr_ev * next;
-   struct intr_ev * prev;
-   int    vector;
-   int    oldstate;
-   int    flags;
-   event  *eventlist;
-   event  *infoptr;
-   double runtime;
+	double time;
+	int    type;
+	struct intr_ev * next;
+	struct intr_ev * prev;
+	int    vector;
+	int    oldstate;
+	int    flags;
+	event  *eventlist;
+	event  *infoptr;
+	double runtime;
 } intr_event;
 
 
@@ -336,93 +336,93 @@ struct rand48_info;
 typedef event*(*disksim_iodone_notify_t)(ioreq_event *, void *ctx);
 
 typedef struct disksim {
-   void * startaddr;
-   int    totallength;
-   int    curroffset;
-   int    totalreqs;
-   int    closedios;
-   double closedthinktime;
-   int    warmup_iocnt;
-   double warmuptime;
-   timer_event *warmup_event;
-   double simtime;
-   int    checkpoint_disable;
-   int    checkpoint_iocnt;
-   double checkpoint_interval;
-   event *checkpoint_event;
-   int    traceformat;
-   int    endian;
-   int    traceendian;
-   int    traceheader;
-   int    iotrace;
-   int    synthgen;
-   int    external_control;
+	void * startaddr;
+	int    totallength;
+	int    curroffset;
+	int    totalreqs;
+	int    closedios;
+	double closedthinktime;
+	int    warmup_iocnt;
+	double warmuptime;
+	timer_event *warmup_event;
+	double simtime;
+	int    checkpoint_disable;
+	int    checkpoint_iocnt;
+	double checkpoint_interval;
+	event *checkpoint_event;
+	int    traceformat;
+	int    endian;
+	int    traceendian;
+	int    traceheader;
+	int    iotrace;
+	int    synthgen;
+	int    external_control;
 
-   disksim_iodone_notify_t external_io_done_notify;
-   void *notify_ctx;
+	disksim_iodone_notify_t external_io_done_notify;
+	void *notify_ctx;
 
-   FILE * parfile;
-   FILE * iotracefile;
-   FILE * statdeffile;
-   FILE * outputfile;
-   FILE * outios;
-   char   iotracefilename[256];
-   char   outputfilename[256];
-   char   outiosfilename[256];
-   char   checkpointfilename[256];
-   fpos_t iotracefileposition;
-   fpos_t outputfileposition;
-   fpos_t outiosfileposition;
-   event *intq;
-   event *intqhint;
-   event *extraq;
-   int    intqlen;
-   int    extraqlen;
-   int    stop_sim;
-   int    seedval;
-   double lastphystime;
+	FILE * parfile;
+	FILE * iotracefile;
+	FILE * statdeffile;
+	FILE * outputfile;
+	FILE * outios;
+	char   iotracefilename[256];
+	char   outputfilename[256];
+	char   outiosfilename[256];
+	char   checkpointfilename[256];
+	fpos_t iotracefileposition;
+	fpos_t outputfileposition;
+	fpos_t outiosfileposition;
+	event *intq;
+	event *intqhint;
+	event *extraq;
+	int    intqlen;
+	int    extraqlen;
+	int    stop_sim;
+	int    seedval;
+	double lastphystime;
 
-/* call-back indirections for allowing checkpoint restores to deal with */
-/* functions whose addresses change on recompilation.                   */
-   void         (*issuefunc_ctlrsmart)     (void *, ioreq_event *);
-   struct ioq * (*queuefind_ctlrsmart)     (void *, int);
-   void         (*wakeupfunc_ctlrsmart)    (void *, struct cacheevent *);
-   void         (*donefunc_ctlrsmart_read) (void *, ioreq_event *);
-   void         (*donefunc_ctlrsmart_write)(void *, ioreq_event *);
-   void         (*donefunc_cachemem_empty) (void *, ioreq_event *);
-   void         (*donefunc_cachedev_empty) (void *, ioreq_event *);
-   void         (*idlework_cachemem)       (void *, int);
-   void         (*idlework_cachedev)       (void *, int);
-   int          (*concatok_cachemem)       (void *, int, int, int, int);
-   int          (*enablement_disk)         (ioreq_event *);
-   void         (*timerfunc_disksim)       (timer_event *);
-   void         (*timerfunc_ioqueue)       (timer_event *);
-   void         (*timerfunc_cachemem)      (timer_event *);
-   void         (*timerfunc_cachedev)      (timer_event *);
+	/* call-back indirections for allowing checkpoint restores to deal with */
+	/* functions whose addresses change on recompilation.                   */
+	void         (*issuefunc_ctlrsmart)     (void *, ioreq_event *);
+	struct ioq * (*queuefind_ctlrsmart)     (void *, int);
+	void         (*wakeupfunc_ctlrsmart)    (void *, struct cacheevent *);
+	void         (*donefunc_ctlrsmart_read) (void *, ioreq_event *);
+	void         (*donefunc_ctlrsmart_write)(void *, ioreq_event *);
+	void         (*donefunc_cachemem_empty) (void *, ioreq_event *);
+	void         (*donefunc_cachedev_empty) (void *, ioreq_event *);
+	void         (*idlework_cachemem)       (void *, int);
+	void         (*idlework_cachedev)       (void *, int);
+	int          (*concatok_cachemem)       (void *, int, int, int, int);
+	int          (*enablement_disk)         (ioreq_event *);
+	void         (*timerfunc_disksim)       (timer_event *);
+	void         (*timerfunc_ioqueue)       (timer_event *);
+	void         (*timerfunc_cachemem)      (timer_event *);
+	void         (*timerfunc_cachedev)      (timer_event *);
 
-/* opaque structures for different modules */
-   struct iosim_info *iosim_info;
-   struct device_info *deviceinfo;
-   struct disk_info *diskinfo;
-   struct simpledisk_info *simplediskinfo;
-   struct mems_info *memsinfo;
-   struct iodriver_info *iodriver_info;
-   struct businfo *businfo;
-   struct ctlrinfo *ctlrinfo;
-   struct pf_info *pf_info;
-   struct synthio_info *synthio_info;
-   struct iotrace_info *iotrace_info;
-   struct rand48_info *rand48_info;
+	/* opaque structures for different modules */
+	struct iosim_info *iosim_info;
+	struct device_info *deviceinfo;
+	struct disk_info *diskinfo;
+	struct simpledisk_info *simplediskinfo;
+	struct mems_info *memsinfo;
+	struct iodriver_info *iodriver_info;
+	struct businfo *businfo;
+	struct ctlrinfo *ctlrinfo;
+	struct pf_info *pf_info;
+	struct synthio_info *synthio_info;
+	struct iotrace_info *iotrace_info;
+	struct rand48_info *rand48_info;
 
-   char **overrides;
-   int overrides_len;
-   int verbosity;
+	char **overrides;
+	int overrides_len;
+	int verbosity;
 
-  int tracepipes[2];
-  enum { DISKSIM_MASTER, DISKSIM_SLAVE, DISKSIM_NONE } trace_mode;
+	int tracepipes[2];
+	enum { DISKSIM_MASTER, DISKSIM_SLAVE, DISKSIM_NONE } trace_mode;
 
-  FILE *exectrace;
-  char *exectrace_fn;
+	FILE *exectrace;
+	char *exectrace_fn;
 
 } disksim_t;
 

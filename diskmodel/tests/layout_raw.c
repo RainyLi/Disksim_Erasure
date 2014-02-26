@@ -24,7 +24,7 @@
  * MELLON UNIVERSITY DOES NOT MAKE ANY WARRANTY OF ANY KIND WITH
  * RESPECT TO FREEDOM FROM PATENT, TRADEMARK, OR COPYRIGHT
  * INFRINGEMENT.  COPYRIGHT HOLDERS WILL BEAR NO LIABILITY FOR ANY USE
- * OF THIS SOFTWARE OR DOCUMENTATION.  
+ * OF THIS SOFTWARE OR DOCUMENTATION.
  */
 
 
@@ -35,75 +35,72 @@
 
 int minargs = 1;
 
-void testsUsage(void) {
-  fprintf(stderr, "usage: layout_raw <model> <raw layout file>\n");
+void testsUsage(void)
+{
+	fprintf(stderr, "usage: layout_raw <model> <raw layout file>\n");
 }
 
 
 int get_next_line(FILE *fp,
-		  int *lbn,
-		  struct dm_pbn *p,
-		  int *count)
+				  int *lbn,
+				  struct dm_pbn *p,
+				  int *count)
 {
-  int scanct;
-  char cntstr[32];
-  if((scanct = fscanf(fp, "lbn %d --> cyl %d, head %d, sect %d, %s %d\n",
-		      lbn, &p->cyl, &p->head, &p->sector, cntstr, count) == 6))
-  {
-    if(!strcmp(cntstr, "seqcnt")) {
-      (*count)++;
-    }
+	int scanct;
+	char cntstr[32];
+	if((scanct = fscanf(fp, "lbn %d --> cyl %d, head %d, sect %d, %s %d\n",
+						lbn, &p->cyl, &p->head, &p->sector, cntstr, count) == 6)) {
+		if(!strcmp(cntstr, "seqcnt")) {
+			(*count)++;
+		}
 
-    return 1;
-  }
-  else {
-    printf("wrong %d\n", scanct);
-    return 0;
-  }
+		return 1;
+	} else {
+		printf("wrong %d\n", scanct);
+		return 0;
+	}
 }
 
 
 int raw_layout_test(struct dm_disk_if *d,
-		    FILE *fp)
+					FILE *fp)
 {
-  int i;
-  int lbn;
-  char junk[1024];
-  struct dm_pbn p;
-  int count;
+	int i;
+	int lbn;
+	char junk[1024];
+	struct dm_pbn p;
+	int count;
 
-  struct dm_pbn p2;
-  int errors = 0;
-  
-  // fetch off the header stuff
-  fgets(junk, sizeof(junk), fp);
-  fgets(junk, sizeof(junk), fp);
-  fgets(junk, sizeof(junk), fp);
+	struct dm_pbn p2;
+	int errors = 0;
 
-  //  for(i = 0; i < 85000; i++) get_next_line(fp, &lbn, &p, &count);
+	// fetch off the header stuff
+	fgets(junk, sizeof(junk), fp);
+	fgets(junk, sizeof(junk), fp);
+	fgets(junk, sizeof(junk), fp);
 
-  while(get_next_line(fp, &lbn, &p, &count))
-  {
-    for(i = 0; i < count; i++) {
-      dm_ptol_result_t rc = 
-	d->layout->dm_translate_ltop(d, lbn+i, MAP_FULL, &p2, 0);
-      
-      if((p.cyl != p2.cyl)
-	 || (p.head != p2.head)
-	 || ((p.sector + i) != p2.sector))
-      {
-	printf("*** layout_raw: %d -> (%d,%d,%d) <> (%d,%d,%d)\n",
-	       lbn+i, 
-	       p.cyl, p.head, p.sector+i,
-	       p2.cyl, p2.head, p2.sector);
+	//  for(i = 0; i < 85000; i++) get_next_line(fp, &lbn, &p, &count);
 
-	fflush(stdout);
-	errors++;
-      }
-    }
-  }
+	while(get_next_line(fp, &lbn, &p, &count)) {
+		for(i = 0; i < count; i++) {
+			dm_ptol_result_t rc =
+				d->layout->dm_translate_ltop(d, lbn+i, MAP_FULL, &p2, 0);
 
-  return errors;
+			if((p.cyl != p2.cyl)
+			   || (p.head != p2.head)
+			   || ((p.sector + i) != p2.sector)) {
+				printf("*** layout_raw: %d -> (%d,%d,%d) <> (%d,%d,%d)\n",
+					   lbn+i,
+					   p.cyl, p.head, p.sector+i,
+					   p2.cyl, p2.head, p2.sector);
+
+				fflush(stdout);
+				errors++;
+			}
+		}
+	}
+
+	return errors;
 }
 
 
@@ -113,16 +110,16 @@ int raw_layout_test(struct dm_disk_if *d,
 
 
 
-int doTests(struct dm_disk_if *d, 
-	    int argc,
-	    char **argv)
+int doTests(struct dm_disk_if *d,
+			int argc,
+			char **argv)
 {
-  int count = 0;
-  FILE *fp = fopen(argv[3], "r");
-  ddbg_assert(fp != 0);
+	int count = 0;
+	FILE *fp = fopen(argv[3], "r");
+	ddbg_assert(fp != 0);
 
-  count = raw_layout_test(d, fp);
+	count = raw_layout_test(d, fp);
 
-  fclose(fp);
-  return count;
+	fclose(fp);
+	return count;
 }

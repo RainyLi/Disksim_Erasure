@@ -25,7 +25,7 @@
  * MELLON UNIVERSITY DOES NOT MAKE ANY WARRANTY OF ANY KIND WITH
  * RESPECT TO FREEDOM FROM PATENT, TRADEMARK, OR COPYRIGHT
  * INFRINGEMENT.  COPYRIGHT HOLDERS WILL BEAR NO LIABILITY FOR ANY USE
- * OF THIS SOFTWARE OR DOCUMENTATION.  
+ * OF THIS SOFTWARE OR DOCUMENTATION.
  */
 
 
@@ -56,7 +56,7 @@
  * MELLON UNIVERSITY DOES NOT MAKE ANY WARRANTY OF ANY KIND WITH
  * RESPECT TO FREEDOM FROM PATENT, TRADEMARK, OR COPYRIGHT
  * INFRINGEMENT.  COPYRIGHT HOLDERS WILL BEAR NO LIABILITY FOR ANY USE
- * OF THIS SOFTWARE OR DOCUMENTATION.  
+ * OF THIS SOFTWARE OR DOCUMENTATION.
  */
 
 
@@ -64,18 +64,19 @@
 
 #include "libtrace.h"
 
-void main(void) {
-  int foo, bar, baz;
+void main(void)
+{
+	int foo, bar, baz;
 
-  lt_assert_setfile(stdout);
+	lt_assert_setfile(stdout);
 
 
 
-  lt_assert3(1 == 0, ("*** error: diskmodel::mech_g1::seek_extracted "
-			   "-- seek distance exceeds extracted seek curve: "
-			   "%d\n", 3));
+	lt_assert3(1 == 0, ("*** error: diskmodel::mech_g1::seek_extracted "
+						"-- seek distance exceeds extracted seek curve: "
+						"%d\n", 3));
 
-  lt_assert3(1 == 2, ("cake,"
-		      "%d\n", 
-		      3));
+	lt_assert3(1 == 2, ("cake,"
+						"%d\n",
+						3));
 }

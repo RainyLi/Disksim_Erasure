@@ -25,7 +25,7 @@
  * MELLON UNIVERSITY DOES NOT MAKE ANY WARRANTY OF ANY KIND WITH
  * RESPECT TO FREEDOM FROM PATENT, TRADEMARK, OR COPYRIGHT
  * INFRINGEMENT.  COPYRIGHT HOLDERS WILL BEAR NO LIABILITY FOR ANY USE
- * OF THIS SOFTWARE OR DOCUMENTATION.  
+ * OF THIS SOFTWARE OR DOCUMENTATION.
  */
 
 
@@ -39,13 +39,13 @@
 // breakage
 INLINE dm_time_t dm_time_dtoi(double t)
 {
-  // milliseconds to picoseconds so multiply by 10^9
-  return (dm_time_t)(t * (double)(DM_TIME_MSEC));
+	// milliseconds to picoseconds so multiply by 10^9
+	return (dm_time_t)(t * (double)(DM_TIME_MSEC));
 }
 
 INLINE double    dm_time_itod(dm_time_t t)
 {
-  return (double)t / (double)(DM_TIME_MSEC);
+	return (double)t / (double)(DM_TIME_MSEC);
 }
 
 
@@ -56,16 +56,16 @@ INLINE double    dm_time_itod(dm_time_t t)
 // convert angles between doubles and fixed-point representation
 INLINE double      dm_angle_itod(dm_angle_t a)
 {
-  //  return (double)a / (double)(unsigned)-1;
-  return (double)a / (double)((long long)1 << 32);
+	//  return (double)a / (double)(unsigned)-1;
+	return (double)a / (double)((long long)1 << 32);
 }
 
 INLINE dm_angle_t  dm_angle_dtoi(double a)
 {
-  if(a > 1.0) 
-    a -= (int)a;
-  //  return (dm_angle_t)(a * (double)(unsigned)-1);
-  return (dm_angle_t)(a * (double)((long long)1 << 32));
+	if(a > 1.0)
+		a -= (int)a;
+	//  return (dm_angle_t)(a * (double)(unsigned)-1);
+	return (dm_angle_t)(a * (double)((long long)1 << 32));
 }
 
 

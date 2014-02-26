@@ -42,34 +42,34 @@ extern "C" {
 
 /* System level request */
 struct disksim_request {
-  int flags;
-  short devno;
-  unsigned long blkno;
-  int bytecount;
-  double start;
-  int batchno;
-  int batch_complete;
-  void *reqctx;         /* context passed with the request */
+	int flags;
+	short devno;
+	unsigned long blkno;
+	int bytecount;
+	double start;
+	int batchno;
+	int batch_complete;
+	void *reqctx;         /* context passed with the request */
 };
 
 struct disksim_interface;
 
 // callback when requests complete
 typedef void(*disksim_interface_complete_t)(double time,
-					    struct disksim_request *,
-					    void *ctx);
+		struct disksim_request *,
+		void *ctx);
 
 // scheduled callback function (below)
 typedef void(*disksim_interface_callback_t)(struct disksim_interface *,
-					    double t,
-					    void *ctx);
+		double t,
+		void *ctx);
 
 // callback (disksim -> client) to register a callback (client ->
 // disksim); when simulated time reaches t, client code should invoke
 // fn.
 typedef void(*disksim_interface_sched_t)(disksim_interface_callback_t fn,
-					 double,
-					 void *ctx);
+		double,
+		void *ctx);
 
 // cancel the pending callback set for t
 typedef void(*disksim_interface_desched_t)(double t, void *ctx);
@@ -79,38 +79,38 @@ typedef void(*disksim_interface_desched_t)(double t, void *ctx);
 // ofile is the name of disksim's output file.
 // ctx is an arbitrary pointer which will be passed back to the callback
 // functions when they are invoked.
-struct disksim_interface * 
-disksim_interface_initialize (const char *pfile, 
-			      const char *ofile,
-			      disksim_interface_complete_t,
-			      disksim_interface_sched_t,
-			      disksim_interface_desched_t,
-			      void *ctx,
-			      int argc,
-			      char **argv);
+struct disksim_interface *
+disksim_interface_initialize (const char *pfile,
+							  const char *ofile,
+							  disksim_interface_complete_t,
+							  disksim_interface_sched_t,
+							  disksim_interface_desched_t,
+							  void *ctx,
+							  int argc,
+							  char **argv);
 
 
-void 
+void
 disksim_interface_shutdown (struct disksim_interface *,
-			    double syssimtime);
-void 
+							double syssimtime);
+void
 disksim_interface_dump_stats (struct disksim_interface *,
-			      double syssimtime);
+							  double syssimtime);
 
 // pump disksim's event loop
 // 3rd argument to make it match a type; ignored.
-void 
+void
 disksim_interface_internal_event (struct disksim_interface *,
-				  double t,
-				  void *junk);
+								  double t,
+								  void *junk);
 
 // inject a request into disksim
 void
 disksim_interface_request_arrive (struct disksim_interface *,
-				  double syssimtime, 
-				  struct disksim_request *requestdesc);
+								  double syssimtime,
+								  struct disksim_request *requestdesc);
 
-void 
+void
 disksim_free_disksim(struct disksim_interface *d);
 
 // convert milliseconds to/from whatever the native disksim

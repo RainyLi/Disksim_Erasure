@@ -25,7 +25,7 @@
  * MELLON UNIVERSITY DOES NOT MAKE ANY WARRANTY OF ANY KIND WITH
  * RESPECT TO FREEDOM FROM PATENT, TRADEMARK, OR COPYRIGHT
  * INFRINGEMENT.  COPYRIGHT HOLDERS WILL BEAR NO LIABILITY FOR ANY USE
- * OF THIS SOFTWARE OR DOCUMENTATION.  
+ * OF THIS SOFTWARE OR DOCUMENTATION.
  */
 
 
@@ -45,13 +45,13 @@
 struct dm_disk_if *
 dm_disk_loadparams(struct lp_block *b, int *junk)
 {
-  struct dm_disk_if *result = calloc(1, sizeof(*result));
+	struct dm_disk_if *result = calloc(1, sizeof(*result));
 
 
-  //#include "modules/dm_disk_param.c"
-  lp_loadparams(result, b, &dm_disk_mod);
+	//#include "modules/dm_disk_param.c"
+	lp_loadparams(result, b, &dm_disk_mod);
 
-  return result;
+	return result;
 }
 
 

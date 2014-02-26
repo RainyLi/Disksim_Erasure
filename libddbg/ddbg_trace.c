@@ -25,7 +25,7 @@
  * MELLON UNIVERSITY DOES NOT MAKE ANY WARRANTY OF ANY KIND WITH
  * RESPECT TO FREEDOM FROM PATENT, TRADEMARK, OR COPYRIGHT
  * INFRINGEMENT.  COPYRIGHT HOLDERS WILL BEAR NO LIABILITY FOR ANY USE
- * OF THIS SOFTWARE OR DOCUMENTATION.  
+ * OF THIS SOFTWARE OR DOCUMENTATION.
  */
 
 
@@ -56,7 +56,7 @@
  * MELLON UNIVERSITY DOES NOT MAKE ANY WARRANTY OF ANY KIND WITH
  * RESPECT TO FREEDOM FROM PATENT, TRADEMARK, OR COPYRIGHT
  * INFRINGEMENT.  COPYRIGHT HOLDERS WILL BEAR NO LIABILITY FOR ANY USE
- * OF THIS SOFTWARE OR DOCUMENTATION.  
+ * OF THIS SOFTWARE OR DOCUMENTATION.
  */
 
 
@@ -69,8 +69,8 @@
 #include <bitvector.h>
 
 struct ddbg_class {
-  char *name;
-  BITVECTOR(instances, DDBG_MAX_INSTANCE);
+	char *name;
+	BITVECTOR(instances, DDBG_MAX_INSTANCE);
 };
 
 static struct ddbg_class *ddbg_classes = 0;
@@ -80,75 +80,77 @@ static FILE *ddbg_tracefile = 0;
 
 // register a new class.  Returns an int class id to be used with
 // subsequent calls
-int ddbg_register(char *classname) {
+int ddbg_register(char *classname)
+{
 
-  if(ddbg_class_max < ddbg_classes_len) {
-    goto found;
-  }
+	if(ddbg_class_max < ddbg_classes_len) {
+		goto found;
+	}
 
-  ddbg_classes_len *= 2;
-  ddbg_classes_len++;
-  ddbg_classes = realloc(ddbg_classes, ddbg_classes_len * sizeof(struct ddbg_class));
-  
- found:
-  ddbg_classes[ddbg_class_max].name = strdup(classname);
-  bit_zero(ddbg_classes[ddbg_class_max].instances, DDBG_MAX_INSTANCE);
-  ddbg_class_max++;
+	ddbg_classes_len *= 2;
+	ddbg_classes_len++;
+	ddbg_classes = realloc(ddbg_classes, ddbg_classes_len * sizeof(struct ddbg_class));
 
-  return ddbg_class_max - 1;
+found:
+	ddbg_classes[ddbg_class_max].name = strdup(classname);
+	bit_zero(ddbg_classes[ddbg_class_max].instances, DDBG_MAX_INSTANCE);
+	ddbg_class_max++;
+
+	return ddbg_class_max - 1;
 }
 
 // start logging (class,instance) traces.  -1 is the wildcard which logs
 // all instances from that class.
-void ddbg_enable(int class, int instance) {
-  ddbg_assert(class < ddbg_class_max);
-  ddbg_assert((instance < DDBG_MAX_INSTANCE) || (instance == -1));
-  if(instance != -1) {
-    BIT_SET(ddbg_classes[class].instances, instance);
-  }
-  else {
-    bit_setall(ddbg_classes[class].instances, DDBG_MAX_INSTANCE);
-  }
+void ddbg_enable(int class, int instance)
+{
+	ddbg_assert(class < ddbg_class_max);
+	ddbg_assert((instance < DDBG_MAX_INSTANCE) || (instance == -1));
+	if(instance != -1) {
+		BIT_SET(ddbg_classes[class].instances, instance);
+	} else {
+		bit_setall(ddbg_classes[class].instances, DDBG_MAX_INSTANCE);
+	}
 }
 
 // stop logging (class,instance) traces.  -1 is the wildcard which
 // squelches all instances from that class.
-void ddbg_disable(int class, int instance) {
-  ddbg_assert(class < ddbg_class_max);
-  ddbg_assert((instance < DDBG_MAX_INSTANCE) || (instance == -1));
-  if(instance != -1) {
-    BIT_RESET(ddbg_classes[class].instances, instance);
-  }
-  else {
-    bit_zero(ddbg_classes[class].instances, DDBG_MAX_INSTANCE);
-  }
+void ddbg_disable(int class, int instance)
+{
+	ddbg_assert(class < ddbg_class_max);
+	ddbg_assert((instance < DDBG_MAX_INSTANCE) || (instance == -1));
+	if(instance != -1) {
+		BIT_RESET(ddbg_classes[class].instances, instance);
+	} else {
+		bit_zero(ddbg_classes[class].instances, DDBG_MAX_INSTANCE);
+	}
 }
 
 
 
 void ddbg_trace(int class, int instance, char *fmt, ...)
 {
-  ddbg_assert(class < ddbg_class_max);
-  ddbg_assert(instance < DDBG_MAX_INSTANCE);
+	ddbg_assert(class < ddbg_class_max);
+	ddbg_assert(instance < DDBG_MAX_INSTANCE);
 
 #ifndef _LIBDDBG_FREEBSD
- 
-  if(BIT_TEST(ddbg_classes[class].instances, instance) && ddbg_tracefile) {
-    va_list ap;
 
-    fprintf(ddbg_tracefile, "(%s,%d): ", ddbg_classes[class].name, instance);
-    
-    va_start(ap, fmt);
-    vfprintf(ddbg_tracefile, fmt, ap);
+	if(BIT_TEST(ddbg_classes[class].instances, instance) && ddbg_tracefile) {
+		va_list ap;
 
-    fprintf(ddbg_tracefile, "\n");
-  }
+		fprintf(ddbg_tracefile, "(%s,%d): ", ddbg_classes[class].name, instance);
+
+		va_start(ap, fmt);
+		vfprintf(ddbg_tracefile, fmt, ap);
+
+		fprintf(ddbg_tracefile, "\n");
+	}
 #endif // _LIBDDBG_FREEBSD
 }
 
 
 
 
-void ddbg_setfile(FILE *f) {
-  ddbg_tracefile = f;
+void ddbg_setfile(FILE *f)
+{
+	ddbg_tracefile = f;
 }

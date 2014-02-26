@@ -24,56 +24,58 @@
  * MELLON UNIVERSITY DOES NOT MAKE ANY WARRANTY OF ANY KIND WITH
  * RESPECT TO FREEDOM FROM PATENT, TRADEMARK, OR COPYRIGHT
  * INFRINGEMENT.  COPYRIGHT HOLDERS WILL BEAR NO LIABILITY FOR ANY USE
- * OF THIS SOFTWARE OR DOCUMENTATION.  
+ * OF THIS SOFTWARE OR DOCUMENTATION.
  */
 
 
 #include "test.h"
 
-void testsUsage(void) {
-  fprintf(stderr, "usage: layout_simple <model>\n");
+void testsUsage(void)
+{
+	fprintf(stderr, "usage: layout_simple <model>\n");
 }
 
 
 
-int 
-layout_test_simple(struct dm_disk_if *d) {
-  int count = 0, runlbn = 0, lbn = 0;
-  struct dm_pbn pbn, trkpbn = {0,0,0};
-  int bad = 0;
+int
+layout_test_simple(struct dm_disk_if *d)
+{
+	int count = 0, runlbn = 0, lbn = 0;
+	struct dm_pbn pbn, trkpbn = {0,0,0};
+	int bad = 0;
 
-  do {
-    dm_angle_t skew;
-    struct dm_mech_state track;
-    dm_ptol_result_t rc;
+	do {
+		dm_angle_t skew;
+		struct dm_mech_state track;
+		dm_ptol_result_t rc;
 
-    rc = d->layout->dm_translate_ltop(d, lbn, MAP_FULL, &pbn, 0);
+		rc = d->layout->dm_translate_ltop(d, lbn, MAP_FULL, &pbn, 0);
 
-    if(rc == DM_NX) {
-      bad++;
-      continue;
-    }
-    
-    skew = d->layout->dm_pbn_skew(d, &pbn);
+		if(rc == DM_NX) {
+			bad++;
+			continue;
+		}
 
-
-    printf("%d -> (%d,%d,%d) @ %f\n", 
-	   lbn, pbn.cyl, pbn.head, pbn.sector, dm_angle_itod(skew)); 
-
-    d->layout->dm_get_track_boundaries(d, &pbn, 0, &lbn, 0);
-    lbn++;
+		skew = d->layout->dm_pbn_skew(d, &pbn);
 
 
-    fflush(stdout);
-  } while(lbn < d->dm_sectors);
+		printf("%d -> (%d,%d,%d) @ %f\n",
+			   lbn, pbn.cyl, pbn.head, pbn.sector, dm_angle_itod(skew));
+
+		d->layout->dm_get_track_boundaries(d, &pbn, 0, &lbn, 0);
+		lbn++;
 
 
-  return bad;
+		fflush(stdout);
+	} while(lbn < d->dm_sectors);
+
+
+	return bad;
 }
 
 int minargs = 0;
 
 int doTests(struct dm_disk_if *d, int argc, char **argv)
 {
-  return layout_test_simple(d);
+	return layout_test_simple(d);
 }

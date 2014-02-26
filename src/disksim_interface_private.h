@@ -38,11 +38,11 @@
 // struct disksim;
 
 struct disksim_interface {
-  struct disksim *disksim;
-  disksim_interface_complete_t complete_fn;
-  disksim_interface_sched_t sched_fn;
-  disksim_interface_desched_t desched_fn;
-  void *ctx;
+	struct disksim *disksim;
+	disksim_interface_complete_t complete_fn;
+	disksim_interface_sched_t sched_fn;
+	disksim_interface_desched_t desched_fn;
+	void *ctx;
 };
 
 #endif

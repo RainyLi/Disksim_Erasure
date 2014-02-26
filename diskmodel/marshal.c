@@ -25,7 +25,7 @@
  * MELLON UNIVERSITY DOES NOT MAKE ANY WARRANTY OF ANY KIND WITH
  * RESPECT TO FREEDOM FROM PATENT, TRADEMARK, OR COPYRIGHT
  * INFRINGEMENT.  COPYRIGHT HOLDERS WILL BEAR NO LIABILITY FOR ANY USE
- * OF THIS SOFTWARE OR DOCUMENTATION.  
+ * OF THIS SOFTWARE OR DOCUMENTATION.
  */
 
 
@@ -35,98 +35,100 @@
 
 
 struct dm_disk_if *
-dm_unmarshal(struct dm_marshal_hdr *h, int bufflen) {
-  
-  struct dm_disk_if *result;
+dm_unmarshal(struct dm_marshal_hdr *h, int bufflen)
+{
 
-  /* malformed */
-  if(bufflen < sizeof(struct dm_marshal_hdr)) return 0;
-  if(h->len < bufflen) return 0;
-  // don't know what this is
-  if(h->type != DM_DISK_TYP) return 0;
+	struct dm_disk_if *result;
 
-  dm_marshal_mods[DM_DISK_TYP]->unmarshal(h, (void **)&result, 0);
-  return result;
+	/* malformed */
+	if(bufflen < sizeof(struct dm_marshal_hdr)) return 0;
+	if(h->len < bufflen) return 0;
+	// don't know what this is
+	if(h->type != DM_DISK_TYP) return 0;
+
+	dm_marshal_mods[DM_DISK_TYP]->unmarshal(h, (void **)&result, 0);
+	return result;
 }
 
 
 char *
-dm_unmarshal_disk(struct dm_marshal_hdr *h, 
-		   void **result,
-		   void *parent)
+dm_unmarshal_disk(struct dm_marshal_hdr *h,
+				  void **result,
+				  void *parent)
 {
-  char *ptr = (char *)h;
-  struct dm_marshal_hdr *hdrtmp;
-  struct dm_disk_if *d = malloc(sizeof(*d));
-  
-  ptr += sizeof(struct dm_marshal_hdr);
+	char *ptr = (char *)h;
+	struct dm_marshal_hdr *hdrtmp;
+	struct dm_disk_if *d = malloc(sizeof(*d));
 
-  memcpy((char *)d, ptr, sizeof(struct dm_disk_if));
-  ptr += sizeof(struct dm_disk_if);
+	ptr += sizeof(struct dm_marshal_hdr);
 
-  hdrtmp = (struct dm_marshal_hdr *)ptr;
+	memcpy((char *)d, ptr, sizeof(struct dm_disk_if));
+	ptr += sizeof(struct dm_disk_if);
 
-  switch(hdrtmp->type) {
-  case DM_LAYOUT_G1_TYP:
-    ptr = dm_marshal_mods[DM_LAYOUT_G1_TYP]->unmarshal((void *)ptr,
-							 (void **)&d->layout, 
-							 d);
-    break;
-    
-  default:
-    ddbg_assert(0);
-    break;
-  }
+	hdrtmp = (struct dm_marshal_hdr *)ptr;
 
-  ptr = dm_marshal_mods[DM_MECH_G1_TYP]->unmarshal((void *)ptr, 
-						     (void **)&d->mech, 
-						     d);
+	switch(hdrtmp->type) {
+	case DM_LAYOUT_G1_TYP:
+		ptr = dm_marshal_mods[DM_LAYOUT_G1_TYP]->unmarshal((void *)ptr,
+				(void **)&d->layout,
+				d);
+		break;
 
-  *result = d;
-  return ptr;
+	default:
+		ddbg_assert(0);
+		break;
+	}
+
+	ptr = dm_marshal_mods[DM_MECH_G1_TYP]->unmarshal((void *)ptr,
+			(void **)&d->mech,
+			d);
+
+	*result = d;
+	return ptr;
 }
 
 
 struct dm_marshal_hdr *
-dm_marshal(struct dm_disk_if *d) {
-  struct dm_marshal_hdr *result = 0;
-  char *ptr = 0;
-  int alloc_size = 0;
+dm_marshal(struct dm_disk_if *d)
+{
+	struct dm_marshal_hdr *result = 0;
+	char *ptr = 0;
+	int alloc_size = 0;
 
 
-  alloc_size = sizeof(struct dm_disk_if);
-  alloc_size += sizeof(struct dm_marshal_hdr);
+	alloc_size = sizeof(struct dm_disk_if);
+	alloc_size += sizeof(struct dm_marshal_hdr);
 
-  alloc_size += d->layout->dm_marshaled_len(d);
-  alloc_size += sizeof(struct dm_marshal_hdr);
+	alloc_size += d->layout->dm_marshaled_len(d);
+	alloc_size += sizeof(struct dm_marshal_hdr);
 
-  alloc_size += d->mech->dm_marshaled_len(d);
-  alloc_size += sizeof(struct dm_marshal_hdr);
+	alloc_size += d->mech->dm_marshaled_len(d);
+	alloc_size += sizeof(struct dm_marshal_hdr);
 
-  result = malloc(alloc_size);
+	result = malloc(alloc_size);
 
-  result->type = DM_DISK_TYP;
-  result->len = alloc_size;
+	result->type = DM_DISK_TYP;
+	result->len = alloc_size;
 
-  ptr = (char *)result + sizeof(struct dm_marshal_hdr);
-  memcpy(ptr, (char *)d, sizeof(struct dm_disk_if));
-  // no fn ptrs in disk struct
-  ptr += sizeof(struct dm_disk_if);
-  ptr = d->layout->dm_marshal(d, ptr);
-  d->mech->dm_marshal(d, ptr);
+	ptr = (char *)result + sizeof(struct dm_marshal_hdr);
+	memcpy(ptr, (char *)d, sizeof(struct dm_disk_if));
+	// no fn ptrs in disk struct
+	ptr += sizeof(struct dm_disk_if);
+	ptr = d->layout->dm_marshal(d, ptr);
+	d->mech->dm_marshal(d, ptr);
 
-  
 
-  return result;
+
+	return result;
 }
 
-struct dm_marshal_module dm_disk_marshal_mod = 
+struct dm_marshal_module dm_disk_marshal_mod =
 { dm_unmarshal_disk, 0, 0 };
 
 struct dm_marshal_module *dm_marshal_mods[] = {
-  &dm_disk_marshal_mod,
-  &dm_layout_g1_marshal_mod,
-  &dm_mech_g1_marshal_mod,
+	&dm_disk_marshal_mod,
+	&dm_layout_g1_marshal_mod,
+	&dm_mech_g1_marshal_mod,
 };
 
 
@@ -135,28 +137,30 @@ struct dm_marshal_module *dm_marshal_mods[] = {
 // note: sizeof(struct marshaled_fn) must not be larger than
 // sizeof(void*)
 struct marshaled_fn {
-  uint16_t typ;
-  uint16_t code;
+	uint16_t typ;
+	uint16_t code;
 };
 
-void marshal_fn(void *fn, int typ, struct marshaled_fn *result) {
-  int c;
+void marshal_fn(void *fn, int typ, struct marshaled_fn *result)
+{
+	int c;
 
-  result->typ = typ;
+	result->typ = typ;
 
-  for(c = 0; c < dm_marshal_mods[typ]->fn_table_len; c++) {
-    if(dm_marshal_mods[typ]->fn_table[c] == fn) {
-      result->code = c;
-      return;
-    }
-  }
+	for(c = 0; c < dm_marshal_mods[typ]->fn_table_len; c++) {
+		if(dm_marshal_mods[typ]->fn_table[c] == fn) {
+			result->code = c;
+			return;
+		}
+	}
 
-  ddbg_assert(0);
+	ddbg_assert(0);
 }
 
-void *unmarshal_fn(int *buff, int typ) {
-  struct marshaled_fn *dmf = (struct marshaled_fn *)buff;
-  return dm_marshal_mods[typ]->fn_table[dmf->code];
+void *unmarshal_fn(int *buff, int typ)
+{
+	struct marshaled_fn *dmf = (struct marshaled_fn *)buff;
+	return dm_marshal_mods[typ]->fn_table[dmf->code];
 }
 
 
@@ -164,26 +168,28 @@ void *unmarshal_fn(int *buff, int typ) {
 // b is a buffer that you want to marshal the function pointers into
 // typ is which module these functions belong to
 void
-marshal_fns(void **fns, int fns_len, char *b, int typ) {
-  int *buff = (int *)b;
-  int c;
+marshal_fns(void **fns, int fns_len, char *b, int typ)
+{
+	int *buff = (int *)b;
+	int c;
 
-  for(c = 0; c < fns_len; c++) {
-    marshal_fn(fns[c], typ, (struct marshaled_fn *)buff); 
-    buff++;
-  }
+	for(c = 0; c < fns_len; c++) {
+		marshal_fn(fns[c], typ, (struct marshaled_fn *)buff);
+		buff++;
+	}
 }
 
 // unmarshal fns_len functions from buff for module type into fns
 void
-unmarshal_fns(void **fns, int fns_len, char *b, int typ) {
-  int *buff = (int *)b;
-  int c;
+unmarshal_fns(void **fns, int fns_len, char *b, int typ)
+{
+	int *buff = (int *)b;
+	int c;
 
-  for(c = 0; c < fns_len; c++) {
-    fns[c] = unmarshal_fn(buff, typ); 
-    buff++;
-  }
+	for(c = 0; c < fns_len; c++) {
+		fns[c] = unmarshal_fn(buff, typ);
+		buff++;
+	}
 }
 
 

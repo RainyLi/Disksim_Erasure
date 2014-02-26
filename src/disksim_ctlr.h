@@ -58,7 +58,7 @@
  * DiskSim Storage Subsystem Simulation Environment
  * Authors: Greg Ganger, Bruce Worthington, Yale Patt
  *
- * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan 
+ * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan
  *
  * This software is being provided by the copyright holders under the
  * following license. By obtaining, using and/or copying this software,
@@ -132,65 +132,65 @@
 
 
 typedef struct controller {
-   int		ctlno;
-   int          type;
-   int          state;
-   int          printstats;
-   struct ioq *	queue;
-   struct cache_if *cache;
-   int		numdevices;
-   device *	devices;
-   double	timescale;
-   double	blktranstime;
-   double	ovrhd_disk_request;
-   double	ovrhd_ready;
-   double	ovrhd_disk_ready;
-   double	ovrhd_disconnect;
-   double	ovrhd_disk_disconnect;
-   double	ovrhd_reconnect;
-   double	ovrhd_disk_reconnect;
-   double	ovrhd_complete;
-   double	ovrhd_disk_complete;
-   double	ovrhd_reset;
-   ioreq_event *connections;
-   ioreq_event *datatransfers;
-   int		hosttransfer;
-   ioreq_event *hostwaiters;
-   int          maxoutstanding;
-   int		maxdiskqsize;
-   int		inbusowned;
-   int		outbusowned;
-   ioreq_event *buswait;
-   int          numinbuses;
-   int          inbuses[MAXINBUSES];
-   int          depth[MAXINBUSES];
-   int          slotno[MAXINBUSES];
-   int          numoutbuses;
-   int          *outbuses;
-   int          outslot[MAXOUTBUSES];
-   double	waitingforbus;
-   char        *name;
+	int		ctlno;
+	int          type;
+	int          state;
+	int          printstats;
+	struct ioq *	queue;
+	struct cache_if *cache;
+	int		numdevices;
+	device *	devices;
+	double	timescale;
+	double	blktranstime;
+	double	ovrhd_disk_request;
+	double	ovrhd_ready;
+	double	ovrhd_disk_ready;
+	double	ovrhd_disconnect;
+	double	ovrhd_disk_disconnect;
+	double	ovrhd_reconnect;
+	double	ovrhd_disk_reconnect;
+	double	ovrhd_complete;
+	double	ovrhd_disk_complete;
+	double	ovrhd_reset;
+	ioreq_event *connections;
+	ioreq_event *datatransfers;
+	int		hosttransfer;
+	ioreq_event *hostwaiters;
+	int          maxoutstanding;
+	int		maxdiskqsize;
+	int		inbusowned;
+	int		outbusowned;
+	ioreq_event *buswait;
+	int          numinbuses;
+	int          inbuses[MAXINBUSES];
+	int          depth[MAXINBUSES];
+	int          slotno[MAXINBUSES];
+	int          numoutbuses;
+	int          *outbuses;
+	int          outslot[MAXOUTBUSES];
+	double	waitingforbus;
+	char        *name;
 } controller;
 
 
 typedef struct ctlrinfo {
-   int numcontrollers;
-   controller **controllers;
-  int ctlrs_len; /* allocated size of array */
-   int numctlorgs;
-   struct logorg *ctlorgs;
-   int ctl_printcachestats;
-   int ctl_printsizestats;
-   int ctl_printlocalitystats;
-   int ctl_printblockingstats;
-   int ctl_printinterferestats;
-   int ctl_printqueuestats;
-   int ctl_printcritstats;
-   int ctl_printidlestats;
-   int ctl_printintarrstats;
-   int ctl_printstreakstats;
-   int ctl_printstampstats;
-   int ctl_printperdiskstats;
+	int numcontrollers;
+	controller **controllers;
+	int ctlrs_len; /* allocated size of array */
+	int numctlorgs;
+	struct logorg *ctlorgs;
+	int ctl_printcachestats;
+	int ctl_printsizestats;
+	int ctl_printlocalitystats;
+	int ctl_printblockingstats;
+	int ctl_printinterferestats;
+	int ctl_printqueuestats;
+	int ctl_printcritstats;
+	int ctl_printidlestats;
+	int ctl_printintarrstats;
+	int ctl_printstreakstats;
+	int ctl_printstampstats;
+	int ctl_printperdiskstats;
 } ctlrinfo_t;
 
 

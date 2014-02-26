@@ -58,7 +58,7 @@
  * DiskSim Storage Subsystem Simulation Environment
  * Authors: Greg Ganger, Bruce Worthington, Yale Patt
  *
- * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan 
+ * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan
  *
  * This software is being provided by the copyright holders under the
  * following license. By obtaining, using and/or copying this software,
@@ -156,10 +156,10 @@
 /* I/O Interrupt cause types */
 
 typedef enum {
-  COMPLETION		= -1,
-  RECONNECT		= -2,
-  DISCONNECT		= -3,
-  READY_TO_TRANSFER	= -4
+	COMPLETION		= -1,
+	RECONNECT		= -2,
+	DISCONNECT		= -3,
+	READY_TO_TRANSFER	= -4
 } disksim_int_t;
 
 #ifndef IOFACE_H
@@ -202,29 +202,29 @@ typedef enum {
 /* important state (e.g., access paths and outstanding requests).            */
 
 typedef struct {
-   int          ctlno;
-   int          flags;
-   intchar      slotpath;
-   intchar      buspath;
-   int          maxoutstanding;
-   int		numoutstanding;
-   int          maxreqsize;
-   ioreq_event *pendio;
-   ioreq_event *oversized;
+	int          ctlno;
+	int          flags;
+	intchar      slotpath;
+	intchar      buspath;
+	int          maxoutstanding;
+	int		numoutstanding;
+	int          maxreqsize;
+	ioreq_event *pendio;
+	ioreq_event *oversized;
 } ctlr;
 
 /* NOTE: this is *not* the same as what disksim_device.[ch] cares about. */
 typedef struct {
-   double       lastevent;
-   int          flag;
-   int          devno;
-   int          busy;
-   intchar      slotpath;
-   intchar      buspath;
-   int          maxoutstanding;
-   int		queuectlr;
-   ctlr         *ctl;
-   struct ioq   *queue;
+	double       lastevent;
+	int          flag;
+	int          devno;
+	int          busy;
+	intchar      slotpath;
+	intchar      buspath;
+	int          maxoutstanding;
+	int		queuectlr;
+	ctlr         *ctl;
+	struct ioq   *queue;
 } device;
 
 
@@ -266,25 +266,25 @@ static char *statdesc_traceaccdiffwritestats =	"Trace write access diff time";
 
 
 typedef struct iosim_info {
-   event * io_extq;
-   int     io_extqlen;
-   int     io_extq_type;
-   double  ioscale;
-   double  last_request_arrive;
-   double  constintarrtime;
-   int     validatebuf[10];
-   int     tracemappings;
-   int     tracemap[TRACEMAPPINGS];
-   int     tracemap1[TRACEMAPPINGS];
-   int     tracemap2[TRACEMAPPINGS];
-   int     tracemap3[TRACEMAPPINGS];
-   int     tracemap4[TRACEMAPPINGS];
-   statgen *tracestats;
-   statgen *tracestats1;
-   statgen *tracestats2;
-   statgen *tracestats3;
-   statgen *tracestats4;
-   statgen *tracestats5;
+	event * io_extq;
+	int     io_extqlen;
+	int     io_extq_type;
+	double  ioscale;
+	double  last_request_arrive;
+	double  constintarrtime;
+	int     validatebuf[10];
+	int     tracemappings;
+	int     tracemap[TRACEMAPPINGS];
+	int     tracemap1[TRACEMAPPINGS];
+	int     tracemap2[TRACEMAPPINGS];
+	int     tracemap3[TRACEMAPPINGS];
+	int     tracemap4[TRACEMAPPINGS];
+	statgen *tracestats;
+	statgen *tracestats1;
+	statgen *tracestats2;
+	statgen *tracestats3;
+	statgen *tracestats4;
+	statgen *tracestats5;
 } iosim_info_t;
 
 

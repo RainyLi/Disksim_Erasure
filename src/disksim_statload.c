@@ -40,12 +40,13 @@
 #include "disksim_global.h"
 
 
-int disksim_stats_loadparams(struct lp_block *b) {
-    
-/*    unparse_block(b, outputfile); */
+int disksim_stats_loadparams(struct lp_block *b)
+{
 
-  //#include "modules/disksim_stats_param.c"
-  lp_loadparams(0, b, &disksim_stats_mod);
+	/*    unparse_block(b, outputfile); */
 
-  return 1;
+	//#include "modules/disksim_stats_param.c"
+	lp_loadparams(0, b, &disksim_stats_mod);
+
+	return 1;
 }

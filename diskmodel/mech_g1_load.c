@@ -25,7 +25,7 @@
  * MELLON UNIVERSITY DOES NOT MAKE ANY WARRANTY OF ANY KIND WITH
  * RESPECT TO FREEDOM FROM PATENT, TRADEMARK, OR COPYRIGHT
  * INFRINGEMENT.  COPYRIGHT HOLDERS WILL BEAR NO LIABILITY FOR ANY USE
- * OF THIS SOFTWARE OR DOCUMENTATION.  
+ * OF THIS SOFTWARE OR DOCUMENTATION.
  */
 
 
@@ -58,7 +58,7 @@
  * DiskSim Storage Subsystem Simulation Environment
  * Authors: Greg Ganger, Bruce Worthington, Yale Patt
  *
- * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan 
+ * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan
  *
  * This software is being provided by the copyright holders under the
  * following license. By obtaining, using and/or copying this software,
@@ -114,11 +114,11 @@
 //#include "modules/dm_mech_g1_param.h"
 
 
-void 
-dm_mech_g1_read_extracted_seek_curve(char *filename, 
-				     int *cntptr,
-				     int **distsptr, 
-				     dm_time_t **timesptr);
+void
+dm_mech_g1_read_extracted_seek_curve(char *filename,
+									 int *cntptr,
+									 int **distsptr,
+									 dm_time_t **timesptr);
 
 int do_1st10_seeks(struct dm_mech_g1 *result, struct lp_list *l);
 int do_hpl_seek(struct dm_mech_g1 *result, struct lp_list *l);
@@ -126,232 +126,225 @@ int do_hpl_seek(struct dm_mech_g1 *result, struct lp_list *l);
 
 
 struct dm_mech_if *
-dm_mech_g1_loadparams(struct lp_block *b, int *junk) {
-  
-  struct dm_mech_g1 *result = malloc(sizeof(*result));
-  result->hdr = dm_mech_g1;
-  //  #include "modules/dm_mech_g1_param.c"
-  lp_loadparams(result, b, &dm_mech_g1_mod);
-
-
-  result->rotatetime = dm_time_dtoi(1000.0 / ((double)result->rpm / 60.0));
-  
-  return (struct dm_mech_if *)result;
-}
-
-
-void 
-dm_mech_g1_read_extracted_seek_curve (char *filename, 
-				      int *cntptr,
-				      int **distsptr, 
-				      dm_time_t **timesptr)
+dm_mech_g1_loadparams(struct lp_block *b, int *junk)
 {
-   int rv, mat;
-   int lineflag = 1;
-   int count = 0, buflen = 128;
-   int *dists;
-   dm_time_t *times;
-   FILE *seekfile;
-   char linebuf[1024];
 
-   char *pathname = lp_search_path(lp_cwd, filename);
-
-   if(pathname) {
-     seekfile = fopen(pathname, "r");
-   }
-   else {
-     ddbg_assert2(0, "Seek file not found in path!");
-   }
-
-   ddbg_assert3(seekfile != 0, ("fopen seekfile (%s) failed: %s", 
-				filename,
-				strerror(errno)));
+	struct dm_mech_g1 *result = malloc(sizeof(*result));
+	result->hdr = dm_mech_g1;
+	//  #include "modules/dm_mech_g1_param.c"
+	lp_loadparams(result, b, &dm_mech_g1_mod);
 
 
-   rv = (fgets(linebuf, sizeof(linebuf), seekfile) != 0);
+	result->rotatetime = dm_time_dtoi(1000.0 / ((double)result->rpm / 60.0));
 
-   mat = sscanf(linebuf, "Seek distances measured: %d\n", &count);
-   if(mat == 1) {
-     buflen = count;
-     lineflag = 0;
-   }
-
-   dists = calloc(buflen, sizeof(*dists));
-   times = calloc(buflen, sizeof(*times));
-
-
-   do {
-     double time, stdev;
-     int dist;
-   
-     if(!lineflag) {
-       rv = (fgets(linebuf, sizeof(linebuf), seekfile) != 0);
-     }
-     else {
-       lineflag = 0;       
-     }
-     if(rv) {
-       mat = sscanf(linebuf, "%d, %lf, %lf\n", &dist, &time, &stdev);
-       
-       if(mat == 2 || mat == 3) {
-	 if(count >= buflen-1) {
-	   buflen *= 2;
-	   dists = realloc(dists, buflen * sizeof(*dists));
-	   times = realloc(times, buflen * sizeof(*times));
-	 }
-       
-	 dists[count] = dist;
-	 times[count] = dm_time_dtoi(time);
-	 count++;
-       }
-       else {
-	 fprintf(stderr, "*** bogus line in seek curve (%s:%d): %s\n", 
-		 __FILE__, __LINE__, linebuf);
-       }
-     }
-   } while(rv);
-
-   fclose(seekfile);
-   *cntptr = count;
-   *distsptr = dists;
-   *timesptr = times;
+	return (struct dm_mech_if *)result;
 }
 
 
-
-int do_1st10_seeks(struct dm_mech_g1 *result, 
-		   struct lp_list *l) 
+void
+dm_mech_g1_read_extracted_seek_curve (char *filename,
+									  int *cntptr,
+									  int **distsptr,
+									  dm_time_t **timesptr)
 {
-  if(result->seektime != SEEK_1ST10_PLUS_HPL) {
-    fprintf(stderr, "*** warning: ignoring First 10 seeks parameter for seek function other than First 10 plus hpl.\n");
-    return 0;
-  }
+	int rv, mat;
+	int lineflag = 1;
+	int count = 0, buflen = 128;
+	int *dists;
+	dm_time_t *times;
+	FILE *seekfile;
+	char linebuf[1024];
 
-  if(l->values_len < 10) {
-    fprintf(stderr, "*** error: Want 10 first seek times (got %d)\n", l->values_len);
-    return -1;
-  }
-  else {
-    int e;
-    for(e = 0; e < 10; e++) {
-      if(l->values[e]->t != D) {
-	fprintf(stderr, "*** error: First 10 seeks must be floats.\n");
-	return -1;
-      } else if(l->values[e]->v.d < 0.0) {
-	fprintf(stderr, "*** error: First 10 seeks must be nonnegative.\n");
-	return -1;
-      }
-      result->first10seeks[e] = dm_time_dtoi(l->values[e]->v.d);
-     
-    }
-  }
-  return 0;
+	char *pathname = lp_search_path(lp_cwd, filename);
+
+	if(pathname) {
+		seekfile = fopen(pathname, "r");
+	} else {
+		ddbg_assert2(0, "Seek file not found in path!");
+	}
+
+	ddbg_assert3(seekfile != 0, ("fopen seekfile (%s) failed: %s",
+								 filename,
+								 strerror(errno)));
+
+
+	rv = (fgets(linebuf, sizeof(linebuf), seekfile) != 0);
+
+	mat = sscanf(linebuf, "Seek distances measured: %d\n", &count);
+	if(mat == 1) {
+		buflen = count;
+		lineflag = 0;
+	}
+
+	dists = calloc(buflen, sizeof(*dists));
+	times = calloc(buflen, sizeof(*times));
+
+
+	do {
+		double time, stdev;
+		int dist;
+
+		if(!lineflag) {
+			rv = (fgets(linebuf, sizeof(linebuf), seekfile) != 0);
+		} else {
+			lineflag = 0;
+		}
+		if(rv) {
+			mat = sscanf(linebuf, "%d, %lf, %lf\n", &dist, &time, &stdev);
+
+			if(mat == 2 || mat == 3) {
+				if(count >= buflen-1) {
+					buflen *= 2;
+					dists = realloc(dists, buflen * sizeof(*dists));
+					times = realloc(times, buflen * sizeof(*times));
+				}
+
+				dists[count] = dist;
+				times[count] = dm_time_dtoi(time);
+				count++;
+			} else {
+				fprintf(stderr, "*** bogus line in seek curve (%s:%d): %s\n",
+						__FILE__, __LINE__, linebuf);
+			}
+		}
+	} while(rv);
+
+	fclose(seekfile);
+	*cntptr = count;
+	*distsptr = dists;
+	*timesptr = times;
 }
 
-int do_hpl_seek(struct dm_mech_g1 *result, struct lp_list *l) {
 
-  if((result->seektime != SEEK_HPL)
-     && (result->seektime != SEEK_1ST10_PLUS_HPL)) 
-    {
-      fprintf(stderr, 
-	      "*** warning: ignoring hpl parameters for non-hpl seek type.\n");
-      return 0;
-    }
 
-  if(l->values_len < 6) {
-    fprintf(stderr, "*** error: Want 6 HPL seek equation parameters (got %d)\n", l->values_len);
-    return -1;
-  }
-  else {
-    int e;
+int do_1st10_seeks(struct dm_mech_g1 *result,
+				   struct lp_list *l)
+{
+	if(result->seektime != SEEK_1ST10_PLUS_HPL) {
+		fprintf(stderr, "*** warning: ignoring First 10 seeks parameter for seek function other than First 10 plus hpl.\n");
+		return 0;
+	}
 
-    // first one is in cyls, rest are in milliseconds
-    if(l->values[0]->t != I) {
-      fprintf(stderr, "*** error: HPL v1 is in cylinders.\n");
-      return -1;
-    } 
-    else if(l->values[0]->v.i < 0) {
-      fprintf(stderr, "*** error: HPL v1 must be nonnegative.\n");
-      return -1;
-    }
-    result->hpseek_v1 = l->values[0]->v.i;
+	if(l->values_len < 10) {
+		fprintf(stderr, "*** error: Want 10 first seek times (got %d)\n", l->values_len);
+		return -1;
+	} else {
+		int e;
+		for(e = 0; e < 10; e++) {
+			if(l->values[e]->t != D) {
+				fprintf(stderr, "*** error: First 10 seeks must be floats.\n");
+				return -1;
+			} else if(l->values[e]->v.d < 0.0) {
+				fprintf(stderr, "*** error: First 10 seeks must be nonnegative.\n");
+				return -1;
+			}
+			result->first10seeks[e] = dm_time_dtoi(l->values[e]->v.d);
 
-    for(e = 1; e < 6; e++) {
-      if(l->values[e]->t != D) {
-	fprintf(stderr, "*** error: HPL seek eqn. values v2..v6 must  be floats.\n");
-	return -1;
-      } 
-      else if((l->values[e]->v.d < 0.0) && (e != 5)) {
-	fprintf(stderr, "*** error: HPL seek eqn. values v2..v5 must be nonnegative.\n");
-	return -1;
-      }
+		}
+	}
+	return 0;
+}
 
-      if((l->values[e]->v.d == -1.0) && (e == 5)) {
-	result->hpseek[e] = -1;
-      }
-      else {
-	result->hpseek[e] = dm_time_dtoi(l->values[e]->v.d);
-      }
-    }
-  }
+int do_hpl_seek(struct dm_mech_g1 *result, struct lp_list *l)
+{
 
-  if(result->hpseek[5] != -1) {
-    result->seekone = result->hpseek[5];
-  }
+	if((result->seektime != SEEK_HPL)
+	   && (result->seektime != SEEK_1ST10_PLUS_HPL)) {
+		fprintf(stderr,
+				"*** warning: ignoring hpl parameters for non-hpl seek type.\n");
+		return 0;
+	}
 
-  return 0;
+	if(l->values_len < 6) {
+		fprintf(stderr, "*** error: Want 6 HPL seek equation parameters (got %d)\n", l->values_len);
+		return -1;
+	} else {
+		int e;
+
+		// first one is in cyls, rest are in milliseconds
+		if(l->values[0]->t != I) {
+			fprintf(stderr, "*** error: HPL v1 is in cylinders.\n");
+			return -1;
+		} else if(l->values[0]->v.i < 0) {
+			fprintf(stderr, "*** error: HPL v1 must be nonnegative.\n");
+			return -1;
+		}
+		result->hpseek_v1 = l->values[0]->v.i;
+
+		for(e = 1; e < 6; e++) {
+			if(l->values[e]->t != D) {
+				fprintf(stderr, "*** error: HPL seek eqn. values v2..v6 must  be floats.\n");
+				return -1;
+			} else if((l->values[e]->v.d < 0.0) && (e != 5)) {
+				fprintf(stderr, "*** error: HPL seek eqn. values v2..v5 must be nonnegative.\n");
+				return -1;
+			}
+
+			if((l->values[e]->v.d == -1.0) && (e == 5)) {
+				result->hpseek[e] = -1;
+			} else {
+				result->hpseek[e] = dm_time_dtoi(l->values[e]->v.d);
+			}
+		}
+	}
+
+	if(result->hpseek[5] != -1) {
+		result->seekone = result->hpseek[5];
+	}
+
+	return 0;
 }
 
 
 // who calls this?
 // in pre3-28, this seems unreachable (not sure) (bucy 2/02)
-void 
-dm_mech_g1_seek_init(struct dm_disk_if *d) {
-  double tmpfull, tmpavg, tmptime;
-  struct dm_mech_g1 *m = (struct dm_mech_g1 *)d->mech;
-  // XXX get rid of this
-  FILE *outputfile = stderr;
+void
+dm_mech_g1_seek_init(struct dm_disk_if *d)
+{
+	double tmpfull, tmpavg, tmptime;
+	struct dm_mech_g1 *m = (struct dm_mech_g1 *)d->mech;
+	// XXX get rid of this
+	FILE *outputfile = stderr;
 
-  ddbg_assert2(0, "This is deprecated and/or hasn't been ported.\n");
+	ddbg_assert2(0, "This is deprecated and/or hasn't been ported.\n");
 
 
 
-  if ((m->seektype == SEEK_3PT_CURVE) && 
-      (m->seekavg > m->seekone)) 
-    {
-      fprintf (outputfile, "seekone %lld, seekavg %lld, seekfull %lld\n", 
-	       m->seekone, m->seekavg, m->seekfull);
+	if ((m->seektype == SEEK_3PT_CURVE) &&
+		(m->seekavg > m->seekone)) {
+		fprintf (outputfile, "seekone %lld, seekavg %lld, seekfull %lld\n",
+				 m->seekone, m->seekavg, m->seekfull);
 
-      tmpfull = m->seekfull;
-      tmpavg = m->seekavg;
-      tmptime = (double) -10.0 * m->seekone;
-      tmptime += (double) 15.0 * m->seekavg;
-      tmptime += (double) -5.0 * m->seekfull;
-      //      tmptime = tmptime / 
-      //	(3.0 * sqrt((double) (d->dm_cyls)));
+		tmpfull = m->seekfull;
+		tmpavg = m->seekavg;
+		tmptime = (double) -10.0 * m->seekone;
+		tmptime += (double) 15.0 * m->seekavg;
+		tmptime += (double) -5.0 * m->seekfull;
+		//      tmptime = tmptime /
+		//	(3.0 * sqrt((double) (d->dm_cyls)));
 
-      m->seekavg *= (double) -15.0;
-      m->seekavg += (double) 7.0 * m->seekone;
-      m->seekavg += (double) 8.0 * m->seekfull;
-      m->seekavg = m->seekavg / 
-	(double) (3 * d->dm_cyls);
+		m->seekavg *= (double) -15.0;
+		m->seekavg += (double) 7.0 * m->seekone;
+		m->seekavg += (double) 8.0 * m->seekfull;
+		m->seekavg = m->seekavg /
+					 (double) (3 * d->dm_cyls);
 
-      m->seekfull = tmptime;
+		m->seekfull = tmptime;
 
-      //      fprintf (outputfile, "seekone %f, seekavg %f, seekfull %f\n", 
-      //	       m->seekone, m->seekavg, m->seekfull);
+		//      fprintf (outputfile, "seekone %f, seekavg %f, seekfull %f\n",
+		//	       m->seekone, m->seekavg, m->seekfull);
 
-      //      fprintf (outputfile, "seekone %f, seekavg %f, seekfull %f\n", 
-      //       diskseektime(m, 1, 0, 1), 
-      //       diskseektime(m, (d->dm_cyls / 3), 0, 1), 
-      //       diskseektime(m, (d->dm_cyls - 1), 0, 1));
+		//      fprintf (outputfile, "seekone %f, seekavg %f, seekfull %f\n",
+		//       diskseektime(m, 1, 0, 1),
+		//       diskseektime(m, (d->dm_cyls / 3), 0, 1),
+		//       diskseektime(m, (d->dm_cyls - 1), 0, 1));
 
-      if ((m->seekavg < 0.0) || (m->seekfull < 0.0)) {
-	m->seektype = SEEK_3PT_CURVE;
-	m->seekfull = tmpfull;
-	m->seekavg = tmpavg;
-      }
-    }
+		if ((m->seekavg < 0.0) || (m->seekfull < 0.0)) {
+			m->seektype = SEEK_3PT_CURVE;
+			m->seekfull = tmpfull;
+			m->seekavg = tmpavg;
+		}
+	}
 }
 
 

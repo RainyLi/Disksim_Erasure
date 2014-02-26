@@ -73,15 +73,15 @@ typedef int lbn_t;
  *            up - set to the "up" coordinate set
  *            down - set to the "down" coordinate set
  *            tipset - set to the set of tips required to read this lbn
- *          
+ *
  */
 
 void mems_lbn_to_position(lbn_t lbn,
-			  mems_sled_t *sled,
-			  tipsector_coord_set_t *up,
-			  tipsector_coord_set_t *down,
-			  tipset_t *tipset,
-			  int *cylptr, int *surfaceptr, int *blkptr);
+						  mems_sled_t *sled,
+						  tipsector_coord_set_t *up,
+						  tipsector_coord_set_t *down,
+						  tipset_t *tipset,
+						  int *cylptr, int *surfaceptr, int *blkptr);
 
 /*
  * mems_lbn_to_sled()
@@ -95,7 +95,7 @@ void mems_lbn_to_position(lbn_t lbn,
  *				   this lbn maps to
  *
  * modifies:  none
- * 
+ *
  */
 
 mems_sled_t *mems_lbn_to_sled(mems_t *dev, lbn_t lbn);

@@ -58,7 +58,7 @@
  * DiskSim Storage Subsystem Simulation Environment
  * Authors: Greg Ganger, Bruce Worthington, Yale Patt
  *
- * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan 
+ * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan
  *
  * This software is being provided by the copyright holders under the
  * following license. By obtaining, using and/or copying this software,
@@ -109,361 +109,361 @@
 
 static struct ioq * controller_smart_queuefind (void *queuefindparam, int devno)
 {
-   controller *currctlr = queuefindparam;
-   ASSERT1((devno >= 0) && (devno < device_get_numdevices()), "devno", devno);
-   return(currctlr->devices[devno].queue);
+	controller *currctlr = queuefindparam;
+	ASSERT1((devno >= 0) && (devno < device_get_numdevices()), "devno", devno);
+	return(currctlr->devices[devno].queue);
 }
 
 
 static void controller_smart_wakeup (void *wakeupfuncparam, struct cacheevent *cacheevent)
 {
-   controller *currctlr = wakeupfuncparam;
-   if (cacheevent) {
-      currctlr->cache->cache_wakeup_complete(currctlr->cache, cacheevent);
-   }
+	controller *currctlr = wakeupfuncparam;
+	if (cacheevent) {
+		currctlr->cache->cache_wakeup_complete(currctlr->cache, cacheevent);
+	}
 }
 
 
 static void controller_smart_issue_access (void *issuefuncparam, ioreq_event *curr)
 {
-   controller *currctlr = issuefuncparam;
-   struct ioq *queue = currctlr->devices[curr->devno].queue;
-   int numout = ioqueue_get_reqoutstanding(queue);
+	controller *currctlr = issuefuncparam;
+	struct ioq *queue = currctlr->devices[curr->devno].queue;
+	int numout = ioqueue_get_reqoutstanding(queue);
 
-   /* in case the cache changes to which device the request is sent */
+	/* in case the cache changes to which device the request is sent */
 //fprintf (stderr, "busno %x, buspath %x, slotno %x, slotpath %x\n", curr->busno, currctlr->devices[curr->devno].buspath.value, curr->slotno, currctlr->devices[curr->devno].slotpath.value);
-   curr->busno = currctlr->devices[curr->devno].buspath.value;
-   curr->slotno = currctlr->devices[curr->devno].slotpath.value;
+	curr->busno = currctlr->devices[curr->devno].buspath.value;
+	curr->slotno = currctlr->devices[curr->devno].slotpath.value;
 
-   ioqueue_add_new_request(queue, curr);
-   if (numout < currctlr->devices[curr->devno].maxoutstanding) {
-      ioreq_event *sched = ioqueue_get_next_request(queue);
-      controller_send_event_down_path(currctlr, sched, currctlr->ovrhd_disk_request);
-   }
+	ioqueue_add_new_request(queue, curr);
+	if (numout < currctlr->devices[curr->devno].maxoutstanding) {
+		ioreq_event *sched = ioqueue_get_next_request(queue);
+		controller_send_event_down_path(currctlr, sched, currctlr->ovrhd_disk_request);
+	}
 }
 
 
 static void controller_smart_disk_data_transfer (controller *currctlr, ioreq_event *curr)
 {
-   ioreq_event *tmp = (ioreq_event *) getfromextraq();
-/*
-fprintf (outputfile, "%f: controller_smart_disk_data_transfer: devno %d, bcount %d\n", simtime, curr->devno, curr->bcount);
-*/
-   curr->time = max(device_get_blktranstime(curr), currctlr->blktranstime);
-   tmp->time = simtime + ((double) curr->bcount * curr->time);
-   tmp->type = CONTROLLER_DATA_TRANSFER_COMPLETE;
-   tmp->devno = curr->devno;
-   tmp->blkno = curr->blkno;
-   tmp->bcount = curr->bcount;
-   tmp->tempint2 = currctlr->ctlno;
-   tmp->tempptr1 = curr;
+	ioreq_event *tmp = (ioreq_event *) getfromextraq();
+	/*
+	fprintf (outputfile, "%f: controller_smart_disk_data_transfer: devno %d, bcount %d\n", simtime, curr->devno, curr->bcount);
+	*/
+	curr->time = max(device_get_blktranstime(curr), currctlr->blktranstime);
+	tmp->time = simtime + ((double) curr->bcount * curr->time);
+	tmp->type = CONTROLLER_DATA_TRANSFER_COMPLETE;
+	tmp->devno = curr->devno;
+	tmp->blkno = curr->blkno;
+	tmp->bcount = curr->bcount;
+	tmp->tempint2 = currctlr->ctlno;
+	tmp->tempptr1 = curr;
 
-   /* want to use the tempptr1 value for something else! */
-   curr->tempptr1 = tmp;
-   curr->next = currctlr->datatransfers;
-   curr->prev = NULL;
-   if (curr->next) {
-      curr->next->prev = curr;
-   }
-   currctlr->datatransfers = curr;
+	/* want to use the tempptr1 value for something else! */
+	curr->tempptr1 = tmp;
+	curr->next = currctlr->datatransfers;
+	curr->prev = NULL;
+	if (curr->next) {
+		curr->next->prev = curr;
+	}
+	currctlr->datatransfers = curr;
 
-   addtointq((event *) tmp);
+	addtointq((event *) tmp);
 }
 
 
 static void controller_smart_disk_data_transfer_complete (controller *currctlr, ioreq_event *curr)
 {
-   ioreq_event *tmp = (ioreq_event *) curr->tempptr1;
+	ioreq_event *tmp = (ioreq_event *) curr->tempptr1;
 
-   tmp->bcount -= curr->bcount;
-   addtoextraq((event *) curr);
-   ASSERT(tmp->bcount >= 0);
-   if (tmp->bcount == 0) {
-      if (tmp->next) {
-         tmp->next->prev = tmp->prev;
-      }
-      if (tmp->prev) {
-         tmp->prev->next = tmp->next;
-      } else {
-         currctlr->datatransfers = tmp->next;
-      }
-      tmp->time = simtime;
-      addtointq((event *) tmp);
-   } else {
-      fprintf(stderr, "Haven't required less than all out transfer at controller_smart_disk_data_transfer_complete\n");
-      exit(1);
-   }
+	tmp->bcount -= curr->bcount;
+	addtoextraq((event *) curr);
+	ASSERT(tmp->bcount >= 0);
+	if (tmp->bcount == 0) {
+		if (tmp->next) {
+			tmp->next->prev = tmp->prev;
+		}
+		if (tmp->prev) {
+			tmp->prev->next = tmp->next;
+		} else {
+			currctlr->datatransfers = tmp->next;
+		}
+		tmp->time = simtime;
+		addtointq((event *) tmp);
+	} else {
+		fprintf(stderr, "Haven't required less than all out transfer at controller_smart_disk_data_transfer_complete\n");
+		exit(1);
+	}
 }
 
 
 static void controller_smart_request_complete (void *donefuncparam, ioreq_event *curr)
 {
-   controller *currctlr = donefuncparam;
-/*
-fprintf (outputfile, "Request completed at smart controller: devno %d, blkno %d\n", curr->devno, curr->blkno);
-*/
+	controller *currctlr = donefuncparam;
+	/*
+	fprintf (outputfile, "Request completed at smart controller: devno %d, blkno %d\n", curr->devno, curr->blkno);
+	*/
 
-   curr->type = IO_INTERRUPT_ARRIVE;
-   curr->cause = COMPLETION;
-   controller_send_event_up_path(currctlr, curr, currctlr->ovrhd_complete);
+	curr->type = IO_INTERRUPT_ARRIVE;
+	curr->cause = COMPLETION;
+	controller_send_event_up_path(currctlr, curr, currctlr->ovrhd_complete);
 }
 
 
 static void controller_smart_host_data_transfer_complete (controller *currctlr, ioreq_event *curr)
 {
-   /* DMA to/from host complete */
+	/* DMA to/from host complete */
 
-   if (curr->flags & READ) {
-      currctlr->cache->cache_free_block_clean(currctlr->cache, curr);
-      controller_smart_request_complete(currctlr, curr);
-   } else {
-      /* cache will call "done" function if request doesn't block */
-      currctlr->cache->cache_free_block_dirty(currctlr->cache, curr, &disksim->donefunc_ctlrsmart_write, currctlr);
-   }
-   if (currctlr->hostwaiters) {
-      curr = currctlr->hostwaiters->next;
-      if (curr->next == curr) {
-	 currctlr->hostwaiters = NULL;
-      } else {
-	 currctlr->hostwaiters->next = curr->next;
-      }
-      curr->next = NULL;
-                                       /* Time for DMA */
-      curr->time = simtime + ((double) curr->bcount * currctlr->blktranstime);
-      addtointq((event *) curr);
-   } else {
-      currctlr->hosttransfer = FALSE;
-   }
+	if (curr->flags & READ) {
+		currctlr->cache->cache_free_block_clean(currctlr->cache, curr);
+		controller_smart_request_complete(currctlr, curr);
+	} else {
+		/* cache will call "done" function if request doesn't block */
+		currctlr->cache->cache_free_block_dirty(currctlr->cache, curr, &disksim->donefunc_ctlrsmart_write, currctlr);
+	}
+	if (currctlr->hostwaiters) {
+		curr = currctlr->hostwaiters->next;
+		if (curr->next == curr) {
+			currctlr->hostwaiters = NULL;
+		} else {
+			currctlr->hostwaiters->next = curr->next;
+		}
+		curr->next = NULL;
+		/* Time for DMA */
+		curr->time = simtime + ((double) curr->bcount * currctlr->blktranstime);
+		addtointq((event *) curr);
+	} else {
+		currctlr->hosttransfer = FALSE;
+	}
 }
 
 
 static void controller_smart_host_data_transfer (void *donefuncparam, ioreq_event *curr)
 {
-   controller *currctlr = donefuncparam;
+	controller *currctlr = donefuncparam;
 
-   /* DMA data to/from host */
+	/* DMA data to/from host */
 
-   curr->type = CONTROLLER_DATA_TRANSFER_COMPLETE;
-   curr->tempint2 = currctlr->ctlno;
-   curr->tempptr1 = NULL;
+	curr->type = CONTROLLER_DATA_TRANSFER_COMPLETE;
+	curr->tempint2 = currctlr->ctlno;
+	curr->tempptr1 = NULL;
 
-   if (currctlr->hosttransfer) {
-      if (currctlr->hostwaiters) {
-         curr->next = currctlr->hostwaiters->next;
-         currctlr->hostwaiters->next = curr;
-      } else {
-         curr->next = curr;
-      }
-      currctlr->hostwaiters = curr;
-      return;
-   }
-                                       /* Time for DMA */
-   curr->time = simtime + ((double) curr->bcount * currctlr->blktranstime);
-   currctlr->hosttransfer = TRUE;
-   addtointq((event *) curr);
+	if (currctlr->hosttransfer) {
+		if (currctlr->hostwaiters) {
+			curr->next = currctlr->hostwaiters->next;
+			currctlr->hostwaiters->next = curr;
+		} else {
+			curr->next = curr;
+		}
+		currctlr->hostwaiters = curr;
+		return;
+	}
+	/* Time for DMA */
+	curr->time = simtime + ((double) curr->bcount * currctlr->blktranstime);
+	currctlr->hosttransfer = TRUE;
+	addtointq((event *) curr);
 }
 
 
 static void controller_smart_request_arrive (controller *currctlr, ioreq_event *curr)
 {
-/*
-fprintf (outputfile, "Request arrived at smart controller: devno %d, blkno %d, flags %x\n", curr->devno, curr->blkno, curr->flags);
-*/
+	/*
+	fprintf (outputfile, "Request arrived at smart controller: devno %d, blkno %d, flags %x\n", curr->devno, curr->blkno, curr->flags);
+	*/
 
-   /* Cache will call "done" function if cache access doesn't block */
+	/* Cache will call "done" function if cache access doesn't block */
 
-   currctlr->cache->cache_get_block(currctlr->cache, curr, &disksim->donefunc_ctlrsmart_read, currctlr);
+	currctlr->cache->cache_get_block(currctlr->cache, curr, &disksim->donefunc_ctlrsmart_read, currctlr);
 }
 
 
 static void controller_smart_access_complete (controller *currctlr, ioreq_event *curr)
 {
-   struct ioq *queue = currctlr->devices[curr->devno].queue;
-   ioreq_event *done = ioreq_copy(curr);
-   int devno = curr->devno;
-   int numout;
+	struct ioq *queue = currctlr->devices[curr->devno].queue;
+	ioreq_event *done = ioreq_copy(curr);
+	int devno = curr->devno;
+	int numout;
 
-   /* Responds to completion interrupt */
+	/* Responds to completion interrupt */
 
-   done->type = IO_INTERRUPT_COMPLETE;
-   currctlr->outbusowned = controller_get_downward_busno(currctlr, done, NULL);
-   controller_send_event_down_path(currctlr, done, currctlr->ovrhd_disk_complete);
-   currctlr->outbusowned = -1;
+	done->type = IO_INTERRUPT_COMPLETE;
+	currctlr->outbusowned = controller_get_downward_busno(currctlr, done, NULL);
+	controller_send_event_down_path(currctlr, done, currctlr->ovrhd_disk_complete);
+	currctlr->outbusowned = -1;
 
-   /* Handles request completion, including call-backs into cache */
+	/* Handles request completion, including call-backs into cache */
 
-   curr = ioqueue_physical_access_done(queue, curr);
-   while ((done = curr)) {
-      curr = curr->next;
-      /* call back into cache with completion -- let it do request_complete */
-      controller_smart_wakeup(currctlr, currctlr->cache->cache_disk_access_complete(currctlr->cache, done));
-   }
+	curr = ioqueue_physical_access_done(queue, curr);
+	while ((done = curr)) {
+		curr = curr->next;
+		/* call back into cache with completion -- let it do request_complete */
+		controller_smart_wakeup(currctlr, currctlr->cache->cache_disk_access_complete(currctlr->cache, done));
+	}
 
-   /* Initiate another request, if any pending */
+	/* Initiate another request, if any pending */
 
-   numout = ioqueue_get_reqoutstanding(queue);
-   if ((numout < currctlr->devices[devno].maxoutstanding) && (curr = ioqueue_get_next_request(queue))) {
-      controller_send_event_down_path(currctlr, curr, currctlr->ovrhd_disk_request);
-   }
+	numout = ioqueue_get_reqoutstanding(queue);
+	if ((numout < currctlr->devices[devno].maxoutstanding) && (curr = ioqueue_get_next_request(queue))) {
+		controller_send_event_down_path(currctlr, curr, currctlr->ovrhd_disk_request);
+	}
 }
 
 
 static void controller_smart_ready_to_transfer (controller *currctlr, ioreq_event *curr)
 {
-   curr->type = IO_INTERRUPT_COMPLETE;
-   curr->cause = RECONNECT;
-   currctlr->outbusowned = controller_get_downward_busno(currctlr, curr, NULL);
-   controller_send_event_down_path(currctlr, curr, currctlr->ovrhd_disk_ready);
-   currctlr->outbusowned = -1;
+	curr->type = IO_INTERRUPT_COMPLETE;
+	curr->cause = RECONNECT;
+	currctlr->outbusowned = controller_get_downward_busno(currctlr, curr, NULL);
+	controller_send_event_down_path(currctlr, curr, currctlr->ovrhd_disk_ready);
+	currctlr->outbusowned = -1;
 }
 
 
 static void controller_smart_disconnect (controller *currctlr, ioreq_event *curr)
 {
-   curr->type = IO_INTERRUPT_COMPLETE;
-   currctlr->outbusowned = controller_get_downward_busno(currctlr, curr, NULL);
-   controller_send_event_down_path(currctlr, curr, currctlr->ovrhd_disk_disconnect);
-   currctlr->outbusowned = -1;
+	curr->type = IO_INTERRUPT_COMPLETE;
+	currctlr->outbusowned = controller_get_downward_busno(currctlr, curr, NULL);
+	controller_send_event_down_path(currctlr, curr, currctlr->ovrhd_disk_disconnect);
+	currctlr->outbusowned = -1;
 }
 
 
 static void controller_smart_reconnect_to_transfer (controller *currctlr, ioreq_event *curr)
 {
-   curr->type = IO_INTERRUPT_COMPLETE;
-   currctlr->outbusowned = controller_get_downward_busno(currctlr, curr, NULL);
-   controller_send_event_down_path(currctlr, curr, currctlr->ovrhd_disk_reconnect);
-   currctlr->outbusowned = -1;
+	curr->type = IO_INTERRUPT_COMPLETE;
+	currctlr->outbusowned = controller_get_downward_busno(currctlr, curr, NULL);
+	controller_send_event_down_path(currctlr, curr, currctlr->ovrhd_disk_reconnect);
+	currctlr->outbusowned = -1;
 }
 
 
 static void controller_smart_interrupt_arrive (controller *currctlr, ioreq_event *curr)
 {
-   switch (curr->cause) {
+	switch (curr->cause) {
 
-      case COMPLETION:
-         controller_smart_access_complete(currctlr, curr);
-         break;
+	case COMPLETION:
+		controller_smart_access_complete(currctlr, curr);
+		break;
 
-      case RECONNECT:
-         controller_smart_reconnect_to_transfer(currctlr, curr);
-         break;
+	case RECONNECT:
+		controller_smart_reconnect_to_transfer(currctlr, curr);
+		break;
 
-      case DISCONNECT:
-         controller_smart_disconnect(currctlr, curr);
-         break;
+	case DISCONNECT:
+		controller_smart_disconnect(currctlr, curr);
+		break;
 
-      case READY_TO_TRANSFER:
-         controller_smart_ready_to_transfer(currctlr, curr);
-         break;
+	case READY_TO_TRANSFER:
+		controller_smart_ready_to_transfer(currctlr, curr);
+		break;
 
-      default:
-         fprintf(stderr, "Unknown interrupt cause in smart_interrupt_arrive: %d\n", curr->cause);
-         exit(1);
-   }
+	default:
+		fprintf(stderr, "Unknown interrupt cause in smart_interrupt_arrive: %d\n", curr->cause);
+		exit(1);
+	}
 }
 
 
 static void controller_smart_interrupt_complete (controller *currctlr, ioreq_event *curr)
 {
-   switch (curr->cause) {
+	switch (curr->cause) {
 
-       case COMPLETION:
-          addtoextraq((event *) curr);
-          break;
+	case COMPLETION:
+		addtoextraq((event *) curr);
+		break;
 
-      default:
-         fprintf(stderr, "Unknown interrupt cause in smart_interrupt_complete: %d\n", curr->cause);
-         exit(1);
-   }
+	default:
+		fprintf(stderr, "Unknown interrupt cause in smart_interrupt_complete: %d\n", curr->cause);
+		exit(1);
+	}
 }
 
 
 void controller_smart_event_arrive (controller *currctlr, ioreq_event *curr)
 {
-   switch (curr->type) {
+	switch (curr->type) {
 
-      case IO_ACCESS_ARRIVE:
-         controller_smart_request_arrive(currctlr, curr);
-         break;
+	case IO_ACCESS_ARRIVE:
+		controller_smart_request_arrive(currctlr, curr);
+		break;
 
-      case IO_INTERRUPT_ARRIVE:
-         controller_smart_interrupt_arrive(currctlr, curr);
-         break;
+	case IO_INTERRUPT_ARRIVE:
+		controller_smart_interrupt_arrive(currctlr, curr);
+		break;
 
-      case IO_INTERRUPT_COMPLETE:
-         controller_smart_interrupt_complete(currctlr, curr);
-         break;
+	case IO_INTERRUPT_COMPLETE:
+		controller_smart_interrupt_complete(currctlr, curr);
+		break;
 
-      case DEVICE_DATA_TRANSFER_COMPLETE:
-         controller_smart_disk_data_transfer(currctlr, curr);
-         break;
+	case DEVICE_DATA_TRANSFER_COMPLETE:
+		controller_smart_disk_data_transfer(currctlr, curr);
+		break;
 
-      case CONTROLLER_DATA_TRANSFER_COMPLETE:
-         if (curr->tempptr1) {
-            controller_smart_disk_data_transfer_complete(currctlr, curr);
-         } else {
-            controller_smart_host_data_transfer_complete(currctlr, curr);
-         }
-         break;
+	case CONTROLLER_DATA_TRANSFER_COMPLETE:
+		if (curr->tempptr1) {
+			controller_smart_disk_data_transfer_complete(currctlr, curr);
+		} else {
+			controller_smart_host_data_transfer_complete(currctlr, curr);
+		}
+		break;
 
-      case IO_QLEN_MAXCHECK:
-         curr->tempint1 = currctlr->ctlno;
-         curr->tempint2 = currctlr->maxoutstanding;
-         curr->bcount = currctlr->cache->cache_get_maxreqsize(currctlr->cache);
-         break;
+	case IO_QLEN_MAXCHECK:
+		curr->tempint1 = currctlr->ctlno;
+		curr->tempint2 = currctlr->maxoutstanding;
+		curr->bcount = currctlr->cache->cache_get_maxreqsize(currctlr->cache);
+		break;
 
-      default:
-         fprintf(stderr, "Unknown event type arriving at 53c700 controller: %d\n", curr->type);
-         exit(1);
-   }
+	default:
+		fprintf(stderr, "Unknown event type arriving at 53c700 controller: %d\n", curr->type);
+		exit(1);
+	}
 }
 
 
 void controller_smart_setcallbacks ()
 {
-   disksim->issuefunc_ctlrsmart = controller_smart_issue_access;
-   disksim->queuefind_ctlrsmart = controller_smart_queuefind;
-   disksim->wakeupfunc_ctlrsmart = controller_smart_wakeup;
-   disksim->donefunc_ctlrsmart_read = controller_smart_host_data_transfer;
-   disksim->donefunc_ctlrsmart_write = controller_smart_request_complete;
-   ioqueue_setcallbacks ();
-   cache_setcallbacks ();
+	disksim->issuefunc_ctlrsmart = controller_smart_issue_access;
+	disksim->queuefind_ctlrsmart = controller_smart_queuefind;
+	disksim->wakeupfunc_ctlrsmart = controller_smart_wakeup;
+	disksim->donefunc_ctlrsmart_read = controller_smart_host_data_transfer;
+	disksim->donefunc_ctlrsmart_write = controller_smart_request_complete;
+	ioqueue_setcallbacks ();
+	cache_setcallbacks ();
 }
 
 
 void controller_smart_initialize (controller *currctlr)
 {
-   int numdevs = device_get_numdevices();
-   device *currdev;
-   int i;
+	int numdevs = device_get_numdevices();
+	device *currdev;
+	int i;
 
-   controller_smart_setcallbacks ();
-   currctlr->numdevices = numdevs;
-   currctlr->devices = (device *) DISKSIM_malloc(numdevs * sizeof(device));
-   ASSERT(currctlr->devices != NULL);
-   for (i=0; i<numdevs; i++) {
-      currdev = &currctlr->devices[i];
-      currdev->devno = i;
-      currdev->busy = FALSE;
-      currdev->flag = 0;
-      currdev->queue = ioqueue_copy(currctlr->queue);
-      ioqueue_initialize(currdev->queue, i);
-      iosim_get_path_to_device (0, i, &currdev->buspath, &currdev->slotpath);
-      currdev->maxoutstanding = currctlr->maxdiskqsize;
-   }
-   currctlr->cache->cache_initialize(currctlr->cache, &disksim->issuefunc_ctlrsmart, currctlr, &disksim->queuefind_ctlrsmart, currctlr, &disksim->wakeupfunc_ctlrsmart, currctlr, numdevs);
+	controller_smart_setcallbacks ();
+	currctlr->numdevices = numdevs;
+	currctlr->devices = (device *) DISKSIM_malloc(numdevs * sizeof(device));
+	ASSERT(currctlr->devices != NULL);
+	for (i=0; i<numdevs; i++) {
+		currdev = &currctlr->devices[i];
+		currdev->devno = i;
+		currdev->busy = FALSE;
+		currdev->flag = 0;
+		currdev->queue = ioqueue_copy(currctlr->queue);
+		ioqueue_initialize(currdev->queue, i);
+		iosim_get_path_to_device (0, i, &currdev->buspath, &currdev->slotpath);
+		currdev->maxoutstanding = currctlr->maxdiskqsize;
+	}
+	currctlr->cache->cache_initialize(currctlr->cache, &disksim->issuefunc_ctlrsmart, currctlr, &disksim->queuefind_ctlrsmart, currctlr, &disksim->wakeupfunc_ctlrsmart, currctlr, numdevs);
 }
 
 
 void controller_smart_resetstats (controller *currctlr)
 {
-   int numdevs = device_get_numdevices();
-   int i;
+	int numdevs = device_get_numdevices();
+	int i;
 
-   for (i=0; i<numdevs; i++) {
-      ioqueue_resetstats(currctlr->devices[i].queue);
-   }
-   currctlr->cache->cache_resetstats(currctlr->cache);
+	for (i=0; i<numdevs; i++) {
+		ioqueue_resetstats(currctlr->devices[i].queue);
+	}
+	currctlr->cache->cache_resetstats(currctlr->cache);
 }
 
 
@@ -471,29 +471,29 @@ void controller_smart_resetstats (controller *currctlr)
 
 void controller_smart_printstats (controller *currctlr, char *prefix)
 {
-   ctlrinfo_t *ctlrinfo = disksim->ctlrinfo;
-   int devno;
-   char devprefix[181];
-   struct ioq **queueset = DISKSIM_malloc (currctlr->numdevices * sizeof(void *));
+	ctlrinfo_t *ctlrinfo = disksim->ctlrinfo;
+	int devno;
+	char devprefix[181];
+	struct ioq **queueset = DISKSIM_malloc (currctlr->numdevices * sizeof(void *));
 
-   if (ctlrinfo->ctl_printcachestats) {
-      currctlr->cache->cache_printstats(currctlr->cache, prefix);
-   }
+	if (ctlrinfo->ctl_printcachestats) {
+		currctlr->cache->cache_printstats(currctlr->cache, prefix);
+	}
 
-   for (devno=0; devno<currctlr->numdevices; devno++) {
-      queueset[devno] = currctlr->devices[devno].queue;
-   }
-   sprintf (devprefix, "%sdevices ", prefix);
-   ioqueue_printstats (queueset, currctlr->numdevices, devprefix);
+	for (devno=0; devno<currctlr->numdevices; devno++) {
+		queueset[devno] = currctlr->devices[devno].queue;
+	}
+	sprintf (devprefix, "%sdevices ", prefix);
+	ioqueue_printstats (queueset, currctlr->numdevices, devprefix);
 
-   if ((ctlrinfo->ctl_printperdiskstats) && (currctlr->numdevices > 1)) {
-      for (devno=0; devno<currctlr->numdevices; devno++) {
-         struct ioq *queue = currctlr->devices[devno].queue;
-         if (ioqueue_get_number_of_requests(queue)) {
-            sprintf(devprefix, "%sdevice #%d ", prefix, devno);
-            ioqueue_printstats(&queue, 1, devprefix);
-         }
-      }
-   }
+	if ((ctlrinfo->ctl_printperdiskstats) && (currctlr->numdevices > 1)) {
+		for (devno=0; devno<currctlr->numdevices; devno++) {
+			struct ioq *queue = currctlr->devices[devno].queue;
+			if (ioqueue_get_number_of_requests(queue)) {
+				sprintf(devprefix, "%sdevice #%d ", prefix, devno);
+				ioqueue_printstats(&queue, 1, devprefix);
+			}
+		}
+	}
 }
 

@@ -63,25 +63,25 @@
 
 void *DISKSIM_malloc (int size)
 {
-/*     void *addr; */
+	/*     void *addr; */
 
-/*     if (disksim == NULL) { */
-/*        fprintf (stderr, "DISKSIM_malloc: disksim structure not yet initialized\n"); */
-/*        exit(1); */
-/*     } */
+	/*     if (disksim == NULL) { */
+	/*        fprintf (stderr, "DISKSIM_malloc: disksim structure not yet initialized\n"); */
+	/*        exit(1); */
+	/*     } */
 
-/*     addr = disksim->startaddr + disksim->curroffset; */
+	/*     addr = disksim->startaddr + disksim->curroffset; */
 
-/*     if ((disksim->totallength - disksim->curroffset) >= size) { */
-/*        disksim->curroffset += rounduptomult(size,8); */
-/*     }  */
-/*     else { */
-/*       fprintf (stderr, "*** error: DISKSIM_malloc(): allocated space for disksim run has run out (%d)\n", disksim->totallength); */
-/*        exit(1); */
-/*     } */
+	/*     if ((disksim->totallength - disksim->curroffset) >= size) { */
+	/*        disksim->curroffset += rounduptomult(size,8); */
+	/*     }  */
+	/*     else { */
+	/*       fprintf (stderr, "*** error: DISKSIM_malloc(): allocated space for disksim run has run out (%d)\n", disksim->totallength); */
+	/*        exit(1); */
+	/*     } */
 
-/*     return (addr); */
-  return malloc(size);
+	/*     return (addr); */
+	return malloc(size);
 
 }
 

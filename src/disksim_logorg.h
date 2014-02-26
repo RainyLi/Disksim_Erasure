@@ -58,7 +58,7 @@
  * DiskSim Storage Subsystem Simulation Environment
  * Authors: Greg Ganger, Bruce Worthington, Yale Patt
  *
- * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan 
+ * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan
  *
  * This software is being provided by the copyright holders under the
  * following license. By obtaining, using and/or copying this software,
@@ -158,137 +158,139 @@
 #define INTDISTMAX	8
 
 typedef struct dep {
-   int    devno;
-   int    blkno;
-   int    numdeps;
-   struct dep *next;
-   struct dep *cont;
-   ioreq_event *deps[10];
+	int    devno;
+	int    blkno;
+	int    numdeps;
+	struct dep *next;
+	struct dep *cont;
+	ioreq_event *deps[10];
 } depends;
 
 typedef struct os {
-   double arrtime;
-   int    type;
-   struct os *next;
-   struct os *prev;
-   u_int  bcount;
-   u_int  blkno;
-   u_int  flags;
-   u_int  busno;
-   int    numreqs;
-   u_int  devno;
-   int    opid;
-   int    reqopid;
-   void  *buf;
-   depends *depend;
+	double arrtime;
+	int    type;
+	struct os *next;
+	struct os *prev;
+	u_int  bcount;
+	u_int  blkno;
+	u_int  flags;
+	u_int  busno;
+	int    numreqs;
+	u_int  devno;
+	int    opid;
+	int    reqopid;
+	void  *buf;
+	depends *depend;
 } outstand;
 
 typedef struct {
-   double	outtime;
-   double	runouttime;
-   int		outstanding;
-   int		readoutstanding;
-   int		maxoutstanding;
-   double	nonzeroouttime;
-   int		reads;
-   int		gens[NUMGENS];
-   int		seqdiskswitches;
-   int		locdiskswitches;
-   int		numlocal;
-   int		critreads;
-   int		critwrites;
-   int		seqreads;
-   int		seqwrites;
-   int		distavgdiff[10];
-   int		distmaxdiff[10];
-   double       idlestart;
-   double       lastarr;
-   double       lastread;
-   double       lastwrite;
-   int          *blocked;
-   int          *aligned;
-   int		*lastreq;
-   int		*intdist;
-   statgen      resptimestats;
-   statgen	idlestats;
-   statgen      sizestats;
-   statgen	readsizestats;
-   statgen	writesizestats;
-   statgen      intarrstats;
-   statgen      readintarrstats;
-   statgen      writeintarrstats;
+	double	outtime;
+	double	runouttime;
+	int		outstanding;
+	int		readoutstanding;
+	int		maxoutstanding;
+	double	nonzeroouttime;
+	int		reads;
+	int		gens[NUMGENS];
+	int		seqdiskswitches;
+	int		locdiskswitches;
+	int		numlocal;
+	int		critreads;
+	int		critwrites;
+	int		seqreads;
+	int		seqwrites;
+	int		distavgdiff[10];
+	int		distmaxdiff[10];
+	double       idlestart;
+	double       lastarr;
+	double       lastread;
+	double       lastwrite;
+	int          *blocked;
+	int          *aligned;
+	int		*lastreq;
+	int		*intdist;
+	statgen      resptimestats;
+	statgen	idlestats;
+	statgen      sizestats;
+	statgen	readsizestats;
+	statgen	writesizestats;
+	statgen      intarrstats;
+	statgen      readintarrstats;
+	statgen      writeintarrstats;
 } logorgstat;
 
 typedef struct {
-   int    devno;
-   int    startblkno;
-   struct ioq * queue;
-   int    lastblkno;
-   int    seqreads;
-   int    seqwrites;
-   int    lastblkno2;
-   int    intreads;
-   int    intwrites;
-   int    numout;
-   int    distnumout[10];
-   int    curstreak;
-   statgen streakstats;
-   statgen localitystats;
+	int    devno;
+	int    startblkno;
+	struct ioq * queue;
+	int    lastblkno;
+	int    seqreads;
+	int    seqwrites;
+	int    lastblkno2;
+	int    intreads;
+	int    intwrites;
+	int    numout;
+	int    distnumout[10];
+	int    curstreak;
+	statgen streakstats;
+	statgen localitystats;
 } logorgdev;
 
 typedef struct {
-   int    devno;
-   int    blkno;
+	int    devno;
+	int    blkno;
 } tableentry;
 
 typedef struct logorg {
-  char *name;
-   outstand * hashoutstand[HASH_OUTSTAND];
-   int    outstandqlen;
-   int    opid;
-   int    addrbyparts;
-   int    maptype;
-   int    reduntype;
-   int    numdisks;
-   int    actualnumdisks;
-   int    arraydisk;
-   int    writesync;
-   int    copies;
-   int    copychoice;
-   double rmwpoint;
-   int    parityunit;
-   int    rottype;
-   int    blksperpart;
-   int    actualblksperpart;
-   int    stripeunit;
-   int    sectionunit;
-   int    tablestripes;
-   tableentry *table;
-   int    tablesize;
-   int    partsperstripe;
-   int    idealno;
-   int    reduntoggle;
-   int    lastdiskaccessed;
-   int    numfull;
-   int   *sizes;
-   int   *redunsizes;
-   int    printlocalitystats;
-   int    printblockingstats;
-   int    printinterferestats;
-   int    printidlestats;
-   int    printintarrstats;
-   int    printstreakstats;
-   int    printstampstats;
-   int    printsizestats;
-   double stampinterval;
-   double stampstart;
-   double stampstop;
-   FILE * stampfile;
-   logorgdev *devs;
-   logorgstat stat;
-   /* rcohen's additions */
-   int    startdev;
-   int    enddev;
+	char *name;
+	outstand * hashoutstand[HASH_OUTSTAND];
+	int    outstandqlen;
+	int    opid;
+	int    addrbyparts;
+	int    maptype;
+	int    reduntype;
+	int    numdisks;
+	int    actualnumdisks;
+	int    arraydisk;
+	int    writesync;
+	int    copies;
+	int    copychoice;
+	double rmwpoint;
+	int    parityunit;
+	int    rottype;
+	int    blksperpart;
+	int    actualblksperpart;
+	int    stripeunit;
+	int    sectionunit;
+	int    tablestripes;
+	tableentry *table;
+	int    tablesize;
+	int    partsperstripe;
+	int    idealno;
+	int    reduntoggle;
+	int    lastdiskaccessed;
+	int    numfull;
+	int   *sizes;
+	int   *redunsizes;
+	int    printlocalitystats;
+	int    printblockingstats;
+	int    printinterferestats;
+	int    printidlestats;
+	int    printintarrstats;
+	int    printstreakstats;
+	int    printstampstats;
+	int    printsizestats;
+	double stampinterval;
+	double stampstart;
+	double stampstop;
+	FILE * stampfile;
+	logorgdev *devs;
+	logorgstat stat;
+	/* rcohen's additions */
+	int    startdev;
+	int    enddev;
+	struct erasure_metadata_t *meta;
+	struct erasure_table_t *tab;
 } logorg;
 
 /* exported disksim_logorg.c functions */
@@ -302,8 +304,6 @@ int  logorg_parity_table (logorg *currlogorg, ioreq_event *curr, int numreqs);
 void logorg_create_table (logorg *currlogorg);
 int  logorg_tabular_rottype (int maptype, int reduntype, int rottype, int stripeunit);
 int  logorg_check_dependencies (logorg *currlogorg, outstand *req, ioreq_event *curr);
-// XXX new erasure codes
-int logorg_raid6_rdp(logorg *currlogorg, ioreq_event *curr, int numreqs);
 
 // get the logorg (and number in *n) of the logorg called <name>
 // or 0 if it doesn't exist
@@ -311,10 +311,10 @@ logorg *getlogorgbyname(logorg **, int, char *name, int *n);
 
 INLINE void logorg_set_arraydisk(struct logorg *l, int n);
 
-logorg *getlogorgbyname(logorg **logorgs, 
-			int numlogorgs, 
-			char *name, 
-			int *n);
+logorg *getlogorgbyname(logorg **logorgs,
+						int numlogorgs,
+						char *name,
+						int *n);
 
 void logorg_cleanup(logorg *);
 

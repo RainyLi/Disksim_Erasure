@@ -25,7 +25,7 @@
  * MELLON UNIVERSITY DOES NOT MAKE ANY WARRANTY OF ANY KIND WITH
  * RESPECT TO FREEDOM FROM PATENT, TRADEMARK, OR COPYRIGHT
  * INFRINGEMENT.  COPYRIGHT HOLDERS WILL BEAR NO LIABILITY FOR ANY USE
- * OF THIS SOFTWARE OR DOCUMENTATION.  
+ * OF THIS SOFTWARE OR DOCUMENTATION.
  */
 
 
@@ -57,7 +57,7 @@
  * DiskSim Storage Subsystem Simulation Environment
  * Authors: Greg Ganger, Bruce Worthington, Yale Patt
  *
- * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan 
+ * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan
  *
  * This software is being provided by the copyright holders under the
  * following license. By obtaining, using and/or copying this software,
@@ -103,78 +103,74 @@
 
 // g1 seektime computation functions
 
-dm_time_t 
+dm_time_t
 dm_mech_g1_seek_const(struct dm_disk_if *d,
-		      struct dm_mech_state *begin,
-		      struct dm_mech_state *end,
-		      int rw)
+					  struct dm_mech_state *begin,
+					  struct dm_mech_state *end,
+					  int rw)
 {
-  struct dm_mech_g1 *m = (struct dm_mech_g1 *)d->mech;
-  ddbg_assert(m->seektype == SEEK_CONST);
-  return m->seektime;
+	struct dm_mech_g1 *m = (struct dm_mech_g1 *)d->mech;
+	ddbg_assert(m->seektype == SEEK_CONST);
+	return m->seektime;
 }
 
 
-dm_time_t 
+dm_time_t
 dm_mech_g1_seek_3pt_curve(struct dm_disk_if *d,
-			  struct dm_mech_state *begin,
-			  struct dm_mech_state *end,
-			  int rw)
+						  struct dm_mech_state *begin,
+						  struct dm_mech_state *end,
+						  int rw)
 
 {
-  dm_time_t result;
-  int cyls;
-  struct dm_mech_g1 *m = (struct dm_mech_g1 *)d->mech;
-  
-  cyls = abs(end->cyl - begin->cyl);
-  if (cyls == 0) {
-    result = 0;
-  } 
-  else {
-    result = m->seekone;
-    result += m->seekavg * (cyls - 1);
-    result += m->seekfull * sqrt32(cyls - 1);
-  }
+	dm_time_t result;
+	int cyls;
+	struct dm_mech_g1 *m = (struct dm_mech_g1 *)d->mech;
 
-  return result;
+	cyls = abs(end->cyl - begin->cyl);
+	if (cyls == 0) {
+		result = 0;
+	} else {
+		result = m->seekone;
+		result += m->seekavg * (cyls - 1);
+		result += m->seekfull * sqrt32(cyls - 1);
+	}
+
+	return result;
 }
 
 
-dm_time_t 
+dm_time_t
 dm_mech_g1_seek_3pt_line(struct dm_disk_if *d,
-			 struct dm_mech_state *begin,
-			 struct dm_mech_state *end,
-			 int rw)
+						 struct dm_mech_state *begin,
+						 struct dm_mech_state *end,
+						 int rw)
 {
-  int mult;
-  int numcyls;
-  int cyls;
-  struct dm_mech_g1 *m = (struct dm_mech_g1 *)d->mech;
-  dm_time_t result;
+	int mult;
+	int numcyls;
+	int cyls;
+	struct dm_mech_g1 *m = (struct dm_mech_g1 *)d->mech;
+	dm_time_t result;
 
-  cyls = abs(end->cyl - begin->cyl);
-  numcyls = cyls;
+	cyls = abs(end->cyl - begin->cyl);
+	numcyls = cyls;
 
-  if(cyls == 1) {
-    result = m->seekone;
-  } 
-  else if(cyls == 0) {
-    result = 0;
-  } 
-  else if(cyls <= (numcyls / 3)) {
-    // MATH
-    mult = (3*(cyls-1) / numcyls);
-    result = m->seekone;
-    result += mult * (m->seekavg - result);
-  } 
-  else {
-    // MATH
-    mult = ((3*cyls - numcyls) / (2*numcyls));
-    result = m->seekavg;
-    result += mult * (m->seekfull - result);
-  }
+	if(cyls == 1) {
+		result = m->seekone;
+	} else if(cyls == 0) {
+		result = 0;
+	} else if(cyls <= (numcyls / 3)) {
+		// MATH
+		mult = (3*(cyls-1) / numcyls);
+		result = m->seekone;
+		result += mult * (m->seekavg - result);
+	} else {
+		// MATH
+		mult = ((3*cyls - numcyls) / (2*numcyls));
+		result = m->seekavg;
+		result += mult * (m->seekfull - result);
+	}
 
-  return result;
+	return result;
 }
 
 // the hpl stuff has fp math in it and I don't have time to fix
@@ -186,188 +182,180 @@ dm_mech_g1_seek_3pt_line(struct dm_disk_if *d,
  * (between the root based equation and the linear equation), a
  * constant and mulitplier for the square root of the distance, a
  * constant and multiplier for the distance (linear part of curve) and
- * a value for single cylinder seeks.  
+ * a value for single cylinder seeks.
  */
 
-dm_time_t 
+dm_time_t
 dm_mech_g1_seek_hpl(struct dm_disk_if *d,
-		    struct dm_mech_state *begin,
-		    struct dm_mech_state *end,
-		    int rw)
+					struct dm_mech_state *begin,
+					struct dm_mech_state *end,
+					int rw)
 {
-  dm_time_t *hpseek;
-  int dist;
-  dm_time_t result;
-  struct dm_mech_g1 *m = (struct dm_mech_g1 *)d->mech;
+	dm_time_t *hpseek;
+	int dist;
+	dm_time_t result;
+	struct dm_mech_g1 *m = (struct dm_mech_g1 *)d->mech;
 
 
-  hpseek = m->hpseek;
-  dist = abs(end->cyl - begin->cyl);
+	hpseek = m->hpseek;
+	dist = abs(end->cyl - begin->cyl);
 
-  if (dist == 0) {
-    result = 0.0;
-  }
-  else if((dist == 1) && (hpseek[5] != -1)) {
-    result = m->seekone;
-  } 
-  else if(dist < hpseek[0]) {
-    // XXX: math voodoo
-    result = ((sqrt64((uint64_t)dist << 32) * hpseek[2]) >> 16) + hpseek[1];
-  } 
-  else {
-    result = (hpseek[4] * (double) dist) + hpseek[3];
-  }
+	if (dist == 0) {
+		result = 0.0;
+	} else if((dist == 1) && (hpseek[5] != -1)) {
+		result = m->seekone;
+	} else if(dist < hpseek[0]) {
+		// XXX: math voodoo
+		result = ((sqrt64((uint64_t)dist << 32) * hpseek[2]) >> 16) + hpseek[1];
+	} else {
+		result = (hpseek[4] * (double) dist) + hpseek[3];
+	}
 
-  return result;
+	return result;
 }
 
 
 /* An extended version of the equation described above, wherein the
  * first ten seek distances are explicitly provided, since seek time
- * curves tend to be choppy in this region.  (See UM TR CSE-TR-194-94) 
+ * curves tend to be choppy in this region.  (See UM TR CSE-TR-194-94)
  */
 
-dm_time_t 
-dm_mech_g1_seek_1st10_plus_hpl(struct dm_disk_if *d, 
-			       struct dm_mech_state *begin,
-			       struct dm_mech_state *end,
-			       int rw)
+dm_time_t
+dm_mech_g1_seek_1st10_plus_hpl(struct dm_disk_if *d,
+							   struct dm_mech_state *begin,
+							   struct dm_mech_state *end,
+							   int rw)
 
 {
-  dm_time_t *hpseek;
-  dm_time_t result;
-  int dist = abs(end->cyl - begin->cyl);
+	dm_time_t *hpseek;
+	dm_time_t result;
+	int dist = abs(end->cyl - begin->cyl);
 
-  struct dm_mech_g1 *m = (struct dm_mech_g1 *)d->mech;
-  
-  hpseek = m->hpseek;
-  
-  if(dist == 0) {
-    result = 0;
-  } 
-  else if (dist <= 10) {
-    result = m->first10seeks[(dist - 1)];
-  } 
-  else if (dist < m->hpseek_v1) {
-    // XXX: math voodoo
-    result = ((sqrt64((uint64_t)dist << 32) * hpseek[2]) >> 16) + hpseek[1];
-  } 
-  else {
-    result = (hpseek[4] * dist) + hpseek[3];
-  }
+	struct dm_mech_g1 *m = (struct dm_mech_g1 *)d->mech;
 
-  if(begin->head != end->head) {
-    double headsw;
-    headsw = d->mech->dm_headswitch_time(d, begin->head, end->head);
-    if(headsw > result) {
-      result = headsw;
-    }
-  }
+	hpseek = m->hpseek;
+
+	if(dist == 0) {
+		result = 0;
+	} else if (dist <= 10) {
+		result = m->first10seeks[(dist - 1)];
+	} else if (dist < m->hpseek_v1) {
+		// XXX: math voodoo
+		result = ((sqrt64((uint64_t)dist << 32) * hpseek[2]) >> 16) + hpseek[1];
+	} else {
+		result = (hpseek[4] * dist) + hpseek[3];
+	}
+
+	if(begin->head != end->head) {
+		double headsw;
+		headsw = d->mech->dm_headswitch_time(d, begin->head, end->head);
+		if(headsw > result) {
+			result = headsw;
+		}
+	}
 
 
-  return result;
+	return result;
 }
 
 
-#else  
-dm_time_t 
+#else
+dm_time_t
 dm_mech_g1_seek_hpl(struct dm_disk_if *d,
-		    struct dm_mech_state *begin,
-		    struct dm_mech_state *end,
-		    int rw)
+					struct dm_mech_state *begin,
+					struct dm_mech_state *end,
+					int rw)
 {
-  ddbg_assert2(0, "seek_hpl currently unavailable for kernel");
-  return 0;
+	ddbg_assert2(0, "seek_hpl currently unavailable for kernel");
+	return 0;
 }
 
-dm_time_t 
-dm_mech_g1_seek_1st10_plus_hpl(struct dm_disk_if *d, 
-			       struct dm_mech_state *begin,
-			       struct dm_mech_state *end,
-			       int rw)
+dm_time_t
+dm_mech_g1_seek_1st10_plus_hpl(struct dm_disk_if *d,
+							   struct dm_mech_state *begin,
+							   struct dm_mech_state *end,
+							   int rw)
 
 {
-  ddbg_assert2(0, "seek_1st10_plus_hpl currently unavailable for kernel");
-  return 0;
+	ddbg_assert2(0, "seek_1st10_plus_hpl currently unavailable for kernel");
+	return 0;
 }
 
 #endif // _DISKMODEL_FREEBSD
 
-dm_time_t 
+dm_time_t
 dm_mech_g1_seek_extracted(struct dm_disk_if *d,
-			  struct dm_mech_state *begin,
-			  struct dm_mech_state *end,
-			  int rw)
-			      
+						  struct dm_mech_state *begin,
+						  struct dm_mech_state *end,
+						  int rw)
+
 {
-  dm_time_t result = 0;
-  int i;
-  int dist = abs(end->cyl - begin->cyl);   
-  struct dm_mech_g1 *m = (struct dm_mech_g1 *)d->mech;
+	dm_time_t result = 0;
+	int i;
+	int dist = abs(end->cyl - begin->cyl);
+	struct dm_mech_g1 *m = (struct dm_mech_g1 *)d->mech;
 
-  dm_time_t t1,t2;
-  int d1, d2;
+	dm_time_t t1,t2;
+	int d1, d2;
 
-   if(dist) {
-     // linear search of extracted seek curve
-     // might want to do something faster
+	if(dist) {
+		// linear search of extracted seek curve
+		// might want to do something faster
 
-     // binsearch -- d_i <= d < d_{i+1}
+		// binsearch -- d_i <= d < d_{i+1}
 
-     for(i = 0; i < m->xseekcnt; i++) {
-       if(dist == m->xseekdists[i]) {
-	 result = m->xseektimes[i];
-	 break;
-       } 
-       // The computation here will also do linear extrapolation if
-       // we're past the end.
-       else if (dist <= m->xseekdists[i]
-		|| (i == m->xseekcnt-1))
-       {
-	 t1 = m->xseektimes[i-1];
-	 t2 = m->xseektimes[i];
-	 d1 = m->xseekdists[i-1];
-	 d2 = m->xseekdists[i];
-	 
-	 // didn't find it exactly; do some interpolation
+		for(i = 0; i < m->xseekcnt; i++) {
+			if(dist == m->xseekdists[i]) {
+				result = m->xseektimes[i];
+				break;
+			}
+			// The computation here will also do linear extrapolation if
+			// we're past the end.
+			else if (dist <= m->xseekdists[i]
+					 || (i == m->xseekcnt-1)) {
+				t1 = m->xseektimes[i-1];
+				t2 = m->xseektimes[i];
+				d1 = m->xseekdists[i-1];
+				d2 = m->xseekdists[i];
 
-	 /*  	   int ddiff =  */
-	 /*  	     (dist - m->xseekdists[(i-1)]) /  */
-	 /*  	     (m->xseekdists[i] - m->xseekdists[(i-1)]); */
+				// didn't find it exactly; do some interpolation
 
-	 // this sounds perverse but in e.g. the atlas10k model
-	 // 10,     1.53100
-	 // 12,     1.51500
-	 // so its possible to get a negative answer here!
+				/*  	   int ddiff =  */
+				/*  	     (dist - m->xseekdists[(i-1)]) /  */
+				/*  	     (m->xseekdists[i] - m->xseekdists[(i-1)]); */
 
-	 result = m->xseektimes[(i-1)];
+				// this sounds perverse but in e.g. the atlas10k model
+				// 10,     1.53100
+				// 12,     1.51500
+				// so its possible to get a negative answer here!
 
-	 // this is so convoluted because dm_time_t is unsigned...
-	 if(t1 > t2) {
-	   // result -= ddiff * (t1 - t2);
-	   result -= (dist - d1) * (t1 - t2) / (d2 - d1);
-	 }
-	 else {
-	   //	     result += ddiff * (t2 - t1);
-	   result += (dist - d1) * (t2 - t1) / (d2 - d1);
-	 }
-	 break;
-       }
-     }
-   }
+				result = m->xseektimes[(i-1)];
 
-   return result;
+				// this is so convoluted because dm_time_t is unsigned...
+				if(t1 > t2) {
+					// result -= ddiff * (t1 - t2);
+					result -= (dist - d1) * (t1 - t2) / (d2 - d1);
+				} else {
+					//	     result += ddiff * (t2 - t1);
+					result += (dist - d1) * (t2 - t1) / (d2 - d1);
+				}
+				break;
+			}
+		}
+	}
+
+	return result;
 }
 
 
-// these must line up with disk_seek_t 
+// these must line up with disk_seek_t
 dm_mech_g1_seekfn dm_mech_g1_seekfns[] = {
-  dm_mech_g1_seek_const,
-  dm_mech_g1_seek_3pt_line,
-  dm_mech_g1_seek_3pt_curve,
-  dm_mech_g1_seek_hpl,
-  dm_mech_g1_seek_1st10_plus_hpl,
-  dm_mech_g1_seek_extracted
+	dm_mech_g1_seek_const,
+	dm_mech_g1_seek_3pt_line,
+	dm_mech_g1_seek_3pt_curve,
+	dm_mech_g1_seek_hpl,
+	dm_mech_g1_seek_1st10_plus_hpl,
+	dm_mech_g1_seek_extracted
 };
 
 

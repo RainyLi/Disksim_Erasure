@@ -24,53 +24,55 @@
  * MELLON UNIVERSITY DOES NOT MAKE ANY WARRANTY OF ANY KIND WITH
  * RESPECT TO FREEDOM FROM PATENT, TRADEMARK, OR COPYRIGHT
  * INFRINGEMENT.  COPYRIGHT HOLDERS WILL BEAR NO LIABILITY FOR ANY USE
- * OF THIS SOFTWARE OR DOCUMENTATION.  
+ * OF THIS SOFTWARE OR DOCUMENTATION.
  */
 
 
 #include "test.h"
 
-void testsUsage(void) {
-  fprintf(stderr, "usage: layout_bogon <model>\n");
+void testsUsage(void)
+{
+	fprintf(stderr, "usage: layout_bogon <model>\n");
 }
 
 
 // Try to reverse-map bogus PBNs -- they should all return DM_NX, not
 // some (wrong) lbn.
 
-int 
-layout_bogon(struct dm_disk_if *d) {
-  int lbn = 0;
-  int i, rv;
-  struct dm_pbn p, p2;
-  int l0, ln;
-  int bad = 0;
+int
+layout_bogon(struct dm_disk_if *d)
+{
+	int lbn = 0;
+	int i, rv;
+	struct dm_pbn p, p2;
+	int l0, ln;
+	int bad = 0;
 
-  do {
-    d->layout->dm_translate_ltop(d, lbn, MAP_FULL, &p, 0);
-    d->layout->dm_get_track_boundaries(d, &p, &l0, &ln, 0);
-    d->layout->dm_translate_ltop(d, ln, MAP_FULL, &p, 0);
-    p2 = p;
-    for(i = 0; i < 1; i++) {
-      p2.sector++;
-      rv = d->layout->dm_translate_ptol(d, &p2, 0);
-      if(rv >= 0) {
-	printf("(%d,%d,%d) -> %d  !!! max (%d,%d,%d)\n",
-	       p2.cyl, p2.head, p2.sector, rv,
-	       p.cyl, p.head, p.sector);
-	bad++;
-      }
-    }
+	do {
+		d->layout->dm_translate_ltop(d, lbn, MAP_FULL, &p, 0);
+		d->layout->dm_get_track_boundaries(d, &p, &l0, &ln, 0);
+		d->layout->dm_translate_ltop(d, ln, MAP_FULL, &p, 0);
+		p2 = p;
+		for(i = 0; i < 1; i++) {
+			p2.sector++;
+			rv = d->layout->dm_translate_ptol(d, &p2, 0);
+			if(rv >= 0) {
+				printf("(%d,%d,%d) -> %d  !!! max (%d,%d,%d)\n",
+					   p2.cyl, p2.head, p2.sector, rv,
+					   p.cyl, p.head, p.sector);
+				bad++;
+			}
+		}
 
-    lbn = ln + 1;
-  } while(lbn < d->dm_sectors);
+		lbn = ln + 1;
+	} while(lbn < d->dm_sectors);
 
-  return bad;
+	return bad;
 }
 
 int minargs = 0;
 
 int doTests(struct dm_disk_if *d, int argc, char **argv)
 {
-  return layout_bogon(d);
+	return layout_bogon(d);
 }

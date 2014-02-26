@@ -24,45 +24,47 @@
  * MELLON UNIVERSITY DOES NOT MAKE ANY WARRANTY OF ANY KIND WITH
  * RESPECT TO FREEDOM FROM PATENT, TRADEMARK, OR COPYRIGHT
  * INFRINGEMENT.  COPYRIGHT HOLDERS WILL BEAR NO LIABILITY FOR ANY USE
- * OF THIS SOFTWARE OR DOCUMENTATION.  
+ * OF THIS SOFTWARE OR DOCUMENTATION.
  */
 
 #include "test.h"
 
-void testsUsage(void) {
-  fprintf(stderr, "usage: layout_simple <model>\n");
+void testsUsage(void)
+{
+	fprintf(stderr, "usage: layout_simple <model>\n");
 }
 
 
-int 
-mech_test_seek(struct dm_disk_if *d) {
-  int i, lbn, count = 0, runlbn = 0;
-  struct dm_pbn pbn, trkpbn = {0,0,0};
-  int bad = 0;
+int
+mech_test_seek(struct dm_disk_if *d)
+{
+	int i, lbn, count = 0, runlbn = 0;
+	struct dm_pbn pbn, trkpbn = {0,0,0};
+	int bad = 0;
 
-  for(i = 0; i < d->dm_cyls; i++) {
-    struct dm_mech_state start = {.cyl = 0 };
-    struct dm_mech_state end;
-    dm_time_t st;
+	for(i = 0; i < d->dm_cyls; i++) {
+		struct dm_mech_state start = {.cyl = 0 };
+		struct dm_mech_state end;
+		dm_time_t st;
 
-    end.cyl = i;
+		end.cyl = i;
 
-    startClock(0);
-    st = d->mech->dm_seek_time(d, &start, &end, 0);
-    stopClock(0);
+		startClock(0);
+		st = d->mech->dm_seek_time(d, &start, &end, 0);
+		stopClock(0);
 
-    printf("%d -> %f\n", i, dm_time_itod(st));
+		printf("%d -> %f\n", i, dm_time_itod(st));
 
-  }
+	}
 
 
-  return bad;
+	return bad;
 }
 
 int minargs = 0;
 
 int doTests(struct dm_disk_if *d, int argc, char **argv)
 {
-  addBucket("dm_seek_time()");
-  return mech_test_seek(d);
+	addBucket("dm_seek_time()");
+	return mech_test_seek(d);
 }

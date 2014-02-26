@@ -25,7 +25,7 @@
  * MELLON UNIVERSITY DOES NOT MAKE ANY WARRANTY OF ANY KIND WITH
  * RESPECT TO FREEDOM FROM PATENT, TRADEMARK, OR COPYRIGHT
  * INFRINGEMENT.  COPYRIGHT HOLDERS WILL BEAR NO LIABILITY FOR ANY USE
- * OF THIS SOFTWARE OR DOCUMENTATION.  
+ * OF THIS SOFTWARE OR DOCUMENTATION.
  */
 
 
@@ -37,17 +37,17 @@
 // convert the internal format to a struct dm_pbn
 int dm_to_pbn(dm_pbn_t i, struct dm_pbn *result)
 {
-  result->sector = 0xffffffff & i;
-  result->head = (i >> 32) & 0xff;
-  result->cyl = (i >> 40) & 0xffffff;
-  return 0;
+	result->sector = 0xffffffff & i;
+	result->head = (i >> 32) & 0xff;
+	result->cyl = (i >> 40) & 0xffffff;
+	return 0;
 }
 
-// convert a struct dm_pbn to the internal format 
+// convert a struct dm_pbn to the internal format
 int dm_from_pbn(struct dm_pbn *p, dm_pbn_t *result)
 {
-  *result = p->sector;
-  *result |= ((dm_pbn_t)(p->head & 0xff) << 32);
-  *result |= ((dm_pbn_t)(p->cyl & 0xffffff) << 40);
-  return 0;
+	*result = p->sector;
+	*result |= ((dm_pbn_t)(p->head & 0xff) << 32);
+	*result |= ((dm_pbn_t)(p->cyl & 0xffffff) << 40);
+	return 0;
 }

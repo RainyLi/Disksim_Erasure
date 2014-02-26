@@ -58,7 +58,7 @@
  * DiskSim Storage Subsystem Simulation Environment
  * Authors: Greg Ganger, Bruce Worthington, Yale Patt
  *
- * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan 
+ * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan
  *
  * This software is being provided by the copyright holders under the
  * following license. By obtaining, using and/or copying this software,
@@ -108,36 +108,37 @@
 
 #include "modules/modules.h"
 
-void cache_setcallbacks(void) {
-  cachemem_setcallbacks();
-  cachedev_setcallbacks();
+void cache_setcallbacks(void)
+{
+	cachemem_setcallbacks();
+	cachedev_setcallbacks();
 }
 
 struct cache_if *disksim_cache_loadparams(struct lp_block *b)
 {
-  int c = 0;
-  struct cache_if *result;
+	int c = 0;
+	struct cache_if *result;
 
 
-  switch(b->type) {
-  case DISKSIM_MOD_CACHEMEM:
-    result = disksim_cachemem_loadparams(b);
-    break;
-  case DISKSIM_MOD_CACHEDEV:
-    result = disksim_cachedev_loadparams(b);
-    break;
-  default:
-    fprintf(stderr, "*** error: Invalid cache type (%d) specified.\n", IVAL(b->params[c]));
-    return 0;
-    break;
-  }
+	switch(b->type) {
+	case DISKSIM_MOD_CACHEMEM:
+		result = disksim_cachemem_loadparams(b);
+		break;
+	case DISKSIM_MOD_CACHEDEV:
+		result = disksim_cachedev_loadparams(b);
+		break;
+	default:
+		fprintf(stderr, "*** error: Invalid cache type (%d) specified.\n", IVAL(b->params[c]));
+		return 0;
+		break;
+	}
 
 
-  if(!result) {
-    fprintf(stderr, "*** error: failed to load cache definition.\n");
-    return 0;
-  }
+	if(!result) {
+		fprintf(stderr, "*** error: failed to load cache definition.\n");
+		return 0;
+	}
 
-  return result;
+	return result;
 }
 

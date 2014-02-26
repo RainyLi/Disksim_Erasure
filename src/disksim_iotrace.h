@@ -63,32 +63,32 @@
 /* that this stuff can be local to just iotrace.c ...                 */
 
 typedef struct iotrace_info {
-   double tracebasetime;
-   int syncreads;
-   int syncwrites;
-   int asyncreads;
-   int asyncwrites;
-   int hpreads;
-   int hpwrites;
-   int firstio;
-   int basehighshort;
-   int basehighshort2;
-   int lasttime1;
-   double lasttime;
-   int baseyear;
-   int baseday;
-   int basesecond;
-   int basebigtime;
-   int basesmalltime;
-   double basesimtime;
-   double validate_lastserv;
-   int validate_lastblkno;
-   int validate_lastbcount;
-   int validate_lastread;
-   double validate_nextinter;
-   char validate_buffaction[20];
-   double accumulated_event_time;
-   double lastaccesstime;
+	double tracebasetime;
+	int syncreads;
+	int syncwrites;
+	int asyncreads;
+	int asyncwrites;
+	int hpreads;
+	int hpwrites;
+	int firstio;
+	int basehighshort;
+	int basehighshort2;
+	int lasttime1;
+	double lasttime;
+	int baseyear;
+	int baseday;
+	int basesecond;
+	int basebigtime;
+	int basesmalltime;
+	double basesimtime;
+	double validate_lastserv;
+	int validate_lastblkno;
+	int validate_lastbcount;
+	int validate_lastread;
+	double validate_nextinter;
+	char validate_buffaction[20];
+	double accumulated_event_time;
+	double lastaccesstime;
 } iotrace_info_t;
 
 

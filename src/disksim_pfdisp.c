@@ -58,7 +58,7 @@
  * DiskSim Storage Subsystem Simulation Environment
  * Authors: Greg Ganger, Bruce Worthington, Yale Patt
  *
- * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan 
+ * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan
  *
  * This software is being provided by the copyright holders under the
  * following license. By obtaining, using and/or copying this software,
@@ -104,164 +104,162 @@
 
 static void pf_disp_put_at_end_of_queue(process *procp)
 {
-   process *tmp = pf_dispq;
+	process *tmp = pf_dispq;
 
-   procp->link = NULL;
-   if (tmp == NULL) {
-      pf_dispq = procp;
-   } 
-   else {
-     while (tmp->link) {
-       tmp = tmp->link;
-     }
-     tmp->link = procp;
-   }
+	procp->link = NULL;
+	if (tmp == NULL) {
+		pf_dispq = procp;
+	} else {
+		while (tmp->link) {
+			tmp = tmp->link;
+		}
+		tmp->link = procp;
+	}
 }
 
 
 void pf_disp_put_on_sleep_queue (process *procp)
 {
-   procp->next = sleepqueue;
-   sleepqueue = procp;
+	procp->next = sleepqueue;
+	sleepqueue = procp;
 }
 
 
 process *pf_disp_get_from_sleep_queue (void *chan)
 {
-   process *tmp = sleepqueue;
-   process *prev = tmp;
+	process *tmp = sleepqueue;
+	process *prev = tmp;
 
-   if (tmp == NULL) {
-      return(NULL);
-   }
-   if (tmp->chan == chan) {
-      sleepqueue = tmp->next;
-      tmp->next = NULL;
-      return(tmp);
-   }
-   tmp = tmp->next;
-   while (tmp) {
-      if (tmp->chan == chan) {
-         prev->next = tmp->next;
-         tmp->next = NULL;
-         return(tmp);
-      }
-      prev = tmp;
-      tmp = tmp->next;
-   }
-   return(NULL);
+	if (tmp == NULL) {
+		return(NULL);
+	}
+	if (tmp->chan == chan) {
+		sleepqueue = tmp->next;
+		tmp->next = NULL;
+		return(tmp);
+	}
+	tmp = tmp->next;
+	while (tmp) {
+		if (tmp->chan == chan) {
+			prev->next = tmp->next;
+			tmp->next = NULL;
+			return(tmp);
+		}
+		prev = tmp;
+		tmp = tmp->next;
+	}
+	return(NULL);
 }
 
 
 process *pf_disp_get_specific_from_sleep_queue (u_int pid)
 {
-   process *tmp = sleepqueue;
-   process *prev = tmp;
+	process *tmp = sleepqueue;
+	process *prev = tmp;
 
-   if (tmp == NULL) {
-      return (NULL);
-   }
-   if (tmp->pid == pid) {
-      sleepqueue = tmp->next;
-      tmp->next = NULL;
-      return(tmp);
-   }
-   tmp = tmp->next;
-   while (tmp) {
-      if (tmp->pid == pid) {
-         prev->next = tmp->next;
-         tmp->next = NULL;
-         return(tmp);
-      }
-      prev = tmp;
-      tmp = tmp->next;
-   }
-   return(NULL);
+	if (tmp == NULL) {
+		return (NULL);
+	}
+	if (tmp->pid == pid) {
+		sleepqueue = tmp->next;
+		tmp->next = NULL;
+		return(tmp);
+	}
+	tmp = tmp->next;
+	while (tmp) {
+		if (tmp->pid == pid) {
+			prev->next = tmp->next;
+			tmp->next = NULL;
+			return(tmp);
+		}
+		prev = tmp;
+		tmp = tmp->next;
+	}
+	return(NULL);
 }
 
 
 process *pf_dispatch (int cpunum)
 {
-   process *procp = pf_dispq;
+	process *procp = pf_dispq;
 
-   if (procp) {
-      pf_dispq = procp->link;
-      procp->runcpu = cpunum;
-      procp->stat = PROC_ONPROC;
+	if (procp) {
+		pf_dispq = procp->link;
+		procp->runcpu = cpunum;
+		procp->stat = PROC_ONPROC;
 
-      //      fprintf (outputfile, "New process chosen for cpu %d is pid %d\n", 
-      //	       cpunum, procp->pid);
+		//      fprintf (outputfile, "New process chosen for cpu %d is pid %d\n",
+		//	       cpunum, procp->pid);
 
-   } 
-   else {
-     //     fprintf (outputfile, "CPU %d is going idle\n", cpunum);
-     //     cpus[cpunum].state = CPU_IDLE;
-     //     pf_idle_cpu_recheck_dispq(cpunum);
-   }
+	} else {
+		//     fprintf (outputfile, "CPU %d is going idle\n", cpunum);
+		//     cpus[cpunum].state = CPU_IDLE;
+		//     pf_idle_cpu_recheck_dispq(cpunum);
+	}
 
-   return(procp);
+	return(procp);
 }
 
 
 void pf_dispatcher_init (process *startprocs)
 {
-   process *procp;
-   process *tmp = startprocs;
-   int i;
+	process *procp;
+	process *tmp = startprocs;
+	int i;
 
-   /*
-    * fprintf (outputfile, "Entering pf_dispatcher_init - "
-    * "numprocs %d, numcpus %d\n", numprocs, numcpus);
-    */
+	/*
+	 * fprintf (outputfile, "Entering pf_dispatcher_init - "
+	 * "numprocs %d, numcpus %d\n", numprocs, numcpus);
+	 */
 
-   while (tmp) {
-      procp = tmp;
-      tmp = procp->next;
+	while (tmp) {
+		procp = tmp;
+		tmp = procp->next;
 
-      procp->livelist = process_livelist;
-      process_livelist = procp;
+		procp->livelist = process_livelist;
+		process_livelist = procp;
 
-      // why this?
-      procp->pid += numcpus;
-      pf_disp_put_at_end_of_queue(procp);
+		// why this?
+		procp->pid += numcpus;
+		pf_disp_put_at_end_of_queue(procp);
 
-      /*
-       * fprintf (outputfile, "Sticking start processes"
-       * " #%d in pf_dispq #%d\n", procp->pid, procp->pri);
-       */
-   }
+		/*
+		 * fprintf (outputfile, "Sticking start processes"
+		 * " #%d in pf_dispq #%d\n", procp->pid, procp->pri);
+		 */
+	}
 
 
-   for(i = 0; i < numcpus; i++) {
-      if(cpus[i].current->procp == NULL) {
-         cpus[i].current->procp = pf_dispatch(i);
-      }
-   }
+	for(i = 0; i < numcpus; i++) {
+		if(cpus[i].current->procp == NULL) {
+			cpus[i].current->procp = pf_dispatch(i);
+		}
+	}
 }
 
 
 process * pf_disp_sleep (process *procp)
 {
-   procp->stat = PROC_SLEEP;
-   pf_disp_put_on_sleep_queue(procp);
-   
-   return(pf_dispatch(procp->runcpu));
+	procp->stat = PROC_SLEEP;
+	pf_disp_put_on_sleep_queue(procp);
+
+	return(pf_dispatch(procp->runcpu));
 }
 
 
 void pf_disp_wakeup (process *procp)
 {
-  int c;
-  procp->stat = PROC_RUN;
-  pf_disp_put_at_end_of_queue(procp);
+	int c;
+	procp->stat = PROC_RUN;
+	pf_disp_put_at_end_of_queue(procp);
 
-/*    for(c = 0; c < numcpus; c++) { */
-/*      if(cpus[c].state == CPU_IDLE) { */
-/*        printf("pf_disp_wakeup() waking up cpu %d\n", c); */
-/*        cpus[c].current->procp = pf_dispatch(c); */
-/*        cpus[c].state = CPU_PROCESS; */
-/*      } */
-/*    } */
+	/*    for(c = 0; c < numcpus; c++) { */
+	/*      if(cpus[c].state == CPU_IDLE) { */
+	/*        printf("pf_disp_wakeup() waking up cpu %d\n", c); */
+	/*        cpus[c].current->procp = pf_dispatch(c); */
+	/*        cpus[c].state = CPU_PROCESS; */
+	/*      } */
+	/*    } */
 
 }
 

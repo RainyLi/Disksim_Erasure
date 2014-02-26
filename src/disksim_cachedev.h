@@ -58,7 +58,7 @@
  * DiskSim Storage Subsystem Simulation Environment
  * Authors: Greg Ganger, Bruce Worthington, Yale Patt
  *
- * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan 
+ * Copyright (C) 1993, 1995, 1997 The Regents of the University of Michigan
  *
  * This software is being provided by the copyright holders under the
  * following license. By obtaining, using and/or copying this software,
@@ -136,60 +136,60 @@
 
 
 struct cache_dev_event {
-   double time;
-   int type;
-   struct cache_dev_event *next;
-   struct cache_dev_event *prev;
-   void (**donefunc)(void *,ioreq_event *);	/* Function to call when complete */
-   void *doneparam;		/* parameter for donefunc */
-   int flags;
-   ioreq_event *req;
-   struct cache_dev_event *waitees;
-   int validpoint;
+	double time;
+	int type;
+	struct cache_dev_event *next;
+	struct cache_dev_event *prev;
+	void (**donefunc)(void *,ioreq_event *);	/* Function to call when complete */
+	void *doneparam;		/* parameter for donefunc */
+	int flags;
+	ioreq_event *req;
+	struct cache_dev_event *waitees;
+	int validpoint;
 };
 
 struct cache_dev_stats {
-   int reads;
-   int readblocks;
-   int readhitsfull;
-   int readmisses;
-   int popwrites;
-   int popwriteblocks;
-   int writes;
-   int writeblocks;
-   int writehitsfull;
-   int writemisses;
-   int destagereads;
-   int destagereadblocks;
-   int destagewrites;
-   int destagewriteblocks;
-   int maxbufferspace;
+	int reads;
+	int readblocks;
+	int readhitsfull;
+	int readmisses;
+	int popwrites;
+	int popwriteblocks;
+	int writes;
+	int writeblocks;
+	int writehitsfull;
+	int writemisses;
+	int destagereads;
+	int destagereadblocks;
+	int destagewrites;
+	int destagewriteblocks;
+	int maxbufferspace;
 };
 
 
 struct cache_dev {
-  struct cache_if hdr;
-   void (**issuefunc)(void *,ioreq_event *);	/* to issue a disk access    */
-   void *issueparam;				/* first param for issuefunc */
-   struct ioq * (**queuefind)(void *,int);	/* to get ioqueue ptr for dev*/
-   void *queuefindparam;			/* first param for queuefind */
-   // void (**wakeupfunc)(void *,void *);	/* to re-activate slept proc */
-   void (**wakeupfunc)(void *, struct cacheevent *);	/* to re-activate slept proc */
-   void *wakeupparam;				/* first param for wakeupfunc */
-   int size;					/* in 512B blks  */
-   int cache_devno;				/* device used for cache */
-   int real_devno;				/* device for which cache is used */
-   int maxreqsize;
-   int writescheme;
-   int flush_policy;
-   double flush_period;
-   double flush_idledelay;
-   int bufferspace;
-   struct cache_dev_event *ongoing_requests;
-   bitstr_t *validmap;
-   bitstr_t *dirtymap;
-   struct cache_dev_stats stat;
-   char *name;
+	struct cache_if hdr;
+	void (**issuefunc)(void *,ioreq_event *);	/* to issue a disk access    */
+	void *issueparam;				/* first param for issuefunc */
+	struct ioq * (**queuefind)(void *,int);	/* to get ioqueue ptr for dev*/
+	void *queuefindparam;			/* first param for queuefind */
+	// void (**wakeupfunc)(void *,void *);	/* to re-activate slept proc */
+	void (**wakeupfunc)(void *, struct cacheevent *);	/* to re-activate slept proc */
+	void *wakeupparam;				/* first param for wakeupfunc */
+	int size;					/* in 512B blks  */
+	int cache_devno;				/* device used for cache */
+	int real_devno;				/* device for which cache is used */
+	int maxreqsize;
+	int writescheme;
+	int flush_policy;
+	double flush_period;
+	double flush_idledelay;
+	int bufferspace;
+	struct cache_dev_event *ongoing_requests;
+	bitstr_t *validmap;
+	bitstr_t *dirtymap;
+	struct cache_dev_stats stat;
+	char *name;
 };
 
 void cachedev_setcallbacks(void);
