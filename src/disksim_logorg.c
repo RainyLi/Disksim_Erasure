@@ -1543,6 +1543,8 @@ int logorg_redun(logorg *result, char *s)
 		result->reduntype = RAID6_EVENODD;
 	} else if (!strcmp(s, "HCODE")) {
 		result->reduntype = RAID6_HCODE;
+	} else if (!strcmp(s, "XCODE")) {
+		result->reduntype = RAID6_XCODE;
 	} else {
 		fprintf(stderr, "*** error: %s is not a valid argument for logorg redundancy scheme\n", s);
 		return -1;

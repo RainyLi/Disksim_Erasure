@@ -10,6 +10,7 @@
 
 #include "disksim_erasure.h"
 #include "disksim_logorg.h"
+#include "disksim_set.h"
 
 int check_prime(int number) {
 	int i;
@@ -247,6 +248,77 @@ static void hcode_initialize(logorg *currlogorg) {
 	}
 }
 
+static void xcode_initialize(logorg *currlogorg) {
+	int i, r, c;
+	int delta, sumrc;
+	int p; // the prime number
+	int rows, cols;
+	int unitno, id;
+	parity_chain *chain;
+	element *elem;
+	metadata *meta;
+
+	meta = currlogorg->meta;
+	meta->numdisks = meta->phydisks - 2;
+	if (!check_prime(meta->phydisks)) {
+		fprintf(stderr, "invalid disk number using Row-Diagonal Parity code\n");
+		exit(1);
+	}
+	p = meta->prime = meta->phydisks;
+	rows = meta->rows = meta->phydisks;
+	cols = meta->cols = meta->phydisks;
+	// initialize parity chains
+	meta->numchains = 2 * cols;
+	meta->chains = (parity_chain*) malloc(meta->numchains * sizeof(parity_chain));
+	for (c = 0; c < p; c++) {
+		chain = meta->chains + c;
+		chain->dest = (element*) malloc(sizeof(element));
+		chain->dest->row = p - 2;
+		chain->dest->col = c;
+		chain->deps = NULL;
+		delta = (c + 2) % p;
+		for (r = 0; r < p - 2; r++) {
+			elem = (element*) malloc(sizeof(element));
+			elem->row = r;
+			elem->col = (r + delta) % p;
+			elem->next = chain->deps;
+			chain->deps = elem;
+		}
+		chain->dest->next = chain->deps;
+	}
+	for (c = 0; c < p; c++) {
+		chain = meta->chains + p + c;
+		chain->dest = (element*) malloc(sizeof(element));
+		chain->dest->row = p - 1;
+		chain->dest->col = c;
+		chain->deps = NULL;
+		sumrc = (c + p - 2) % p;
+		for (r = 0; r < p - 2; r++) {
+			elem = (element*) malloc(sizeof(element));
+			elem->row = r;
+			elem->col = (sumrc + p - r) % p;
+			elem->next = chain->deps;
+			chain->deps = elem;
+		}
+		chain->dest->next = chain->deps;
+	}
+	// map the data blocks to units in a stripe
+	meta->dataunits = (rows - 2) * cols;
+	meta->totalunits = rows * cols;
+	meta->entry = (entry*) malloc(meta->dataunits * sizeof(entry));
+	meta->rmap = (int*) malloc(meta->totalunits * sizeof(int));
+	memset(meta->rmap, -1, meta->totalunits * sizeof(int));
+	for (unitno = 0; unitno < meta->dataunits; unitno++) {
+		r = unitno / meta->cols;
+		c = unitno % meta->cols;
+		meta->entry[unitno].row = r;
+		meta->entry[unitno].col = c;
+		meta->entry[unitno].depends = NULL;
+		meta->rmap[r * meta->cols + c] = unitno;
+	}
+}
+
+/*
 static void print(ioreq_event *curr) {
 	ioreq_event *tmp = curr;
 	depends *dep = (depends*) curr->prev, *t;
@@ -271,7 +343,7 @@ static void print(ioreq_event *curr) {
 		printf("\n");
 		dep = dep->next;
 	}
-}
+} */
 
 static void gen_matrix(int id, metadata *meta, int *visit) {
 	int ch = 0;
@@ -381,6 +453,9 @@ void erasure_initialize(logorg *currlogorg) {
 	case RAID6_HCODE:
 		hcode_initialize(currlogorg);
 		break;
+	case RAID6_XCODE:
+		xcode_initialize(currlogorg);
+		break;
 	default:
 		fprintf(stderr, "unrecognized reduntype in erasure_initialize\n");
 		exit(1);
@@ -404,18 +479,16 @@ static void table_entry_update(table_t *table, int row, int col, int ll, int rr)
 static void add_dependency(table_t *table, int id1, int id2) {
 	depends *dep = table->depend[id1];
 	int i, numdeps = dep->numdeps;
-	for (i = 0; i < numdeps; i++) {
-		if (dep->deps[i % 10] == table->reqs[id2]->prev)
-			return;
-		if ((i + 1) % 10 == 0) {
-			if (i + 1 == numdeps)
-				dep->cont = (depends*) getfromextraq();
-			dep = dep->cont;
-		}
+	if (contains(table->set, id1, id2)) return;
+	dep->numdeps += 1;
+	for (i = 10; i <= numdeps; i += 10) {
+		if (i == numdeps)
+			dep->cont = (depends*) getfromextraq();
+		dep = dep->cont;
 	}
-	table->depend[id1]->numdeps += 1;
-	dep->deps[(i % 10)] = table->reqs[id2]->prev;
+	dep->deps[numdeps % 10] = table->reqs[id2]->prev;
 	table->reqs[id2]->prev->opid++;
+	insert(&(table->set), id1, id2);
 }
 
 int erasure_maprequest(logorg *currlogorg, ioreq_event *curr, int numreqs) {
@@ -438,6 +511,11 @@ int erasure_maprequest(logorg *currlogorg, ioreq_event *curr, int numreqs) {
 	element *dep;
 	ioreq_event *lst = NULL, *temp;
 	int THRESHOLD = 64;
+
+	/*
+	 * TODO
+	 * need optimization for small requests
+	 */
 
 	numreqs = 0;
 	while (stackno * stacksize < end) {
@@ -491,6 +569,7 @@ int erasure_maprequest(logorg *currlogorg, ioreq_event *curr, int numreqs) {
 			}
 		} else {
 			// add dependency
+			table->set = create_set();
 			for (i = 1; i <= idx; i++) {
 				table->reqs[i]->prev = ioreq_copy(table->reqs[i]);
 				table->reqs[i]->flags = curr->flags | READ;
@@ -511,7 +590,7 @@ int erasure_maprequest(logorg *currlogorg, ioreq_event *curr, int numreqs) {
 				if (id < 1) continue;
 				for (dep = table->entry[unitno].depends; dep != NULL; dep = dep->next) {
 					id2 = table->hit[dep->row * table->cols + dep->col];
-					add_dependency(table, id, id2);
+					if (id != id2) add_dependency(table, id, id2);
 				}
 			}
 			for (i = 1; i <= idx; i++) {
@@ -523,6 +602,7 @@ int erasure_maprequest(logorg *currlogorg, ioreq_event *curr, int numreqs) {
 				numreqs++;
 			}
 			numreqs += idx;
+			free_set(table->set);
 		}
 		stackno += 1;
 	}

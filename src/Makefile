@@ -94,7 +94,7 @@ DISKSIM_SRC = disksim.c disksim_intr.c disksim_pfsim.c \
 	disksim_logorg.c disksim_redun.c disksim_ioqueue.c disksim_iodriver.c \
 	disksim_bus.c disksim_controller.c disksim_ctlrdumb.c \
 	disksim_ctlrsmart.c disksim_disk.c disksim_diskctlr.c \
-	disksim_diskcache.c \
+	disksim_diskcache.c disksim_set.c \
 	disksim_statload.c disksim_stat.c disksim_rand48.c disksim_malloc.c \
 	disksim_cache.c disksim_cachemem.c disksim_cachedev.c \
 	disksim_simpledisk.c disksim_device.c \
