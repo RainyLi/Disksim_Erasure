@@ -22,7 +22,7 @@ iodriver stats = disksim_iodriver_stats {
  Print driver idle stats = 1,
  Print driver intarr stats = 1,
  Print driver streak stats = 1,
- Print driver stamp stats = 0,
+ Print driver stamp stats = 1,
  Print driver per-device stats = 1 },
 
 bus stats = disksim_bus_stats {
