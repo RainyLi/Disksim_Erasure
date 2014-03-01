@@ -35,13 +35,21 @@ node* create_set() {
 	return NIL;
 }
 
-void free_set(node *nd) {
-	if (nd->left != NIL)
-		free_set(nd->left);
-	if (nd->right != NIL)
-		free_set(nd->right);
-	nd->next = space;
-	space = nd;
+void free_set(node *curr) {
+	if (curr->left != NIL)
+		free_set(curr->left);
+	if (curr->right != NIL)
+		free_set(curr->right);
+	if (curr != NIL) {
+		curr->next = space;
+		space = curr;
+	}
+}
+
+node* make_list(node *curr, node *tail) {
+	if (curr == NIL) return tail;
+	curr->next = make_list(curr->right, tail);
+	return make_list(curr->left, curr);
 }
 
 static void left_rotate(node **root) {

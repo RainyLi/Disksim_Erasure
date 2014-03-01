@@ -62,6 +62,7 @@ typedef struct erasure_table_t {
 	ioreq_event **reqs;
 	depends **depend;
 	struct tree_node_t *set;
+	struct tree_node_t **tree;
 } table_t;
 
 int use_erasure_code(int reduntype);

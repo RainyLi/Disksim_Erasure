@@ -433,6 +433,7 @@ static void erasure_make_table(logorg *currlogorg) {
 	table->hit_r = malloc(table->totalunits * sizeof(int));
 	table->reqs = malloc(table->dataunits * sizeof(void*));
 	table->depend = malloc(table->dataunits * sizeof(void*));
+	table->tree = malloc(table->cols * sizeof(void*));
 	currlogorg->tab = table;
 }
 
@@ -470,6 +471,7 @@ static void table_entry_update(table_t *table, int row, int col, int ll, int rr)
 		table->hit[no] = -1;
 		table->hit_l[no] = ll;
 		table->hit_r[no] = rr;
+		insert(&(table->tree[col]), row, 0);
 	} else {
 		table->hit_l[no] = min(ll, table->hit_l[no]);
 		table->hit_r[no] = max(rr, table->hit_r[no]);
@@ -499,28 +501,27 @@ int erasure_maprequest(logorg *currlogorg, ioreq_event *curr, int numreqs) {
 	int start = curr->blkno;
 	int end = curr->blkno + curr->bcount;
 	int stackno = start / stacksize;
+	int offset, last;
 	int unitno, no1, no2;
-	int offset;
 	int ll, rr;
 	int idx, id, id2;
 	int blkno;
-	int r, c;
-	int last;
-	int i;
+	int i, r, c;
 	depends *dlst = NULL, *tmpdep;
 	element *dep;
 	ioreq_event *lst = NULL, *temp;
+	node* list;
 	int THRESHOLD = 64;
-
-	/*
-	 * TODO
-	 * need optimization for small requests
-	 */
+	int llim, rlim;
 
 	numreqs = 0;
 	while (stackno * stacksize < end) {
+		for (i = 0; i < table->cols; i++)
+			table->tree[i] = create_set();
 		memset(table->hit, 0, sizeof(int) * table->totalunits);
-		for (unitno = 0; unitno < table->dataunits; unitno++) {
+		llim = max(0, start / unitsize - stackno * table->dataunits);
+		rlim = min(table->dataunits, end / unitsize - stackno * table->dataunits + 1);
+		for (unitno = llim; unitno < rlim; unitno++) {
 			offset = stackno * stacksize + unitno * unitsize;
 			ll = max(offset, start);
 			rr = min(offset + unitsize, end);
@@ -538,7 +539,9 @@ int erasure_maprequest(logorg *currlogorg, ioreq_event *curr, int numreqs) {
 		blkno = stackno * table->rows * unitsize;
 		for (c = 0; c < table->cols; c++) {
 			last = -1;
-			for (r = 0; r < table->rows; r++) {
+			node *list = make_list(table->tree[c], NULL);
+			for (; list != NULL; list = list->next) {
+				r = list->first;
 				no1 = r * table->cols + c;
 				if (table->hit[no1] == -1) {
 					ll = blkno + r * unitsize + table->hit_l[no1];
@@ -605,6 +608,8 @@ int erasure_maprequest(logorg *currlogorg, ioreq_event *curr, int numreqs) {
 			free_set(table->set);
 		}
 		stackno += 1;
+		for (i = 0; i < table->cols; i++)
+			free_set(table->tree[i]);
 	}
 	if (lst == NULL) {
 		fprintf(stderr, "something wrong in erasure_maprequest\n");

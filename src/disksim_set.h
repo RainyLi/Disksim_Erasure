@@ -20,8 +20,9 @@ typedef struct tree_node_t {
 } node;
 
 node* create_set();
-void free_set(node*);
-void insert(node **, int, int);
-int contains(node *, int, int);
+void free_set(node *root);
+node* make_list(node *root, node *tail);
+void insert(node **root, int key1, int key2);
+int contains(node *root, int key1, int key2);
 
 #endif /* DISKSIM_SET_H_ */

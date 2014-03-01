@@ -1,0 +1,19 @@
+# metadata
+.project
+.cproject
+*.o
+*.orig
+*.outv
+*.trace
+*.tex
+*.a
+*.d
+*.py
+doc/
+raid-gen/
+memsmodel/
+diskmodel/
+include/
+utils/
+valid/
+src/modules/
