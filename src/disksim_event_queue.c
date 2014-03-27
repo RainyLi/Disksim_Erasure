@@ -18,7 +18,7 @@ static enode* get_event_node() {
 		space = malloc(sizeof(enode) * 16);
 		for (i = 0; i < 15; i++)
 			space[i].next = space + i + 1;
-		space[16].next = NULL;
+		space[15].next = NULL;
 	}
 	enode *ret = space;
 	space = space->next;
