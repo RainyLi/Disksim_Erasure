@@ -1,0 +1,870 @@
+/*
+ * disksim_erasure.c
+ *
+ *  Created on: Feb 22, 2014
+ *	  Author: zyz915
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+
+#include "disksim_global.h"
+#include "disksim_erasure.h"
+#include "disksim_interface.h"
+
+#define STRATEGY_MIN_IO		0
+#define STRATEGY_MAX_IO		1
+#define STRATEGY_MIN_L		2
+#define STRATEGY_MAX_L		3
+#define STRATEGY_MIN_STD	4
+#define STRATEGY_MAX_STD	5
+#define STRATEGY_MIN_L2		6
+#define STRATEGY_MAX_L2		7
+#define STRATEGY_RANDOM		8
+
+#define THRESHOLD			12
+
+const char* get_method_name(int method) {
+	switch (method) {
+	case STRATEGY_MIN_IO:
+		return "Minimum I/O";
+	case STRATEGY_MAX_IO:
+		return "Maximum I/O";
+	case STRATEGY_MIN_L:
+		return "Minimum L";
+	case STRATEGY_MAX_L:
+		return "Maximum L";
+	case STRATEGY_MIN_STD:
+		return "Minimum standard deviation";
+	case STRATEGY_MAX_STD:
+		return "Maximum standard deviation";
+	case STRATEGY_MIN_L2:
+		return "Minimum L2";
+	case STRATEGY_MAX_L2:
+		return "Maximum L2";
+	case STRATEGY_RANDOM:
+		return "Random";
+	}
+	return "";
+}
+
+static int check_prime(int number) {
+	int i;
+	for (i = 2; i * i <= number; i++)
+		if (number % i == 0)
+			return 0;
+	return 1;
+}
+
+static void evenodd_initialize(metadata *meta) {
+	int i, r, c;
+	int delta, sumrc;
+	int p; // the prime number
+	int rows, cols;
+	int unitno, id;
+	paritys *chain;
+	element *elem;
+
+	meta->numdisks = meta->phydisks - 2;
+	if (!check_prime(meta->phydisks - 2)) {
+		fprintf(stderr, "invalid disk number using EVENODD\n");
+		exit(1);
+	}
+	p = meta->prime = meta->phydisks - 2;
+	rows = meta->rows = meta->phydisks - 3;
+	cols = meta->cols = meta->phydisks;
+	// initialize parity chains
+	meta->numchains = 2 * rows;
+	meta->chains = (paritys*) malloc(meta->numchains * sizeof(paritys));
+	for (r = 0; r < rows; r++) {
+		chain = meta->chains + r;
+		chain->type = 0;
+		chain->dest = (element*) malloc(sizeof(element));
+		chain->dest->row = r;
+		chain->dest->col = p;
+		chain->deps = NULL;
+		for (c = 0; c < p; c++) {
+			elem = (element*) malloc(sizeof(element));
+			elem->row = r;
+			elem->col = c;
+			elem->next = chain->deps;
+			chain->deps = elem;
+		}
+		chain->dest->next = chain->deps;
+	}
+	for (r = 0; r < rows; r++) {
+		sumrc = r + p;
+		chain = meta->chains + rows + r;
+		chain->type = 1;
+		chain->dest = (element*) malloc(sizeof(element));
+		chain->dest->row = r;
+		chain->dest->col = p + 1;
+		chain->deps = NULL;
+		for (c = 0; c < p; c++)
+			if ((sumrc - c + 1) % p) {
+				elem = (element*) malloc(sizeof(element));
+				elem->row = (sumrc - c) % p;
+				elem->col = c;
+				elem->next = chain->deps;
+				chain->deps = elem;
+			}
+		for (c = 1; c < p; c++) {
+			elem = (element*) malloc(sizeof(element));
+			elem->row = p - 1 - c;
+			elem->col = c;
+			elem->next = chain->deps;
+			chain->deps = elem;
+		}
+		chain->dest->next = chain->deps;
+	}
+	// map the data blocks to units in a stripe
+	meta->dataunits = rows * meta->numdisks;
+	meta->totalunits = rows * cols;
+	meta->entry = (struct entry_t*) malloc(meta->dataunits * sizeof(struct entry_t));
+	meta->rmap = (int*) malloc(meta->totalunits * sizeof(int));
+	memset(meta->rmap, -1, meta->totalunits * sizeof(int));
+	for (unitno = 0; unitno < meta->dataunits; unitno++) {
+		r = unitno / meta->numdisks;
+		c = unitno % meta->numdisks;
+		meta->entry[unitno].row = r;
+		meta->entry[unitno].col = c;
+		meta->entry[unitno].depends = NULL;
+		meta->rmap[r * meta->cols + c] = unitno;
+	}
+}
+
+static void rdp_initialize(metadata *meta) {
+	int i, r, c;
+	int delta, sumrc;
+	int p; // the prime number
+	int rows, cols;
+	int unitno, id;
+	paritys *chain;
+	element *elem;
+
+	meta->numdisks = meta->phydisks - 2;
+	if (!check_prime(meta->numdisks + 1)) {
+		fprintf(stderr, "invalid disk number using RDP\n");
+		exit(1);
+	}
+	p = meta->prime = meta->numdisks + 1;
+	rows = meta->rows = meta->numdisks;
+	cols = meta->cols = meta->phydisks;
+	// initialize parity chains
+	meta->numchains = 2 * rows;
+	meta->chains = (paritys*) malloc(meta->numchains * sizeof(paritys));
+	for (r = 0; r < rows; r++) {
+		chain = meta->chains + r;
+		chain->type = 0; // row parity
+		chain->dest = (element*) malloc(sizeof(element));
+		chain->dest->row = r;
+		chain->dest->col = p - 1;
+		chain->deps = NULL;
+		for (c = 0; c < p - 1; c++) {
+			elem = (element*) malloc(sizeof(element));
+			elem->row = r;
+			elem->col = c;
+			elem->next = chain->deps;
+			chain->deps = elem;
+		}
+		chain->dest->next = chain->deps;
+	}
+	for (r = 0; r < rows; r++) {
+		delta = r; // delta = r - c;
+		chain = meta->chains + rows + r;
+		chain->type = 1; // diagonal parity
+		chain->dest = (element*) malloc(sizeof(element));
+		chain->dest->row = r;
+		chain->dest->col = p;
+		chain->deps = NULL;
+		for (c = 0; c < p; c++)
+			if ((c + delta + 1) % p) {
+				elem = (element*) malloc(sizeof(element));
+				elem->row = (c + delta) % p;
+				elem->col = c;
+				elem->next = chain->deps;
+				chain->deps = elem;
+			}
+		chain->dest->next = chain->deps;
+	}
+
+	// map the data blocks to units in a stripe
+	meta->dataunits = rows * meta->numdisks;
+	meta->totalunits = rows * cols;
+	meta->entry = (struct entry_t*) malloc(meta->dataunits * sizeof(struct entry_t));
+	meta->rmap = (int*) malloc(meta->totalunits * sizeof(int));
+	memset(meta->rmap, -1, meta->totalunits * sizeof(int));
+	for (unitno = 0; unitno < meta->dataunits; unitno++) {
+		r = unitno / meta->numdisks;
+		c = unitno % meta->numdisks;
+		meta->entry[unitno].row = r;
+		meta->entry[unitno].col = c;
+		meta->entry[unitno].depends = NULL;
+		meta->rmap[r * meta->cols + c] = unitno;
+	}
+}
+
+static void hcode_initialize(metadata *meta) {
+	int i, r, c;
+	int delta, sumrc;
+	int p; // the prime number
+	int rows, cols;
+	int unitno, id;
+	paritys *chain;
+	element *elem;
+
+	meta->numdisks = meta->phydisks - 2;
+	if (!check_prime(meta->phydisks - 1)) {
+		fprintf(stderr, "invalid disk number using H-Code\n");
+		exit(1);
+	}
+	p = meta->prime = meta->phydisks - 1;
+	rows = meta->rows = meta->phydisks - 2;
+	cols = meta->cols = meta->phydisks;
+	// initialize parity chains
+	meta->numchains = 2 * rows;
+	meta->chains = (paritys*) malloc(meta->numchains * sizeof(paritys));
+	for (r = 0; r < rows; r++) {
+		chain = meta->chains + r;
+		chain->type = 0;
+		chain->dest = (element*) malloc(sizeof(element));
+		chain->dest->row = r;
+		chain->dest->col = p;
+		chain->deps = NULL;
+		for (c = 0; c < p; c++)
+			if (r + 1 != c) {
+				elem = (element*) malloc(sizeof(element));
+				elem->row = r;
+				elem->col = c;
+				elem->next = chain->deps;
+				chain->deps = elem;
+			}
+		chain->dest->next = chain->deps;
+	}
+	for (r = 0; r < rows; r++) {
+		delta = (r + 2) % p; // delta = c - r
+		chain = meta->chains + rows + r;
+		chain->type = 1;
+		chain->dest = (element*) malloc(sizeof(element));
+		chain->dest->row = r;
+		chain->dest->col = r + 1;
+		chain->deps = NULL;
+		for (c = 0; c < p; c++)
+			if ((c + p - delta + 1) % p) {
+				elem = (element*) malloc(sizeof(element));
+				elem->row = (c + p - delta) % p;
+				elem->col = c;
+				elem->next = chain->deps;
+				chain->deps = elem;
+			}
+		chain->dest->next = chain->deps;
+	}
+	// map the data blocks to units in a stripe
+	meta->dataunits = rows * meta->numdisks;
+	meta->totalunits = rows * cols;
+	meta->entry = (struct entry_t*) malloc(meta->dataunits * sizeof(struct entry_t));
+	meta->rmap = (int*) malloc(meta->totalunits * sizeof(int));
+	memset(meta->rmap, -1, meta->totalunits * sizeof(int));
+	for (unitno = 0; unitno < meta->dataunits; unitno++) {
+		r = unitno / meta->numdisks;
+		c = unitno % meta->numdisks;
+		if (c > r) ++c;
+		meta->entry[unitno].row = r;
+		meta->entry[unitno].col = c;
+		meta->entry[unitno].depends = NULL;
+		meta->rmap[r * meta->cols + c] = unitno;
+	}
+}
+
+static void xcode_initialize(metadata *meta) {
+	int i, r, c;
+	int delta, sumrc;
+	int p; // the prime number
+	int rows, cols;
+	int unitno, id;
+	paritys *chain;
+	element *elem;
+
+	meta->numdisks = meta->phydisks - 2;
+	if (!check_prime(meta->phydisks)) {
+		fprintf(stderr, "invalid disk number using X-Code\n");
+		exit(1);
+	}
+	p = meta->prime = meta->phydisks;
+	rows = meta->rows = meta->phydisks;
+	cols = meta->cols = meta->phydisks;
+	// initialize parity chains
+	meta->numchains = 2 * cols;
+	meta->chains = (paritys*) malloc(meta->numchains * sizeof(paritys));
+	for (c = 0; c < p; c++) {
+		chain = meta->chains + c;
+		chain->type = 0;
+		chain->dest = (element*) malloc(sizeof(element));
+		chain->dest->row = p - 2;
+		chain->dest->col = c;
+		chain->deps = NULL;
+		delta = (c + 2) % p;
+		for (r = 0; r < p - 2; r++) {
+			elem = (element*) malloc(sizeof(element));
+			elem->row = r;
+			elem->col = (r + delta) % p;
+			elem->next = chain->deps;
+			chain->deps = elem;
+		}
+		chain->dest->next = chain->deps;
+	}
+	for (c = 0; c < p; c++) {
+		chain = meta->chains + p + c;
+		chain->type = 1;
+		chain->dest = (element*) malloc(sizeof(element));
+		chain->dest->row = p - 1;
+		chain->dest->col = c;
+		chain->deps = NULL;
+		sumrc = (c + p - 2) % p;
+		for (r = 0; r < p - 2; r++) {
+			elem = (element*) malloc(sizeof(element));
+			elem->row = r;
+			elem->col = (sumrc + p - r) % p;
+			elem->next = chain->deps;
+			chain->deps = elem;
+		}
+		chain->dest->next = chain->deps;
+	}
+	// map the data blocks to units in a stripe
+	meta->dataunits = (rows - 2) * cols;
+	meta->totalunits = rows * cols;
+	meta->entry = (struct entry_t*) malloc(meta->dataunits * sizeof(struct entry_t));
+	meta->rmap = (int*) malloc(meta->totalunits * sizeof(int));
+	memset(meta->rmap, -1, meta->totalunits * sizeof(int));
+	for (unitno = 0; unitno < meta->dataunits; unitno++) {
+		r = unitno / meta->cols;
+		c = unitno % meta->cols;
+		meta->entry[unitno].row = r;
+		meta->entry[unitno].col = c;
+		meta->entry[unitno].depends = NULL;
+		meta->rmap[r * meta->cols + c] = unitno;
+	}
+}
+
+static void erasure_make_table(metadata *meta) {
+	int rot;
+	int unitno, id, no;
+	element *dep, *tmp;
+
+	for (unitno = 0; unitno < meta->dataunits; unitno++) {
+		for (id = 0; id < meta->totalunits; id++)
+			if (meta->rmap[id] != unitno && meta->matrix[id * meta->dataunits + unitno] == 1) {
+				tmp = (element*) malloc(sizeof(element));
+				tmp->row = id / meta->cols;
+				tmp->col = id % meta->cols;
+				tmp->next = meta->entry[unitno].depends;
+				meta->entry[unitno].depends = tmp;
+			}
+	}
+}
+
+static void gen_matrix(int id, metadata *meta, int *visit) {
+	int ch = 0;
+	int id1;
+	int unitno;
+	element *elem;
+	while (ch < meta->numchains) {
+		elem = meta->chains[ch].dest;
+		id1 = elem->row * meta->cols + elem->col;
+		if (id == id1) break;
+		ch += 1;
+	}
+	if (ch == meta->numchains) {
+		fprintf(stderr, "undefined parity block (%d, %d)\n", id / meta->cols, id % meta->cols);
+		exit(1);
+	}
+	for (elem = meta->chains[ch].deps; elem != NULL; elem = elem->next) {
+		id1 = elem->row * meta->cols + elem->col;
+		if (visit[id1] == 0)
+			gen_matrix(id1, meta, visit);
+		for (unitno = 0; unitno < meta->dataunits; unitno++)
+			meta->matrix[id * meta->dataunits + unitno] ^= meta->matrix[id1 * meta->dataunits + unitno];
+	}
+	visit[id] = 1;
+}
+
+static void erasure_gen_matrix(metadata *meta) {
+	int *visit;
+	int unitno;
+	int id;
+	visit = (int*) malloc(meta->totalunits * sizeof(int));
+	memset(visit, 0, meta->totalunits * sizeof(int));
+	meta->matrix = (int*) malloc(meta->totalunits * meta->dataunits * sizeof(int));
+	memset(meta->matrix, 0, meta->totalunits * meta->dataunits * sizeof(int));
+	for (unitno = 0; unitno < meta->dataunits; unitno++) {
+		id = meta->entry[unitno].row * meta->cols + meta->entry[unitno].col;
+		visit[id] = 1;
+		meta->matrix[id * meta->dataunits + unitno] = 1;
+	}
+	for (id = 0; id < meta->totalunits; id++)
+		if (visit[id] == 0)
+			gen_matrix(id, meta, visit);
+	free(visit);
+}
+
+static void erasure_init_rottable(metadata *meta) {
+	int totalunits = meta->totalunits;
+	meta->ph1 = (rottable*) malloc(sizeof(rottable));
+	meta->ph1->rows = meta->rows;
+	meta->ph1->cols = meta->cols;
+	meta->ph1->hit = (int*) malloc(sizeof(int) * totalunits);
+	meta->ph1->ll = (int*) malloc(sizeof(int) * totalunits);
+	meta->ph1->rr = (int*) malloc(sizeof(int) * totalunits);
+	meta->ph1->entry = meta->entry;
+	meta->ph2 = (rottable*) malloc(sizeof(rottable));
+	meta->ph2->rows = meta->rows;
+	meta->ph2->cols = meta->cols;
+	meta->ph2->hit = (int*) malloc(sizeof(int) * totalunits);
+	meta->ph2->ll = (int*) malloc(sizeof(int) * totalunits);
+	meta->ph2->rr = (int*) malloc(sizeof(int) * totalunits);
+	meta->ph2->entry = meta->entry;
+}
+
+static void erasure_rebuild_init(metadata *meta) {
+	int i, j, unitsize = meta->unitsize;
+	element *elem;
+	meta->numfailures = 0;
+	meta->failed = (int*) malloc(sizeof(int) * meta->phydisks);
+	memset(meta->failed, 0, sizeof(int) * meta->phydisks);
+	meta->laststripe = -1;
+	meta->chs = (paritys***) malloc(sizeof(void*) * meta->totalunits);
+	meta->chl = (int*) malloc(sizeof(int) * meta->totalunits);
+	memset(meta->chl, 0, sizeof(int) * meta->totalunits);
+	for (i = 0; i < meta->totalunits; i++)
+		meta->chs[i] = (paritys**) malloc(sizeof(void*) * (meta->phydisks - meta->numdisks));
+	for (i = 0; i < meta->numchains; i++) {
+		paritys *chain = meta->chains + i;
+		for (elem = chain->dest; elem != NULL; elem = elem->next) {
+			int no = elem->row * meta->cols + elem->col;
+			meta->chs[no][meta->chl[no]++] = chain;
+		}
+	}
+	int w, value, mask = (1 << meta->rows) - 1;
+	int patterns[240], ptr = 0, patt, r, c;
+	for (w = 2; w <= meta->rows + 1; w += 2) {
+		value = 0;
+		for (i = 0; i < 31; i++)
+			if (i % w < w / 2)
+				value ^= 1 << i;
+		for (i = 0; i < w; i++) {
+			patterns[ptr++] = mask & value;
+			patterns[ptr++] = mask & (value >> i);
+		}
+	}
+	patterns[ptr++] = 0;
+	patterns[ptr++] = mask;
+
+	meta->distr = (int***) malloc(sizeof(void*) * meta->cols);
+	meta->distrlen = (int*) malloc(sizeof(int) * meta->cols);
+	meta->distrpatt = (int**) malloc(sizeof(void*) * meta->cols);
+	memset(meta->distrlen, 0, sizeof(int) * meta->cols);
+	meta->test = (int*) malloc(sizeof(int) * meta->totalunits);
+	for (c = 0; c < meta->cols; c++) {
+		int best = 0x3fffffff;
+		meta->distr[c] = (int**) malloc(sizeof(void*) * 24);
+		meta->distrpatt[c] = (int*) malloc(sizeof(int) * 24);
+		for (i = 0; i < ptr; i++) {
+			patt = patterns[i];
+			int valid = 1;
+			memset(meta->test, 0, sizeof(int) * meta->totalunits);
+			for (r = 0; r < meta->rows; r++) {
+				int no = r * meta->cols + c;
+				paritys *ch = NULL;
+				for (j = 0; j < meta->chl[no]; j++) {
+					if (meta->chs[no][j]->type == (1 & (patt >> r)))
+						ch = meta->chs[no][j];
+				}
+				if (ch == NULL) {
+					valid = 0;
+					break;
+				}
+				for (elem = ch->dest; elem != NULL; elem = elem->next)
+					meta->test[elem->row * meta->cols + elem->col] = unitsize;
+			}
+			int sum = 0;
+			for (j = 0; j < meta->totalunits; j++)
+				sum += meta->test[j];
+			if (valid && sum <= best) {
+				int idx = meta->distrlen[c];
+				if (sum < best) {
+					best = sum;
+					while (idx > 0)
+						free(meta->distr[c][idx--]);
+					meta->distrlen[c] = 0;
+				}
+				meta->distrlen[c] += 1;
+				meta->distrpatt[c][idx] = patt;
+				meta->distr[c][idx] = (int*) malloc(sizeof(int) * meta->cols);
+				memset(meta->distr[c][idx], 0, sizeof(int) * meta->cols);
+				for (j = 0; j < meta->totalunits; j++)
+					meta->distr[c][idx][j % meta->cols] += meta->test[j];
+			}
+		}
+	}
+	meta->last = 0;
+}
+
+void erasure_initialize(metadata *meta, int codetype, int disks, int unitsize) {
+	meta->codetype = codetype;
+	meta->phydisks = disks;
+	meta->unitsize = unitsize;
+	switch (meta->codetype) {
+	case CODE_RDP:
+		rdp_initialize(meta);
+		break;
+	case CODE_EVENODD:
+		evenodd_initialize(meta);
+		break;
+	case CODE_HCODE:
+		hcode_initialize(meta);
+		break;
+	case CODE_XCODE:
+		xcode_initialize(meta);
+		break;
+	default:
+		fprintf(stderr, "unrecognized reduntype in erasure_initialize\n");
+		exit(1);
+	}
+	erasure_gen_matrix(meta);
+	erasure_make_table(meta);
+	erasure_init_rottable(meta);
+	erasure_rebuild_init(meta);
+}
+
+static void rottable_update(rottable *tab, int r, int c, int ll, int rr) {
+	int no = r * tab->cols + c;
+	if (tab->hit[no] == 0) {
+		tab->hit[no] = -1;
+		tab->ll[no] = ll;
+		tab->rr[no] = rr;
+	} else {
+		tab->ll[no] = min(ll, tab->ll[no]);
+		tab->rr[no] = max(rr, tab->rr[no]);
+	}
+}
+
+void erasure_maprequest(metadata *meta, ioreq *req) {
+	int numreqs = 0;
+	int unitsize = meta->unitsize;
+	int stripesize = meta->dataunits * unitsize;
+	int start = req->blkno;
+	int end = req->blkno + req->bcount;
+	int stripeno = start / stripesize;
+	element *elem;
+	rottable *ph1 = meta->ph1;
+	rottable *ph2 = meta->ph2;
+	int unitno, llim, rlim, i, no;
+
+	req->curr = NULL;
+	while (stripeno * stripesize < end) {
+		int rot = stripeno % meta->cols;
+		memset(ph1->hit, 0, sizeof(int) * meta->totalunits);
+		memset(ph2->hit, 0, sizeof(int) * meta->totalunits);
+		int llim = max(0, start / unitsize - stripeno * meta->dataunits);
+		int rlim = min(meta->dataunits, end / unitsize - stripeno * meta->dataunits + 1);
+		for (unitno = llim; unitno < rlim; unitno++) {
+			int offset = (stripeno * meta->dataunits + unitno) * unitsize;
+			int ll = max(start - offset, 0);
+			int rr = min(end - offset, unitsize);
+			if (ll == rr) break;
+			int r = meta->entry[unitno].row;
+			int dc = (meta->entry[unitno].col + rot) % meta->cols;
+			if (!meta->failed[dc]) {
+				rottable_update(ph1, r, dc, ll, rr);
+				if (req->flag == DISKSIM_WRITE) {
+					for (elem = meta->entry[unitno].depends; elem != NULL; elem = elem->next)
+						if (!meta->failed[(elem->col + rot) % meta->cols]) {
+							rottable_update(ph1, elem->row, (elem->col + rot) % meta->cols, ll, rr);
+							rottable_update(ph2, elem->row, (elem->col + rot) % meta->cols, ll, rr);
+						}
+					rottable_update(ph2, r, dc, ll, rr);
+				}
+			} else {
+				no = r * meta->cols + dc;
+				for (elem = meta->chs[no][0]->dest; elem != NULL; elem = elem->next)
+					if (!meta->failed[(elem->col + rot) % meta->cols])
+						rottable_update(ph1, elem->row, (elem->col) % meta->cols, ll, rr);
+				if (req->flag == DISKSIM_WRITE) { // same as not missing
+					for (elem = meta->entry[unitno].depends; elem != NULL; elem = elem->next)
+						if (!meta->failed[(elem->col + rot) % meta->cols]) {
+							rottable_update(ph1, elem->row, (elem->col + rot) % meta->cols, ll, rr);
+							rottable_update(ph2, elem->row, (elem->col + rot) % meta->cols, ll, rr);
+						}
+				}
+			}
+		}
+		int r, nxt, dc;
+		struct disksim_request *tmp = (struct disksim_request*) getfromextraq();
+		iogroup *g1 = create_ioreq_group();
+		for (dc = 0; dc < meta->cols; dc++) {
+			if (meta->failed[dc]) continue;
+			for (r = 0; r < meta->rows; r = nxt)
+				if (ph1->hit[r * meta->cols + dc]) {
+					no = r * meta->cols + dc;
+					int ll = ph1->ll[no] + (stripeno * meta->rows + r) * unitsize;
+					int rr = ph1->rr[no] + (stripeno * meta->rows + r) * unitsize;
+					for (nxt = r + 1; nxt < meta->rows; nxt++)
+						if (ph1->hit[nxt * meta->cols + dc]) {
+							int no2 = nxt * meta->cols + dc;
+							int l2 = ph1->ll[no2] + (stripeno * meta->rows + nxt) * unitsize;
+							int r2 = ph1->rr[no2] + (stripeno * meta->rows + nxt) * unitsize;
+							if (rr + THRESHOLD >= l2)
+								rr = r2;
+							else {
+								break;
+							}
+						}
+					tmp = (struct disksim_request*) getfromextraq();
+					tmp->start = req->time;
+					tmp->devno = dc;
+					tmp->blkno = ll;
+					tmp->bytecount = (rr - ll) * 512;
+					tmp->flags = DISKSIM_READ; // read
+					tmp->next = g1->reqs;
+					tmp->reqctx = req;
+					g1->reqs = tmp;
+					g1->numreqs++;
+					if (rr - ll > 1000)
+						printf("rr = %d, ll = %d\n", rr, ll);
+				} else nxt = r + 1;
+		}
+		iogroup *g2 = create_ioreq_group();
+		for (dc = 0; dc < meta->cols; dc++) {
+			if (meta->failed[dc]) continue;
+			for (r = 0; r < meta->rows; r = nxt)
+				if (ph2->hit[r * meta->cols + dc]) {
+					no = r * meta->cols + dc;
+					int ll = ph2->ll[no] + (stripeno * meta->rows + r) * unitsize;
+					int rr = ph2->rr[no] + (stripeno * meta->rows + r) * unitsize;
+					for (nxt = r + 1; nxt < meta->rows; nxt++)
+						if (ph1->hit[nxt * meta->cols + dc]) {
+							int no2 = nxt * meta->cols + dc;
+							int l2 = ph2->ll[no2] + (stripeno * meta->rows + nxt) * unitsize;
+							int r2 = ph2->rr[no2] + (stripeno * meta->rows + nxt) * unitsize;
+							if (rr + THRESHOLD >= l2)
+								rr = r2;
+							else {
+								break;
+							}
+						}
+					tmp = (struct disksim_request*) getfromextraq();
+					tmp->start = req->time;
+					tmp->devno = dc;
+					tmp->blkno = ll;
+					tmp->bytecount = (rr - ll) * 512;
+					tmp->flags = DISKSIM_WRITE; // write
+					tmp->next = g2->reqs;
+					tmp->reqctx = req;
+					g2->reqs = tmp;
+					g2->numreqs++;
+				} else nxt = r + 1;
+		}
+		add_to_ioreq(req, g1);
+		add_to_ioreq(req, g2);
+		stripeno++;
+	}
+}
+
+int cmp(const void *a, const void *b) {
+	return *(int*)a - *(int*)b;
+}
+
+double min_io(int *a, int *b, int *mask, int disks) {
+	int i, sum = 0;
+	for (i = 0; i < disks; i++)
+		if (!mask[i])
+			sum += a[i] + b[i];
+	return sum + rand() / RAND_MAX;
+}
+
+double min_L(int *a, int *b, int *mask, int disks) {
+	static int c[32];
+	int i, n = 0;
+	for (i = 0; i < disks; i++)
+		if (!mask[i])
+			c[n++] = a[i] + b[i];
+	qsort(c, n, sizeof(int), cmp);
+	return (double)(c[n - 1] + 1) / (c[0] + 1);
+}
+
+double min_L2(int *a, int *b, int *mask, int disks) {
+	static int c[32];
+	int i, n = 0;
+	for (i = 0; i < disks; i++)
+		if (!mask[i])
+			c[n++] = a[i] + b[i];
+	qsort(c, n, sizeof(int), cmp);
+	return (double)(c[n - 1] + c[n - 2] + 1) / (c[0] + c[1] + 1);
+}
+
+double min_std(int *a, int *b, int *mask, int disks) {
+	int i, n = 0;
+	double s = 0, s2 = 0, c;
+	for (i = 0; i < disks; i++)
+		if (!mask[i])
+			s += a[i] + b[i];
+	double inv = 10 * disks / s;
+	s = 0;
+	for (i = 0; i < disks; i++)
+		if (!mask[i]) {
+			c = (a[i] + b[i]) * inv;
+			s += c;
+			s2 += c * c;
+			n++;
+		}
+	return sqrt((s2 * n - s * s) / (n * n)) * n / s;
+}
+
+double s_random(int *a, int *b, int *mask, int disks) {
+	return (double)rand() / RAND_MAX;
+}
+
+double get_score(int *a, int rot, int *b, int *mask, int disks, int method) {
+	static int a2[50];
+	int i;
+	for (i = 0; i < disks; i++)
+		a2[(i + rot) % disks] = a[i];
+	switch (method) {
+	case STRATEGY_MIN_IO:
+		return min_io(a2, b, mask, disks);
+	case STRATEGY_MAX_IO:
+		return 1.0 / (min_io(a2, b, mask, disks) + 1);
+	case STRATEGY_MIN_L:
+		return min_L(a2, b, mask, disks);
+	case STRATEGY_MAX_L:
+		return 1.0 / (min_L(a2, b, mask, disks) + 1);
+	case STRATEGY_MIN_STD:
+		return min_std(a2, b, mask, disks);
+	case STRATEGY_MAX_STD:
+		return 1.0 / (min_std(a2, b, mask, disks) + 1);
+	case STRATEGY_MIN_L2:
+		return min_L2(a2, b, mask, disks);
+	case STRATEGY_MAX_L2:
+		return 1.0 /(min_L2(a2, b, mask, disks) + 1);
+	case STRATEGY_RANDOM:
+		return s_random(a2, b, mask, disks);
+	default:
+		fprintf(stderr, "invalid strategy number.\n");
+		exit(-1);
+	}
+}
+
+void erasure_failure(metadata *meta, int devno) {
+	int temp = meta->numfailures;
+	if (!meta->failed[devno]) {
+		meta->failed[devno] = 1;
+		meta->numfailures += 1;
+	}
+	if (meta->numfailures + meta->numdisks > meta->phydisks) {
+		fprintf(stderr, "data permanently lost.\n");
+		exit(-1);
+	}
+	meta->laststripe = -1;
+}
+
+void erasure_rebuild(metadata *meta, int *distr, int method, ioreq *req) {
+	if (meta->numfailures == 0) return;
+	int unitsize = meta->unitsize;
+	int stripeno = ++meta->laststripe;
+	int rot = stripeno % meta->cols;
+	if (stripeno * meta->rows * unitsize > 6000000) {
+		meta->numfailures = 0;
+		memset(meta->failed, 0, sizeof(int) * meta->cols);
+		meta->laststripe = -1;
+		return;
+	}
+	/*
+	if (stripeno * meta->rows * unitsize > 6000000) {
+		stripeno = 0;
+		meta->laststripe = 0;
+	}
+	*/
+	int bcount = unitsize * meta->rows;
+	int blkno = stripeno * bcount;
+	paritys *chain;
+	element *elem;
+	int i, numreqs = 0, r, pattern;
+
+	if (meta->numfailures > 1) {
+		// normal
+		fprintf(stderr, "should not reach!\n");
+		exit(-1);
+	} else {
+		// recover from chosen pattern
+		double cost = 1e6;
+		int dc = 0, ch;
+		for (dc = 0; !meta->failed[dc]; dc++);
+		int c = (dc + meta->cols - rot) % meta->cols;
+		for (i = 0; i < meta->distrlen[c]; i++) {
+			double score = get_score(meta->distr[c][i], rot, distr, meta->failed, meta->cols, method);
+			if (score < cost) {
+				ch = i;
+				cost = score;
+				pattern = meta->distrpatt[c][i];
+			}
+		}
+		memset(meta->test, 0, sizeof(int) * meta->totalunits);
+		for (r = 0; r < meta->rows; r++) {
+			int no = r * meta->cols + c; // logical
+			int t = 0;
+			while (meta->chs[no][t]->type != (1 & (pattern >> r))) t++;
+			for (elem = meta->chs[no][t]->dest; elem != NULL; elem = elem->next)
+				meta->test[elem->row * meta->cols + (elem->col + rot) % meta->cols] = unitsize;
+		}
+		int nxt;
+		struct disksim_request *tmp;
+		iogroup *g1 = create_ioreq_group();
+		for (dc = 0; dc < meta->cols; dc++)
+			if (!meta->failed[dc]) {
+				for (r = 0; r < meta->rows; r = nxt)
+					if (meta->test[r * meta->cols + dc]) {
+						int ll = (stripeno * meta->rows + r) * unitsize;
+						int rr = (stripeno * meta->rows + r + 1) * unitsize;
+						for (nxt = r + 1; nxt < meta->rows; nxt++)
+							if (meta->test[nxt * meta->cols + dc]) {
+								int l2 = (stripeno * meta->rows + nxt) * unitsize;
+								int r2 = (stripeno * meta->rows + nxt + 1) * unitsize;
+								if (rr + THRESHOLD >= l2) {
+									rr = r2;
+								} else {
+									break;
+								}
+							}
+						tmp = (struct disksim_request*) getfromextraq();
+						tmp->start = req->time;
+						tmp->devno = dc;
+						tmp->blkno = ll;
+						tmp->bytecount = (rr - ll) * 512;
+						tmp->flags = DISKSIM_READ; // read
+						tmp->next = g1->reqs;
+						tmp->reqctx = req;
+						g1->reqs = tmp;
+						g1->numreqs++;
+					} else nxt = r + 1;
+			}
+		iogroup *g2 = create_ioreq_group();
+		for (dc = 0; dc < meta->cols; dc++)
+			if (meta->failed[dc]) {
+				tmp = (struct disksim_request*) getfromextraq();
+				tmp->start = req->time;
+				tmp->devno = dc;
+				tmp->blkno = stripeno * meta->rows * unitsize;
+				tmp->bytecount = meta->rows * unitsize * 512;
+				tmp->flags = DISKSIM_WRITE;
+				tmp->next = g2->reqs;
+				tmp->reqctx = req;
+				g2->reqs = tmp;
+				g2->numreqs++;
+			}
+		req->curr = NULL;
+		add_to_ioreq(req, g1);
+		add_to_ioreq(req, g2);
+	}
+}

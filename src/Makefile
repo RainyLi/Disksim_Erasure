@@ -61,10 +61,10 @@ ifeq ($(MODULEDEPS),)
 MODULEDEPS = modules
 endif
 
-all: disksim rms hplcomb syssim
+all: disksim rms hplcomb syssim reconsim
 
 clean:
-	rm -f TAGS *.o disksim syssim rms hplcomb core libdisksim.a
+	rm -f TAGS *.o disksim syssim reconsim rms hplcomb core libdisksim.a
 	$(MAKE) -C modules clean
 
 realclean: clean
@@ -99,7 +99,8 @@ DISKSIM_SRC = disksim.c disksim_intr.c disksim_pfsim.c \
 	disksim_cache.c disksim_cachemem.c disksim_cachedev.c \
 	disksim_simpledisk.c disksim_device.c \
 	disksim_loadparams.c \
-	raw_layout.c
+	raw_layout.c \
+	disksim_recon.c disksim_erasure.c disksim_iostat.c disksim_event_queue.c
 
 DISKSIM_OBJ = $(DISKSIM_SRC:.c=.o) 
 
@@ -129,6 +130,9 @@ disksim : $(MODULEDEPS) libdisksim.a disksim_main.o
 
 syssim: syssim_driver.o libdisksim.a
 	$(CC) $(CFLAGS) -o $@ syssim_driver.o disksim_interface.o $(LDFLAGS)
+
+reconsim: $(MODULEDEPS) libdisksim.a disksim_recon.c
+	$(CC) -g $(CFLAGS) -o $@ disksim_recon.o $(LDFLAGS) -lm
 
 ########################################################################
 
