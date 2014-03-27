@@ -79,7 +79,7 @@ typedef struct metadata_t {
 
 const char* get_method_name(int method);
 void erasure_initialize(metadata *meta, int codetype, int disks, int unit);
-void  erasure_maprequest(metadata *meta, ioreq *req);
+void erasure_maprequest(metadata *meta, ioreq *req); // TODO give distribution to improve performance
 
 void erasure_failure(metadata *meta, int devno);
 void erasure_rebuild(metadata *meta, int *distr, int method, ioreq *req);

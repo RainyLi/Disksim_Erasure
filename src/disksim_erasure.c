@@ -22,28 +22,40 @@
 #define STRATEGY_MAX_STD	5
 #define STRATEGY_MIN_L2		6
 #define STRATEGY_MAX_L2		7
-#define STRATEGY_RANDOM		8
+#define STRATEGY_MIN_MAX	8
+#define STRATEGY_MAX_MAX	9
+#define STRATEGY_MIN_HIGH	10
+#define STRATEGY_MAX_HIGH	11
+#define STRATEGY_RANDOM		12
 
 #define THRESHOLD			12
 
 const char* get_method_name(int method) {
 	switch (method) {
 	case STRATEGY_MIN_IO:
-		return "Minimum I/O";
+		return "Minimize I/O";
 	case STRATEGY_MAX_IO:
-		return "Maximum I/O";
+		return "Maximize I/O";
 	case STRATEGY_MIN_L:
-		return "Minimum L";
+		return "Minimize L";
 	case STRATEGY_MAX_L:
-		return "Maximum L";
+		return "Maximize L";
 	case STRATEGY_MIN_STD:
-		return "Minimum standard deviation";
+		return "Minimize Standard deviation";
 	case STRATEGY_MAX_STD:
-		return "Maximum standard deviation";
+		return "Maximize Standard deviation";
 	case STRATEGY_MIN_L2:
-		return "Minimum L2";
+		return "Minimize L2";
 	case STRATEGY_MAX_L2:
-		return "Maximum L2";
+		return "Maximize L2";
+	case STRATEGY_MIN_MAX:
+		return "Minimize Max value";
+	case STRATEGY_MAX_MAX:
+		return "Maximize Max value";
+	case STRATEGY_MIN_HIGH:
+		return "Minimize Highest";
+	case STRATEGY_MAX_HIGH:
+		return "Maximize Highest";
 	case STRATEGY_RANDOM:
 		return "Random";
 	}
@@ -722,6 +734,26 @@ double min_std(int *a, int *b, int *mask, int disks) {
 	return sqrt((s2 * n - s * s) / (n * n)) * n / s;
 }
 
+double min_max(int *a, int *b, int *mask, int disks) {
+	int sum = 0, ret = 0, i;
+	for (i = 0; i < disks; i++)
+		if (!mask[i]) sum += b[i];
+	for (i = 0; i < disks; i++)
+		if (!mask[i] && b[i] * disks > sum); // concern the loadings above average
+			ret += a[i];
+	return a[i];
+}
+
+double min_high(int *a, int *b, int *mask, int disks) {
+	int sum = 0, ret = 0, i;
+	for (i = 0; i < disks; i++)
+		if (!mask[i]) sum += b[i];
+	for (i = 0; i < disks; i++)
+		if (!mask[i] && b[i] * disks > sum); // concern the loadings above average
+			ret += a[i];
+	return a[i];
+}
+
 double s_random(int *a, int *b, int *mask, int disks) {
 	return (double)rand() / RAND_MAX;
 }
@@ -747,7 +779,15 @@ double get_score(int *a, int rot, int *b, int *mask, int disks, int method) {
 	case STRATEGY_MIN_L2:
 		return min_L2(a2, b, mask, disks);
 	case STRATEGY_MAX_L2:
-		return 1.0 /(min_L2(a2, b, mask, disks) + 1);
+		return 1.0 / (min_L2(a2, b, mask, disks) + 1);
+	case STRATEGY_MIN_MAX:
+		return min_max(a2, b, mask, disks);
+	case STRATEGY_MAX_MAX:
+		return 1.0 / (min_max(a2, b, mask, disks) + 1);
+	case STRATEGY_MIN_HIGH:
+		return min_high(a2, b, mask, disks);
+	case STRATEGY_MAX_HIGH:
+		return 1.0 / (min_high(a2, b, mask, disks) + 1);
 	case STRATEGY_RANDOM:
 		return s_random(a2, b, mask, disks);
 	default:
@@ -780,12 +820,6 @@ void erasure_rebuild(metadata *meta, int *distr, int method, ioreq *req) {
 		meta->laststripe = -1;
 		return;
 	}
-	/*
-	if (stripeno * meta->rows * unitsize > 6000000) {
-		stripeno = 0;
-		meta->laststripe = 0;
-	}
-	*/
 	int bcount = unitsize * meta->rows;
 	int blkno = stripeno * bcount;
 	paritys *chain;
