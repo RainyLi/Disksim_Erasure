@@ -268,7 +268,58 @@ static void disksim_dumpintq ()
 	}
 }
 
+/* Basic operation in skew heap to merge to heaps efficiently.
+ * Implemented by zyz915
+ */
+static event* merge(event *a, event *b) {
+	event *t;
+	if (a == NULL)
+		return b;
+	if (a->time < b->time) {
+		a->next = merge(a->next, b);
+		if (!a->prev || a->prev->depth < a->next->depth) {
+			t = a->prev;
+			a->prev = a->next;
+			a->next = t;
+		}
+		a->depth = a->prev->depth + 1;
+		return a;
+	} else {
+		b->next = merge(b->next, a);
+		if (!b->prev || b->prev->depth < b->next->depth) {
+			t = b->prev;
+			b->prev = b->next;
+			b->next = t;
+		}
+		b->depth = b->prev->depth + 1;
+		return b;
+	}
+}
 
+/* Remove a node from event queue, plus basic optimization
+ * Implemented by zyz915
+ */
+static int removeq(event **root, event *curr) {
+	event *r = *root;
+	if (r == NULL) return 0;
+	if (r == curr) {
+		*root = merge((*root)->next, (*root)->prev);
+		return 1;
+	}
+	if (r->time > curr->time)
+		return 0;
+	if (!removeq(&r->prev, curr) && !removeq(&r->next, curr))
+		return 0;
+	int dl = r->prev ? r->prev->depth : 0;
+	int dr = r->next ? r->next->depth : 0;
+	(*root)->depth = max(dl, dr) + 1;
+	if (dl < dr) {
+		event *t = r->prev;
+		r->prev = r->next;
+		r->next = t;
+	}
+	return 1;
+}
 
 /* Add an event to the intq.  The "time" field indicates when the event is */
 /* scheduled to occur, and the intq is maintained in ascending time order. */
@@ -331,7 +382,15 @@ INLINE void addtointq (event *newint)
 		break;
 	}
 
-
+	/*
+	 * use skew heap to accelerate the event queue!
+	 * modified by zyz915
+	 */
+	newint->depth = 1; // reserved for depth
+	newint->prev = NULL;
+	newint->next = NULL;
+	disksim->intq = merge(disksim->intq, newint);
+	/*
 	if (disksim->intq == NULL) {
 		disksim->intq = newint;
 		newint->next = NULL;
@@ -358,6 +417,7 @@ INLINE void addtointq (event *newint)
 			newint->next->prev = newint;
 		}
 	}
+	*/
 }
 
 
@@ -371,6 +431,8 @@ INLINE static event * getfromintq ()
 		return(NULL);
 	}
 	temp = disksim->intq;
+	disksim->intq = merge(temp->next, temp->prev);
+	/*
 	disksim->intq = disksim->intq->next;
 	if (disksim->intq != NULL) {
 		disksim->intq->prev = NULL;
@@ -378,6 +440,7 @@ INLINE static event * getfromintq ()
 
 	temp->next = NULL;
 	temp->prev = NULL;
+	 */
 	return(temp);
 }
 
@@ -387,6 +450,8 @@ INLINE static event * getfromintq ()
 
 INLINE int removefromintq (event *curr)
 {
+	return removeq(&disksim->intq, curr);
+	/*
 	event *tmp;
 
 	tmp = disksim->intq;
@@ -411,6 +476,7 @@ INLINE int removefromintq (event *curr)
 	curr->next = NULL;
 	curr->prev = NULL;
 	return(TRUE);
+	*/
 }
 
 

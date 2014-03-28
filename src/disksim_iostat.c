@@ -61,9 +61,9 @@ void iostat_initialize(int disks) {
 }
 
 void iostat_print() {
-	printf("Average Response Time = %f\n", total_response_time / numreqs);
-	printf("Throughput = %fMB/s\n", totalblks / (2.048 * currtime));
-	printf("Peak Throughput = %fMB/s\n", peak);
+	printf("Average Response Time = %f ms\n", total_response_time / numreqs);
+	printf("Throughput = %f MB/s\n", totalblks / (2.048 * currtime));
+	printf("Peak Throughput = %f MB/s\n", peak);
 }
 
 void iostat_ioreq_start(double time, ioreq *req) {
@@ -127,7 +127,7 @@ void iostat_add(statnode *node) {
 	totalblks += node->bcount;
 }
 
-void iostat_reset(double time) {
+static void iostat_reset(double time) {
 	statnode *temp;
 	while (head != NULL && head->time < time) {
 		temp = head->next;
@@ -139,13 +139,14 @@ void iostat_reset(double time) {
 		tail = NULL;
 }
 
-void iostat_current(int *distr) {
+void iostat_distribution(double currtime, double interval, int *distr) {
+	iostat_reset(currtime - interval);
 	memcpy(distr, iocount, sizeof(int) * numdisks);
 }
 
-void iostat_detect_peak(double resetpoint, double interval) {
+void iostat_detect_peak(double currtime, double interval) {
 	int i, total = 0;
-	iostat_reset(resetpoint);
+	iostat_reset(currtime - interval);
 	for (i = 0; i < numdisks; i++)
 		total += iocount[i];
 	double curr = total / (2.048 * interval);

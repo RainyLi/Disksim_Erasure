@@ -35,9 +35,8 @@ void iostat_ioreq_complete(double time, ioreq *req);
 /* for throughput */
 statnode* iostat_create_node(double time, int devno, int bcount);
 void iostat_add(statnode *node);
-void iostat_reset(double time);
-void iostat_current(int*);
-void iostat_detect_peak(double resetpoint, double interval);
+void iostat_distribution(double currtime, double interval, int *distr);
+void iostat_detect_peak(double currtime, double interval);
 
 /* debug */
 int iostat_get_num_in_table();

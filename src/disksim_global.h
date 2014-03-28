@@ -260,7 +260,8 @@ typedef struct ev {
 	struct ev *next;
 	struct ev *prev;
 	int    temp;
-	char space[DISKSIM_EVENT_SPACESIZE];
+	char space[DISKSIM_EVENT_SPACESIZE - 4];
+	int depth; // implement skew heap to accelerate event queue
 } event;
 
 typedef struct ioreq_ev {

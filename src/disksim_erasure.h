@@ -15,6 +15,14 @@
 #define CODE_HCODE		2
 #define CODE_XCODE		3
 
+#define STRATEGY_OPTIMAL	0
+#define STRATEGY_RANDOM		1
+#define STRATEGY_MIN_L		2
+#define STRATEGY_MIN_STD	3
+#define STRATEGY_MIN_L2		4
+#define STRATEGY_MIN_MAX	5
+#define STRATEGY_MIN_HIGH	6
+
 typedef struct element_t {
 	int row;
 	int col;
@@ -73,13 +81,15 @@ typedef struct metadata_t {
 	int *distrlen;
 	int *test;
 	double last;
+	int *optimal;
 	rottable *ph1, *ph2;
 } metadata;
 
-
+const char* get_code_name(int code);
 const char* get_method_name(int method);
+
 void erasure_initialize(metadata *meta, int codetype, int disks, int unit);
-void erasure_maprequest(metadata *meta, ioreq *req); // TODO give distribution to improve performance
+void erasure_maprequest(metadata *meta, int method, ioreq *req); // TODO give distribution to improve performance
 
 void erasure_failure(metadata *meta, int devno);
 void erasure_rebuild(metadata *meta, int *distr, int method, ioreq *req);
