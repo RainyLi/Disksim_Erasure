@@ -16,12 +16,13 @@
 #define CODE_XCODE		3
 
 #define STRATEGY_OPTIMAL	0
-#define STRATEGY_RANDOM		1
+#define STRATEGY_MIN_DIFF	1
 #define STRATEGY_MIN_L		2
 #define STRATEGY_MIN_STD	3
 #define STRATEGY_MIN_L2		4
-#define STRATEGY_MIN_MAX	5
-#define STRATEGY_MIN_HIGH	6
+#define STRATEGY_MIN_DOT	5
+#define STRATEGY_RANDOM		6
+#define STRATEGY_MIN_MAX	7
 
 typedef struct element_t {
 	int row;
@@ -73,7 +74,7 @@ typedef struct metadata_t {
 	int *failed;
 	int laststripe;
 	int totstripes;
-	int pattern;
+
 	paritys ***chs; // parity chains protecting the unit
 	int *chl; // num of chains
 	int ***distr;
@@ -89,9 +90,10 @@ const char* get_code_name(int code);
 const char* get_method_name(int method);
 
 void erasure_initialize(metadata *meta, int codetype, int disks, int unit);
-void erasure_maprequest(metadata *meta, int method, ioreq *req); // TODO give distribution to improve performance
+void erasure_maprequest(metadata *meta, ioreq *req);
 
-void erasure_failure(metadata *meta, int devno);
-void erasure_rebuild(metadata *meta, int *distr, int method, ioreq *req);
+void   erasure_disk_failure(metadata *meta, int devno);
+double erasure_get_score(int *a, int *b, int *mask, int disks, int method);
+void   erasure_adaptive_rebuild(metadata *meta, ioreq *req, int stripeno, int pattern);
 
 #endif /* DISKSIM_ERASURE_H_ */

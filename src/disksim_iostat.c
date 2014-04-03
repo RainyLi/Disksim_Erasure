@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "disksim_iostat.h"
 
@@ -60,10 +61,16 @@ void iostat_initialize(int disks) {
 	memset(iocount, 0, sizeof(int) * disks);
 }
 
-void iostat_print() {
-	printf("Average Response Time = %f ms\n", total_response_time / numreqs);
-	printf("Throughput = %f MB/s\n", totalblks / (2.048 * currtime));
-	printf("Peak Throughput = %f MB/s\n", peak);
+double iostat_avg_response_time() {
+	return total_response_time / numreqs;
+}
+
+double iostat_throughput() {
+	return totalblks / (2.048 * currtime);
+}
+
+double iostat_peak_throughput() {
+	return peak;
 }
 
 void iostat_ioreq_start(double time, ioreq *req) {
@@ -117,6 +124,7 @@ void iostat_add(statnode *node) {
 	if (tail == NULL) {
 		head = node;
 		tail = node;
+		node->next = NULL;
 	} else {
 		tail->next = node;
 		node->next = NULL;

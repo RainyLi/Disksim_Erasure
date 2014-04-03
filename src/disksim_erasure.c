@@ -35,16 +35,18 @@ const char* get_method_name(int method) {
 	switch (method) {
 	case STRATEGY_OPTIMAL:
 		return "Optimal & Balanced";
+	case STRATEGY_MIN_DIFF:
+		return "Minimize Difference";
 	case STRATEGY_MIN_L:
 		return "Minimize L";
 	case STRATEGY_MIN_STD:
 		return "Minimize Standard deviation";
 	case STRATEGY_MIN_L2:
 		return "Minimize L2";
+	case STRATEGY_MIN_DOT:
+		return "Minimize Dot";
 	case STRATEGY_MIN_MAX:
 		return "Minimize Max value";
-	case STRATEGY_MIN_HIGH:
-		return "Minimize Highest";
 	case STRATEGY_RANDOM:
 		return "Random";
 	}
@@ -427,7 +429,7 @@ static void erasure_init_rottable(metadata *meta) {
 	meta->ph2->entry = meta->entry;
 }
 
-static int read_optimal(int w, int k, int p) {
+static int read_optimal_rdp(int w, int k, int p) {
 	if (k == p)
 		return w == ((1 << p) - 1);
 	if (k == p - 1)
@@ -439,6 +441,80 @@ static int read_optimal(int w, int k, int p) {
 		return 0;
 	return ((1 & (w >> (p - 1 - k))) == 0)
 			&& ((1 & (w >> (p - 1))) == 0);
+}
+
+static void erasure_rebuild_rdp(metadata *meta) {
+	int i, j, r, c, w, mask = (1 << meta->rows) - 1, patt, p = meta->prime;
+	element *elem;
+	meta->optimal = (int*) malloc(sizeof(int) * meta->cols);
+	int sp = 0, nsp;
+	for (i = 1; i < p; i++)
+		sp = sp | (1 << i * i % p);
+	nsp = ((1 << p) - 2) & ~sp;
+
+	for (c = 0; c < meta->cols; c++) {
+		if (c == p - 1) {
+			w = 0;
+		}  else if (c == p) {
+			w = (1 << p) - 1;
+		} else if ((1 & (sp >> c)) ^ ((p & 3) == 1)) {
+			w = ((nsp >> (c + 1)) | nsp << (p - (c + 1)));
+		} else {
+			w = ((sp >> (c + 1)) | sp << (p - (c + 1)));
+		}
+		meta->optimal[c] = mask & w;
+		w &= (1 << p) - 1;
+	}
+	int *mint = (int*) malloc(sizeof(int) * meta->cols);
+	int *maxt = (int*) malloc(sizeof(int) * meta->cols);
+	for (c = 0; c < meta->cols; c++) {
+		memset(mint, 0, sizeof(int) * meta->cols);
+		memset(maxt, 0, sizeof(int) * meta->cols);
+		int best = 0x3fffffff;
+		meta->distr[c] = (int**) malloc(sizeof(void*) * MAXP);
+		meta->distrpatt[c] = (int*) malloc(sizeof(int) * MAXP);
+		for (w = 0; w < (1 << p); w++)
+			if (read_optimal_rdp(w, c, p)) {
+				int valid = 1;
+				patt = w & mask;
+				memset(meta->test, 0, sizeof(int) * meta->totalunits);
+				for (r = 0; r < meta->rows; r++) {
+					int no = r * meta->cols + c;
+					paritys *ch = NULL;
+					for (j = 0; j < meta->chl[no]; j++)
+						if (meta->chs[no][j]->type == (1 & (patt >> r)))
+							ch = meta->chs[no][j];
+					for (elem = ch->dest; elem != NULL; elem = elem->next)
+						meta->test[elem->row * meta->cols + elem->col] = 1;
+				}
+				int flag = (c >= meta->numdisks);
+				for (i = 0; i < meta->cols; i++) {
+					int sum = 0;
+					for (j = 0; j < meta->rows; j++)
+						sum += meta->test[j * meta->cols + i];
+					if (i != c && sum == meta->rows - 1 && maxt[i] < 5)
+						flag = maxt[i] += 1;
+					if (i != c && sum == meta->rows / 2 && mint[i] < 5)
+						flag = mint[i] += 1;
+				}
+
+				int idx = meta->distrlen[c];
+				if ((flag && idx < MAXP) || patt == meta->optimal[c]) {
+					meta->distrlen[c] += 1;
+					meta->distrpatt[c][idx] = patt;
+					meta->distr[c][idx] = (int*) malloc(sizeof(int) * meta->cols);
+					memset(meta->distr[c][idx], 0, sizeof(int) * meta->cols);
+					for (j = 0; j < meta->totalunits; j++)
+						meta->distr[c][idx][j % meta->cols] += meta->test[j];
+				}
+			}
+		if (meta->distrlen[c] == 0)
+			exit(-1);
+	}
+}
+
+static void erasure_rebuild_evenodd(metadata *meta) {
+
 }
 
 static void erasure_rebuild_init(metadata *meta) {
@@ -460,72 +536,19 @@ static void erasure_rebuild_init(metadata *meta) {
 			meta->chs[no][meta->chl[no]++] = chain;
 		}
 	}
-	int w, mask = (1 << meta->rows) - 1;
-	int patt, r, c, p = meta->prime;
+	int w, mask = (1 << meta->rows) - 1, p = meta->prime;
 	meta->distr = (int***) malloc(sizeof(void*) * meta->cols);
 	meta->distrlen = (int*) malloc(sizeof(int) * meta->cols);
 	meta->distrpatt = (int**) malloc(sizeof(void*) * meta->cols);
 	memset(meta->distrlen, 0, sizeof(int) * meta->cols);
 	meta->test = (int*) malloc(sizeof(int) * meta->totalunits);
-	// calculate square set
-	meta->optimal = (int*) malloc(sizeof(int) * meta->cols);
-	int sp = 0, nsp;
-	for (i = 1; i < p; i++)
-		sp = sp | (1 << i * i % p);
-	nsp = ((1 << p) - 2) & ~sp;
-
-	for (c = 0; c < meta->cols; c++) {
-		if (c == p - 1) {
-			w = 0;
-		}  else if (c == p) {
-			w = (1 << p) - 1;
-		} else if ((1 & (sp >> c)) ^ ((p & 3) == 1)) {
-			w = ((nsp >> (c + 1)) | nsp << (p - (c + 1)));
-		} else {
-			w = ((sp >> (c + 1)) | sp << (p - (c + 1)));
-		}
-		meta->optimal[c] = mask & w;
-		w &= (1 << p) - 1;
-		if (!read_optimal(w, c, p)) {
-			printf("Wrong!\n");
-			exit(-1);
-		}
-	}
-	for (c = 0; c < meta->cols; c++) {
-		int best = 0x3fffffff;
-		meta->distr[c] = (int**) malloc(sizeof(void*) * MAXP);
-		meta->distrpatt[c] = (int*) malloc(sizeof(int) * MAXP);
-		for (w = 0; w < (1 << p); w++)
-			if (read_optimal(w, c, p)) {
-				int valid = 1;
-				patt = w & mask;
-				memset(meta->test, 0, sizeof(int) * meta->totalunits);
-				for (r = 0; r < meta->rows; r++) {
-					int no = r * meta->cols + c;
-					paritys *ch = NULL;
-					for (j = 0; j < meta->chl[no]; j++) {
-						if (meta->chs[no][j]->type == (1 & (patt >> r)))
-							ch = meta->chs[no][j];
-					}
-					if (ch == NULL) {
-						valid = 0;
-						break;
-					}
-					for (elem = ch->dest; elem != NULL; elem = elem->next)
-						meta->test[elem->row * meta->cols + elem->col] = unitsize;
-				}
-				int idx = meta->distrlen[c];
-				if (idx < MAXP) {
-					meta->distrlen[c] += 1;
-					meta->distrpatt[c][idx] = patt;
-					meta->distr[c][idx] = (int*) malloc(sizeof(int) * meta->cols);
-					memset(meta->distr[c][idx], 0, sizeof(int) * meta->cols);
-					for (j = 0; j < meta->totalunits; j++)
-						meta->distr[c][idx][j % meta->cols] += meta->test[j];
-				}
-			}
-		if (meta->distr[c] == 0)
-			exit(-1);
+	switch (meta->codetype) {
+	case CODE_RDP:
+		erasure_rebuild_rdp(meta);
+		break;
+	case CODE_EVENODD:
+		erasure_rebuild_evenodd(meta);
+		break;
 	}
 	meta->last = 0;
 }
@@ -569,7 +592,7 @@ static void rottable_update(rottable *tab, int r, int c, int ll, int rr) {
 	}
 }
 
-void erasure_maprequest(metadata *meta, int method, ioreq *req) {
+void erasure_maprequest(metadata *meta, ioreq *req) {
 	int numreqs = 0;
 	int unitsize = meta->unitsize;
 	int stripesize = meta->dataunits * unitsize;
@@ -693,93 +716,92 @@ int cmp(const void *a, const void *b) {
 	return *(int*)a - *(int*)b;
 }
 
+static int ss[32];
 double min_L(int *a, int *b, int *mask, int disks) {
-	static int c[32];
 	int i, n = 0;
 	for (i = 0; i < disks; i++)
 		if (!mask[i])
-			c[n++] = a[i] + b[i];
-	qsort(c, n, sizeof(int), cmp);
-	return (double)(c[n - 1] + 1) / (c[0] + 1);
+			ss[n++] = a[i] + b[i];
+	qsort(ss, n, sizeof(int), cmp);
+	return (double)(ss[n - 1] + 1) / (ss[0] + 1);
+}
+
+double min_diff(int *a, int *b, int *mask, int disks) {
+	int i, n = 0;
+	for (i = 0; i < disks; i++)
+		if (!mask[i])
+			ss[n++] = a[i] + b[i];
+	qsort(ss, n, sizeof(int), cmp);
+	return (double)(ss[n - 1] - ss[0]);
 }
 
 double min_L2(int *a, int *b, int *mask, int disks) {
-	static int c[32];
 	int i, n = 0;
 	for (i = 0; i < disks; i++)
 		if (!mask[i])
-			c[n++] = a[i] + b[i];
-	qsort(c, n, sizeof(int), cmp);
-	return (double)(c[n - 1] + c[n - 2] + 1) / (c[0] + c[1] + 1);
+			ss[n++] = a[i] + b[i];
+	qsort(ss, n, sizeof(int), cmp);
+	return (double)(ss[n - 1] + ss[n - 2] + 1) / (ss[0] + ss[1] + 1);
 }
 
 double min_std(int *a, int *b, int *mask, int disks) {
 	int i, n = 0;
 	double s = 0, s2 = 0, c;
 	for (i = 0; i < disks; i++)
-		if (!mask[i])
-			s += a[i] + b[i];
-	double inv = 10 * disks / s;
-	s = 0;
-	for (i = 0; i < disks; i++)
 		if (!mask[i]) {
-			c = (a[i] + b[i]) * inv;
+			c = (a[i] + b[i]);
 			s += c;
 			s2 += c * c;
 			n++;
 		}
-	return sqrt((s2 * n - s * s) / (n * n)) * n / s;
+	return sqrt((s2 * n - s * s) / (n * n));
 }
 
 double min_max(int *a, int *b, int *mask, int disks) {
-	int sum = 0, ret = 0, i;
+	int ret = 0x3fffffff, i;
 	for (i = 0; i < disks; i++)
-		if (!mask[i]) sum += b[i];
-	for (i = 0; i < disks; i++)
-		if (!mask[i] && b[i] * disks > sum) // concern the loadings above average
-			ret += a[i];
-	return a[i];
+		ret = min(ret, a[i] + b[i]);
+	return (double) ret;
 }
 
-double min_high(int *a, int *b, int *mask, int disks) {
-	int sum = 0, ret = 0, i;
+double min_dot(int *a, int *b, int *mask, int disks) {
+	int i, sum = 0, ret = 0;
 	for (i = 0; i < disks; i++)
 		if (!mask[i]) sum += b[i];
+	if (sum == 0)
+		return min_std(a, b, mask, disks);
 	for (i = 0; i < disks; i++)
-		if (!mask[i] && b[i] * disks > sum) // concern the loadings above average
-			ret += a[i];
-	return a[i];
+		if (!mask[i]) ret += a[i] * b[i];
+	return (double) ret;
 }
 
 double s_random(int *a, int *b, int *mask, int disks) {
 	return (double)rand() / RAND_MAX;
 }
 
-double get_score(int *a, int rot, int *b, int *mask, int disks, int method) {
-	static int a2[50];
-	int i;
-	for (i = 0; i < disks; i++)
-		a2[(i + rot) % disks] = a[i];
+double erasure_get_score(int *a, int *b, int *mask, int disks, int method) {
 	switch (method) {
 	case STRATEGY_MIN_L:
-		return min_L(a2, b, mask, disks);
+		return min_L(a, b, mask, disks);
+	case STRATEGY_MIN_DIFF:
+		return min_diff(a, b, mask ,disks);
 	case STRATEGY_MIN_STD:
-		return min_std(a2, b, mask, disks);
+		return min_std(a, b, mask, disks);
 	case STRATEGY_MIN_L2:
-		return min_L2(a2, b, mask, disks);
+		return min_L2(a, b, mask, disks);
+	case STRATEGY_MIN_DOT:
+		return min_dot(a, b, mask, disks);
 	case STRATEGY_MIN_MAX:
-		return min_max(a2, b, mask, disks);
-	case STRATEGY_MIN_HIGH:
-		return min_high(a2, b, mask, disks);
+		return min_max(a, b, mask, disks);
 	case STRATEGY_RANDOM:
-		return s_random(a2, b, mask, disks);
+		return s_random(a, b, mask, disks);
 	default:
 		fprintf(stderr, "invalid strategy number.\n");
 		exit(-1);
 	}
 }
 
-void erasure_failure(metadata *meta, int devno) {
+void erasure_disk_failure(metadata *meta, int devno) {
 	int temp = meta->numfailures;
 	if (!meta->failed[devno]) {
 		meta->failed[devno] = 1;
@@ -792,10 +814,10 @@ void erasure_failure(metadata *meta, int devno) {
 	meta->laststripe = -1;
 }
 
-void erasure_rebuild(metadata *meta, int *distr, int method, ioreq *req) {
+void erasure_adaptive_rebuild(metadata *meta, ioreq *req, int stripeno, int pattern) {
+	static int rotated[50];
 	if (meta->numfailures == 0) return;
 	int unitsize = meta->unitsize;
-	int stripeno = ++meta->laststripe;
 	int rot = stripeno % meta->cols;
 	if (stripeno * meta->rows * unitsize > 6000000) {
 		meta->numfailures = 0;
@@ -805,9 +827,9 @@ void erasure_rebuild(metadata *meta, int *distr, int method, ioreq *req) {
 	}
 	int bcount = unitsize * meta->rows;
 	int blkno = stripeno * bcount;
+	int i, numreqs = 0, r;
 	paritys *chain;
 	element *elem;
-	int i, numreqs = 0, r, pattern;
 
 	if (meta->numfailures > 1) {
 		// normal
@@ -817,20 +839,6 @@ void erasure_rebuild(metadata *meta, int *distr, int method, ioreq *req) {
 		int dc = 0, ch;
 		for (dc = 0; !meta->failed[dc]; dc++);
 		int c = (dc + meta->cols - rot) % meta->cols;
-		// recover from chosen pattern
-		if (method == STRATEGY_OPTIMAL) {
-			pattern = meta->optimal[c];
-		} else {
-			double cost = 1e6;
-			for (i = 0; i < meta->distrlen[c]; i++) {
-				double score = get_score(meta->distr[c][i], rot, distr, meta->failed, meta->cols, method);
-				if (score < cost) {
-					ch = i;
-					cost = score;
-					pattern = meta->distrpatt[c][i];
-				}
-			}
-		}
 		memset(meta->test, 0, sizeof(int) * meta->totalunits);
 		for (r = 0; r < meta->rows; r++) {
 			int no = r * meta->cols + c; // logical
@@ -870,7 +878,7 @@ void erasure_rebuild(metadata *meta, int *distr, int method, ioreq *req) {
 						g1->numreqs++;
 					} else nxt = r + 1;
 			}
-		//iogroup *g2 = create_ioreq_group();
+		iogroup *g2 = create_ioreq_group();
 		for (dc = 0; dc < meta->cols; dc++)
 			if (meta->failed[dc]) {
 				tmp = (struct disksim_request*) getfromextraq();
@@ -879,13 +887,13 @@ void erasure_rebuild(metadata *meta, int *distr, int method, ioreq *req) {
 				tmp->blkno = stripeno * meta->rows * unitsize;
 				tmp->bytecount = meta->rows * unitsize * 512;
 				tmp->flags = DISKSIM_WRITE;
-				tmp->next = g1->reqs;
+				tmp->next = g2->reqs;
 				tmp->reqctx = req;
-				g1->reqs = tmp;
-				g1->numreqs++;
+				g2->reqs = tmp;
+				g2->numreqs++;
 			}
 		req->curr = NULL;
 		add_to_ioreq(req, g1);
-		//add_to_ioreq(req, g2);
+		add_to_ioreq(req, g2);
 	}
 }
