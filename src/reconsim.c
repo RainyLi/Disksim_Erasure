@@ -32,6 +32,7 @@ static int stripeno = 0;
 static int tstripes = 0; // test
 static int delay = 30;
 static int coef = 4;
+static int unit = 16; // size in KB
 
 int help(const char *main) {
 	printf("usage: %s [options]:\n", main);
@@ -46,6 +47,7 @@ int help(const char *main) {
 	printf("\t-o, --output  [string]\t disksim output file\n");
 	printf("\t-c, --code    [string]\t erasure code [rdp, evenodd, hcode, xcode, ...]\n");
 	printf("\t-p, --parv    [string]\t parv file\n");
+	printf("\t-a, --append  [string]\t save results to file\n");
 	printf("\t-h, --help            \t help information\n");
 	return 0;
 }
@@ -57,6 +59,8 @@ int select_rebuild_pattern(metadata *meta, int stripeno, int method) {
 	int c = (dc + meta->cols - rot) % meta->cols;
 	if (method == STRATEGY_OPTIMAL)
 		return meta->optimal[c];
+	else if (method == STRATEGY_ROW)
+		return meta->normal[c];
 	else {
 		int i, j;
 		double score, best = 1e9;
@@ -117,7 +121,6 @@ void ioreq_maprequest(double time, ioreq *req) {
 		iostat_distribution(time, delay, distr);
 		int patt = select_rebuild_pattern(meta, stripeno, method);
 		erasure_adaptive_rebuild(meta, req, stripeno, patt);
-
 		break;
 	}
 	if (req->groups == 0) {
@@ -156,12 +159,12 @@ void ioreq_complete(double time, ioreq *req) {
 				if (req->reqtype == TYPE_NORMAL)
 					event_queue_add(eventq, create_event_node(time, EVENT_STAT_ADD,
 							iostat_create_node(time, tmpreq->devno, tmpreq->bytecount / 512)));
+				if (req->reqtype == TYPE_RECON)
+					event_queue_add(eventq, create_event_node(time + RECON_DELAY
+							, EVENT_TRACE_RECON, 0));
 			}
 		} else { // request complete
 			iostat_ioreq_complete(time, req);
-			if (req->reqtype == TYPE_RECON)
-				event_queue_add(eventq, create_event_node(time + RECON_DELAY
-						, EVENT_TRACE_RECON, 0));
 			for (group = req->groups; group != NULL; group = ng) {
 				for (tmpreq = group->reqs; tmpreq != NULL; tmpreq = nq) {
 					nq = tmpreq->next;
@@ -196,9 +199,9 @@ int main(int argc, char **argv) {
 	const char *parfile = "../valid/12disks.parv";
 	const char *outfile = "temp.outv";
 	const char *inpfile = "financial.trace";
+	const char *result = "";
 	long long limit = 0;
 	int code = CODE_RDP;
-	int unit = 16; // size in KB
 	int i;
 
 	int p = 1;
@@ -229,6 +232,8 @@ int main(int argc, char **argv) {
         	delay = atoi(argu);
         else if (!strcmp(flag, "-l") || !strcmp(flag, "--limit"))
         	limit = atol(argu);
+        else if (!strcmp(flag, "-a") || !strcmp(flag, "--append"))
+        	result = argu;
         else if (!strcmp(flag, "--coef"))
         	coef = atoi(argu);
         else if (!strcmp(flag, "-c") || !strcmp(flag, "--code")) {
@@ -255,7 +260,7 @@ int main(int argc, char **argv) {
 	event_queue_add(eventq, create_event_node(0, EVENT_TRACE_FETCH, fopen(inpfile, "r")));
 	event_queue_add(eventq, create_event_node(0, EVENT_STAT_PEAK, 0));
 	event_queue_add(eventq, create_event_node(0, EVENT_TRACE_RECON, 0));
-	event_queue_add(eventq, create_event_node(60000, EVENT_STOP_SIM, 0));
+	//event_queue_add(eventq, create_event_node(60000, EVENT_STOP_SIM, 0));
 
 	meta = (metadata*) malloc(sizeof(metadata));
 	erasure_initialize(meta, code, disks, unit * 2);
@@ -320,26 +325,31 @@ int main(int argc, char **argv) {
 	long duration = clock() / 1000000;
 	printf("\n");
 	printf("===================================================\n");
-	printf("Trace File = %s Disks = %d Unit Size = %d\n", inpfile, disks, unit);
-	printf("Method = %s Code = %s\n", get_method_name(method), get_code_name(code));
+	printf("Trace File = %s, Disks = %d, Unit Size = %d\n", inpfile, disks, unit);
+	printf("Method = %s, Code = %s\n", get_method_name(method), get_code_name(code));
 	printf("Total Simulation Time = %f ms\n", currtime);
 	printf("Avg. Response Time = %f ms\n", iostat_avg_response_time());
 	printf("Total Stripes Reconstructed = %d\n", stripeno);
 	printf("Throughput = %f MB/s\n", iostat_throughput());
 	printf("Experiment Duration = %d s\n", (int) duration);
 
-	/*
-	FILE *exp = fopen("exp.txt", "a");
-	fprintf(exp, "===================================================\n");
-	fprintf(exp, "Trace File = %s, Disks = %d, Unit Size = %d\n", inpfile, disks, unit);
-	fprintf(exp, "Method = %s, Code = %s\n", get_method_name(method), get_code_name(code));
-	fprintf(exp, "Total Simulation Time = %f ms\n", currtime);
-	fprintf(exp, "Avg. Response Time = %f ms\n", iostat_avg_response_time());
-	fprintf(exp, "Total Stripes Reconstructed = %d\n", stripeno);
-	fprintf(exp, "Throughput = %f MB/s\n", iostat_throughput());
-	fprintf(exp, "Experiment Duration = %d s\n", (int) duration);
-	fclose(exp);
-	*/
+	FILE *exp = fopen(result, "a");
+	if (exp != NULL) {
+		fprintf(exp, "===================================================\n");
+		fprintf(exp, "Trace File = %s\n", inpfile);
+		fprintf(exp, "Disks = %d\n", disks);
+		fprintf(exp, "Unit Size = %d\n", unit);
+		fprintf(exp, "Method = %s\n", get_method_name(method));
+		fprintf(exp, "Code = %s\n", get_code_name(code));
+		fprintf(exp, "Coefficient = %d\n", coef);
+		fprintf(exp, "Delay = %d\n", delay);
+		fprintf(exp, "Total Simulation Time = %f ms\n", currtime);
+		fprintf(exp, "Avg. Response Time = %f ms\n", iostat_avg_response_time());
+		fprintf(exp, "Total Stripes Reconstructed = %d\n", stripeno);
+		fprintf(exp, "Throughput = %f MB/s\n", iostat_throughput());
+		fprintf(exp, "Experiment Duration = %d s\n", (int) duration);
+		fclose(exp);
+	}
 	return 0;
 }
 

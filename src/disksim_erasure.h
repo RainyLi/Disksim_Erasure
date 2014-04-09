@@ -15,14 +15,15 @@
 #define CODE_HCODE		2
 #define CODE_XCODE		3
 
-#define STRATEGY_OPTIMAL	0
-#define STRATEGY_MIN_DIFF	1
+#define STRATEGY_ROW		0
+#define STRATEGY_OPTIMAL	1
 #define STRATEGY_MIN_L		2
 #define STRATEGY_MIN_STD	3
 #define STRATEGY_MIN_L2		4
 #define STRATEGY_MIN_DOT	5
 #define STRATEGY_RANDOM		6
 #define STRATEGY_MIN_MAX	7
+#define STRATEGY_MIN_DIFF	8
 
 typedef struct element_t {
 	int row;
@@ -77,12 +78,14 @@ typedef struct metadata_t {
 
 	paritys ***chs; // parity chains protecting the unit
 	int *chl; // num of chains
+	int *test;
+
 	int ***distr;
 	int **distrpatt;
 	int *distrlen;
-	int *test;
 	double last;
 	int *optimal;
+	int *normal;
 	rottable *ph1, *ph2;
 } metadata;
 
@@ -95,5 +98,7 @@ void erasure_maprequest(metadata *meta, ioreq *req);
 void   erasure_disk_failure(metadata *meta, int devno);
 double erasure_get_score(int *a, int *b, int *mask, int disks, int method);
 void   erasure_adaptive_rebuild(metadata *meta, ioreq *req, int stripeno, int pattern);
+
+int erasure_get_rebuild_distr(metadata *meta, int stripeno, int pattern, int *distr);
 
 #endif /* DISKSIM_ERASURE_H_ */

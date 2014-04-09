@@ -14,7 +14,7 @@
 #include "disksim_erasure.h"
 #include "disksim_interface.h"
 
-#define THRESHOLD	12
+#define THRESHOLD	0
 #define MAXP		72
 
 const char* get_code_name(int code) {
@@ -34,21 +34,23 @@ const char* get_code_name(int code) {
 const char* get_method_name(int method) {
 	switch (method) {
 	case STRATEGY_OPTIMAL:
-		return "Optimal & Balanced";
+		return "Optimal";
 	case STRATEGY_MIN_DIFF:
-		return "Minimize Difference";
+		return "Min.DIFF";
 	case STRATEGY_MIN_L:
-		return "Minimize L";
+		return "Min.L";
 	case STRATEGY_MIN_STD:
-		return "Minimize Standard deviation";
+		return "Min.STD";
 	case STRATEGY_MIN_L2:
-		return "Minimize L2";
+		return "Min.L2";
 	case STRATEGY_MIN_DOT:
-		return "Minimize Dot";
+		return "Min.DOT";
 	case STRATEGY_MIN_MAX:
-		return "Minimize Max value";
+		return "Min.MAX";
 	case STRATEGY_RANDOM:
 		return "Random";
+	case STRATEGY_ROW:
+		return "Row.Parity";
 	}
 	return "";
 }
@@ -446,6 +448,9 @@ static int read_optimal_rdp(int w, int k, int p) {
 static void erasure_rebuild_rdp(metadata *meta) {
 	int i, j, r, c, w, mask = (1 << meta->rows) - 1, patt, p = meta->prime;
 	element *elem;
+	meta->normal = (int*) malloc(sizeof(int) * meta->cols);
+	for (c = 0; c < meta->cols; c++)
+		meta->normal[c] = (c == meta->cols - 1 ? mask : 0);
 	meta->optimal = (int*) malloc(sizeof(int) * meta->cols);
 	int sp = 0, nsp;
 	for (i = 1; i < p; i++)
@@ -548,6 +553,8 @@ static void erasure_rebuild_init(metadata *meta) {
 		break;
 	case CODE_EVENODD:
 		erasure_rebuild_evenodd(meta);
+		break;
+	case CODE_HCODE:
 		break;
 	}
 	meta->last = 0;
@@ -836,6 +843,9 @@ void erasure_adaptive_rebuild(metadata *meta, ioreq *req, int stripeno, int patt
 		fprintf(stderr, "should not reach!\n");
 		exit(-1);
 	} else {
+		int *dd = (int*) malloc(sizeof(int) * meta->cols);
+		memset(dd, 0, sizeof(int) * meta->cols);
+
 		int dc = 0, ch;
 		for (dc = 0; !meta->failed[dc]; dc++);
 		int c = (dc + meta->cols - rot) % meta->cols;
@@ -876,6 +886,7 @@ void erasure_adaptive_rebuild(metadata *meta, ioreq *req, int stripeno, int patt
 						tmp->reqctx = req;
 						g1->reqs = tmp;
 						g1->numreqs++;
+						dd[dc] += rr - ll;
 					} else nxt = r + 1;
 			}
 		iogroup *g2 = create_ioreq_group();
@@ -896,4 +907,35 @@ void erasure_adaptive_rebuild(metadata *meta, ioreq *req, int stripeno, int patt
 		add_to_ioreq(req, g1);
 		add_to_ioreq(req, g2);
 	}
+}
+
+int erasure_get_rebuild_distr(metadata *meta, int stripeno, int pattern, int *distr) {
+	if (meta->numfailures == 0)
+		return -1;
+
+	memset(distr, 0, sizeof(int) * meta->cols);
+	memset(meta->test, 0, sizeof(int) * meta->totalunits);
+
+	int rot = stripeno % meta->cols, dc = 0;
+	while (!meta->failed[dc]) dc++;
+	int c = (dc + meta->cols - rot) % meta->cols;
+	int i, j, r;
+	element *elem;
+
+	for (r = 0; r < meta->rows; r++) {
+		int flag = 0;
+		for (i = 0; i < meta->chl[c]; i++)
+			if (meta->chs[c][i]->type == (1 & (pattern >> r))) {
+				flag = 1;
+				for (elem = meta->chs[c][i]->dest; elem != NULL; elem = elem->next)
+					if (elem->col != c)
+						meta->test[elem->row * meta->cols + (elem->col + rot) % meta->cols] = 1;
+			}
+		if (flag == 0)
+			return -1;
+	}
+	for (i = 0; i < meta->rows; i++)
+		for (j = 0; j < meta->cols; j++)
+			distr[j] += meta->test[i * meta->cols + j];
+	return 0;
 }

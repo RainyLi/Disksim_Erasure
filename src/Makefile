@@ -100,7 +100,7 @@ DISKSIM_SRC = disksim.c disksim_intr.c disksim_pfsim.c \
 	disksim_simpledisk.c disksim_device.c \
 	disksim_loadparams.c \
 	raw_layout.c \
-	disksim_recon.c disksim_erasure.c disksim_iostat.c disksim_event_queue.c
+	reconsim.c disksim_erasure.c disksim_iostat.c disksim_event_queue.c
 
 DISKSIM_OBJ = $(DISKSIM_SRC:.c=.o) 
 
@@ -131,8 +131,8 @@ disksim : $(MODULEDEPS) libdisksim.a disksim_main.o
 syssim: syssim_driver.o libdisksim.a
 	$(CC) $(CFLAGS) -o $@ syssim_driver.o disksim_interface.o $(LDFLAGS)
 
-reconsim: $(MODULEDEPS) libdisksim.a disksim_recon.c
-	$(CC) -g $(CFLAGS) -o $@ disksim_recon.o $(LDFLAGS) -lm
+reconsim: $(MODULEDEPS) libdisksim.a reconsim.c
+	$(CC) -g $(CFLAGS) -o $@ reconsim.o $(LDFLAGS) -lm
 
 ########################################################################
 

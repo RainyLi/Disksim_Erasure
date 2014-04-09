@@ -49,8 +49,11 @@ struct disksim_request {
 	double start;
 	int batchno;
 	int batch_complete;
-	struct disksim_request *next;
 	void *reqctx;         /* context passed with the request */
+	struct disksim_request *next;
+	struct disksim_request *depend;
+	struct io_request_t *req;
+	int degree;
 };
 
 struct disksim_interface;
