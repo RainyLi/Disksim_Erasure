@@ -80,21 +80,3 @@ enode* event_queue_pop(equeue *queue) {
 	queue->root = merge(ret->right, ret->left);
 	return ret;
 }
-
-iogroup* create_ioreq_group() {
-	iogroup *ret = (iogroup*) getfromextraq();
-	ret->numreqs = 0;
-	ret->reqs = NULL;
-	return ret;
-}
-
-void add_to_ioreq(ioreq *req, iogroup *group) {
-	if (group->numreqs > 0) {
-		if (req->curr == NULL)
-			req->groups = group;
-		else
-			req->curr->next = group;
-		req->curr = group;
-		group->next = NULL;
-	}
-}

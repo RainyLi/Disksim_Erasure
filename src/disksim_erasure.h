@@ -8,22 +8,10 @@
 #ifndef DISKSIM_ERASURE_H_
 #define DISKSIM_ERASURE_H_
 
-#include "disksim_event_queue.h"
-
 #define CODE_RDP		0
 #define CODE_EVENODD	1
 #define CODE_HCODE		2
 #define CODE_XCODE		3
-
-#define STRATEGY_ROW		0
-#define STRATEGY_OPTIMAL	1
-#define STRATEGY_MIN_L		2
-#define STRATEGY_MIN_STD	3
-#define STRATEGY_MIN_L2		4
-#define STRATEGY_MIN_DOT	5
-#define STRATEGY_RANDOM		6
-#define STRATEGY_MIN_MAX	7
-#define STRATEGY_MIN_DIFF	8
 
 typedef struct element_t {
 	int row;
@@ -36,7 +24,7 @@ typedef struct parity_chain_t {
 	element *dest;
 	element *deps;
 	struct erasure_chain_t *next;
-} paritys;
+} parities;
 
 typedef struct entry_t {
 	int row; // unit number
@@ -62,7 +50,7 @@ typedef struct metadata_t {
 	int prime;
 	int rows;
 	int cols;
-	paritys *chains;
+	parities *chains;
 	int numchains;
 	int dataunits;
 	int totalunits;
@@ -76,29 +64,41 @@ typedef struct metadata_t {
 	int laststripe;
 	int totstripes;
 
-	paritys ***chs; // parity chains protecting the unit
+	parities ***chs; // parity chains protecting the unit
 	int *chl; // num of chains
 	int *test;
-
-	int ***distr;
-	int **distrpatt;
-	int *distrlen;
-	double last;
-	int *optimal;
-	int *normal;
 	rottable *ph1, *ph2;
 } metadata;
 
+typedef struct io_request_group_t {
+	struct disksim_request *reqs;
+	int numreqs;
+	int cnt;
+	struct io_request_group_t *next;
+} iogroup;
+
+typedef struct io_request_t {
+	int reqno;
+	int reqtype;
+	double time;
+	int blkno;
+	int bcount;
+	int flag;
+	int stat;
+	iogroup *groups;
+	iogroup *curr;
+	int numxors;
+} ioreq;
+
 const char* get_code_name(int code);
-const char* get_method_name(int method);
+int get_code_id(const char *code);
 
 void erasure_initialize(metadata *meta, int codetype, int disks, int unit);
 void erasure_maprequest(metadata *meta, ioreq *req);
 
-void   erasure_disk_failure(metadata *meta, int devno);
-double erasure_get_score(int *a, int *b, int *mask, int disks, int method);
-void   erasure_adaptive_rebuild(metadata *meta, ioreq *req, int stripeno, int pattern);
+void erasure_disk_failure(metadata *meta, int devno);
 
-int erasure_get_rebuild_distr(metadata *meta, int stripeno, int pattern, int *distr);
+iogroup* create_ioreq_group();
+void   add_to_ioreq(ioreq *req, iogroup *group);
 
 #endif /* DISKSIM_ERASURE_H_ */

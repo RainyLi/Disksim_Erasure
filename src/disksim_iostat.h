@@ -31,7 +31,6 @@ void iostat_initialize(int disks);
 void iostat_ioreq_start(double time, ioreq *req);
 void iostat_ioreq_complete(double time, ioreq *req);
 
-/* for throughput */
 statnode* iostat_create_node(double time, int devno, int bcount);
 void iostat_add(statnode *node);
 void iostat_distribution(double currtime, double interval, int *distr);
@@ -40,8 +39,6 @@ void iostat_detect_peak(double currtime, double interval);
 double iostat_avg_response_time();
 double iostat_throughput();
 double iostat_peak_throughput();
-
-/* debug */
-int iostat_get_num_in_table();
+double iostat_avg_xors_per_write();
 
 #endif /* DISKSIM_IOSTAT_H_ */

@@ -44,19 +44,23 @@ void hashtable_remove(int key) {
 	htable[pos].key = -1;
 }
 
-static int numreqs, numdisks;
+static int numreqs, numdisks, numwrites;
 static double total_response_time;
 static int *iocount;
 static statnode *space = NULL;
 static statnode *head = NULL, *tail = NULL;
 static double currtime = 0;
-static long long totalblks = 0;
+static long long total_blks = 0;
+static long long total_xors = 0;
 
 void iostat_initialize(int disks) {
 	hashtable_init();
 	numreqs = 0;
+	numwrites = 0;
 	numdisks = disks;
 	total_response_time = 0;
+	total_blks = 0;
+	total_xors = 0;
 	iocount = malloc(sizeof(int) * disks);
 	memset(iocount, 0, sizeof(int) * disks);
 }
@@ -66,11 +70,15 @@ double iostat_avg_response_time() {
 }
 
 double iostat_throughput() {
-	return totalblks / (2.048 * currtime);
+	return total_blks / (2.048 * currtime);
 }
 
 double iostat_peak_throughput() {
 	return peak;
+}
+
+double iostat_avg_xors_per_write() {
+	return total_xors * 1.0 / numwrites;
 }
 
 void iostat_ioreq_start(double time, ioreq *req) {
@@ -90,7 +98,9 @@ void iostat_ioreq_complete(double time, ioreq *req) {
 		hashtable_remove(req->reqno);
 		total_response_time += (time - start);
 		numreqs += 1;
+		numwrites += (req->flag == 0);
 		items_in_table -= 1;
+		total_xors += req->numxors;
 	}
 }
 
@@ -132,7 +142,7 @@ void iostat_add(statnode *node) {
 	}
 	iocount[node->devno] += node->bcount;
 	currtime = node->time;
-	totalblks += node->bcount;
+	total_blks += node->bcount;
 }
 
 static void iostat_reset(double time) {
@@ -159,11 +169,4 @@ void iostat_detect_peak(double currtime, double interval) {
 		total += iocount[i];
 	double curr = total / (2.048 * interval);
 	if (curr > peak) peak = curr;
-	//printf("%8.0f: %f MB/s\n", resetpoint, curr);
-	//fflush(stdout);
 }
-
-int iostat_get_num_in_table() {
-	return items_in_table;
-}
-

@@ -106,11 +106,11 @@ disksim_ctlr CTLR0 {
 source cheetah9LP.diskspecs
 
 instantiate [ statfoo ] as Stats
-instantiate [ ctlr0 .. ctlr11 ] as CTLR0
+instantiate [ ctlr0 .. ctlr12 ] as CTLR0
 instantiate [ bus0 ] as BUS0
-instantiate [ disk0 .. disk11 ] as SEAGATE_ST39102LW_validate
+instantiate [ disk0 .. disk12 ] as SEAGATE_ST39102LW_validate
 instantiate [ driver0 ] as DRIVER0
-instantiate [ bus1 .. bus12 ] as BUS1
+instantiate [ bus1 .. bus13 ] as BUS1
 
 topology disksim_iodriver driver0 [
   disksim_bus bus0 [
@@ -173,7 +173,12 @@ topology disksim_iodriver driver0 [
       disksim_bus bus12 [
         disksim_disk disk11 []
       ]
-    ] 
+    ],
+    disksim_ctlr ctlr12 [
+      disksim_bus bus13 [
+        disksim_disk disk12 []
+      ]
+    ]
   ]
 ]
 
@@ -181,7 +186,7 @@ disksim_logorg org0 {
   Addressing mode = Parts,
   Distribution scheme = Asis,
   Redundancy scheme = Noredun,
-  devices = [ disk0 .. disk11 ],
+  devices = [ disk0 .. disk12 ],
   Number of copies = 2,
   Stripe unit  =  32,
   Synch writes for safety =  1,

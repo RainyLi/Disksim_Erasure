@@ -61,7 +61,7 @@ ifeq ($(MODULEDEPS),)
 MODULEDEPS = modules
 endif
 
-all: disksim rms hplcomb syssim reconsim
+all: disksim rms hplcomb syssim reconsim unittest
 
 clean:
 	rm -f TAGS *.o disksim syssim reconsim rms hplcomb core libdisksim.a
@@ -100,7 +100,8 @@ DISKSIM_SRC = disksim.c disksim_intr.c disksim_pfsim.c \
 	disksim_simpledisk.c disksim_device.c \
 	disksim_loadparams.c \
 	raw_layout.c \
-	reconsim.c disksim_erasure.c disksim_iostat.c disksim_event_queue.c
+	disksim_erasure.c disksim_iostat.c disksim_event_queue.c disksim_arm.c \
+	reconsim.c
 
 DISKSIM_OBJ = $(DISKSIM_SRC:.c=.o) 
 
@@ -131,9 +132,9 @@ disksim : $(MODULEDEPS) libdisksim.a disksim_main.o
 syssim: syssim_driver.o libdisksim.a
 	$(CC) $(CFLAGS) -o $@ syssim_driver.o disksim_interface.o $(LDFLAGS)
 
-reconsim: $(MODULEDEPS) libdisksim.a reconsim.c
+reconsim: $(MODULEDEPS) libdisksim.a reconsim.o
 	$(CC) -g $(CFLAGS) -o $@ reconsim.o $(LDFLAGS) -lm
-
+	
 ########################################################################
 
 # rule to automatically generate dependencies from source files
