@@ -11,6 +11,7 @@
 #include "disksim_erasure.h"
 #include "disksim_global.h"
 #include "disksim_interface.h"
+#include "disksim_timer.h"
 
 static int *numpatts = NULL;
 static int **patts = NULL;
@@ -213,57 +214,11 @@ void arm_rebuild(metadata *meta, ioreq *req, int stripeno, int pattern) {
 	}
 }
 
-static int arm_get_rebuild_distr_evenodd(metadata *meta, int stripeno, int pattern, int *distr) {
-	int rot = stripeno % meta->cols, dc = 0;
-	while (!meta->failed[dc]) dc++;
-	int c = (dc + meta->cols - rot) % meta->cols, r;
-	int mask = (1 << meta->rows) - 1;
-
-	int i, j, k;
-	if (c >= meta->cols - 2) {
-		if (c == meta->cols - 2 && pattern != 0)
-			return -1;
-		if (c == meta->cols - 1 && pattern != mask)
-			return -1;
-		for (i = 0; i < meta->rows; i++)
-			for (j = 0; j < meta->cols; j++)
-				if (j != c)
-					meta->test[i * meta->cols + (j + rot) % meta->cols] = 1;
-	} else {
-		if (pattern != 0)
-			for (i = 0; i < meta->rows; i++)
-				for (j = meta->cols - 2; j < meta->cols; j++)
-					meta->test[i * meta->cols + (j + rot) % meta->cols] = 1;
-		for (r = 0; r < meta->rows; r++) {
-			if (1 & (pattern >> r)) { // diagonal
-				for (j = 0; j < meta->cols - 2; j++) {
-					i = (r + c + meta->prime - j) % meta->prime;
-					if (i != meta->rows - 1 && j != c)
-						meta->test[i * meta->cols + (j + rot) % meta->cols] = 1;
-				}
-			} else { // row
-				for (j = 0; j < meta->cols - 1; j++)
-					if (j != c)
-						meta->test[r * meta->cols + (j + rot) % meta->cols] = 1;
-			}
-		}
-	}
-
-	for (i = 0; i < meta->rows; i++)
-		for (j = 0; j < meta->cols; j++)
-			distr[j] += meta->test[i * meta->cols + j];
-	return 0;
-}
-
 int arm_get_rebuild_distr(metadata *meta, int stripeno, int pattern, int *distr) {
 	if (meta->numfailures == 0)
 		return -1;
-
 	memset(distr, 0, sizeof(int) * meta->cols);
 	memset(meta->test, 0, sizeof(int) * meta->totalunits);
-
-	//if (meta->codetype == CODE_EVENODD)
-	//	return erasure_get_rebuild_distr_evenodd(meta, stripeno, pattern, distr);
 
 	int rot = stripeno % meta->cols, dc = 0;
 	while (!meta->failed[dc]) dc++;
@@ -284,8 +239,8 @@ int arm_get_rebuild_distr(metadata *meta, int stripeno, int pattern, int *distr)
 		if (flag == 0)
 			return -1;
 	}
-	for (i = 0; i < meta->rows; i++)
-		for (j = 0; j < meta->cols; j++)
+	for (j = 0; j < meta->cols; j++)
+		for (i = 0; i < meta->rows; i++)
 			distr[j] += meta->test[i * meta->cols + j];
 	return 0;
 }
@@ -301,6 +256,7 @@ int arm_select_pattern(metadata *meta, int stripeno, int method, int *distr, int
 	else if (method == STRATEGY_DIAG)
 		return diagpatt[stripeno];
 	else {
+		timer_start(2);
 		int i, j, patt = -1, ch;
 		double best;
 		for (i = 0; i < numpatts[stripeno]; i++) {
@@ -313,11 +269,12 @@ int arm_select_pattern(metadata *meta, int stripeno, int method, int *distr, int
 				ch = i;
 			}
 		}
+		timer_end(2);
 		return patt;
 	}
 }
 
-void shuffle(int *a, int n) {
+void arm_shuffle(int *a, int n) {
 	int i, j, t;
 	for (i = 1; i < n; i++) {
 		j = rand() % (i + 1);
@@ -327,13 +284,166 @@ void shuffle(int *a, int n) {
 	}
 }
 
-unsigned hash(int *a, int n) {
+unsigned arm_hash(int *a, int n) {
 	unsigned i, ret = 0;
 	for (i = 0; i < n; i++)
 		ret = ret * 23 + a[i];
 	return ret;
 }
 
+int arm_filtering(metadata *meta, int stripeno, int *distrs, int *patts, int disks) {
+	int patt, dsize = sizeof(int) * disks, tot = 0;
+	int *distr = malloc(dsize);
+	for (patt = 0; patt < (1 << meta->rows); patt++)
+		if (arm_get_rebuild_distr(meta, stripeno, patt, distr) == 0) {
+			memcpy(distrs + tot * disks, distr, dsize);
+			patts[tot++] = patt;
+			rowpatt[stripeno] = min(rowpatt[stripeno], patt);
+			diagpatt[stripeno] = max(diagpatt[stripeno], patt);
+		}
+	free(distr);
+	return tot;
+}
+
+int arm_sampling(metadata *meta, int stripeno, int *distrs, int *patts, int disks, int limit) {
+	int patt, dsize = sizeof(int) * disks, tot = 0, iter;
+	int mask = (1 << meta->rows) - 1;
+	int *distr = malloc(dsize);
+	for (iter = 0; iter < limit; iter++) {
+		patt = rand() & mask;
+		if (arm_get_rebuild_distr(meta, stripeno, patt, distr) == 0) {
+			memcpy(distrs + tot * disks, distr, dsize);
+			patts[tot++] = patt;
+			rowpatt[stripeno] = min(rowpatt[stripeno], patt);
+			diagpatt[stripeno] = max(diagpatt[stripeno], patt);
+		}
+	}
+	free(distr);
+	return tot;
+}
+
+void arm_selection_threshold(int *distrs, int disks, int tot, int *max_v, int *min_v) {
+	int c, i;
+	int *sort = (int*) malloc(sizeof(int) * tot);
+	for (c = 0; c < disks; c++) {
+		for (i = 0; i < tot; i++)
+			sort[i] = distrs[i * disks + c];
+		qsort(sort, tot, sizeof(int), cmp);
+		min_v[c] = sort[tot / disks];
+		max_v[c] = sort[tot - 1 - tot / disks];
+	}
+	free(sort);
+}
+
+void arm_initialize_patterns_new(metadata *meta, int pattcnt, int limit) {
+	int disks = meta->cols, rows = meta->rows;
+	int maxpatts = min(limit, 1 << rows);
+	int sample = (1 << rows) > limit;
+	size_t dsize = sizeof(int) * meta->cols;
+	int *distrs = (int*) malloc(dsize * maxpatts);
+	int *tmppatt = (int*) malloc(sizeof(int) * maxpatts);
+	int *s = (int*) malloc(sizeof(int) * maxpatts);
+	int *sort = (int*) malloc(sizeof(int) * maxpatts);
+	int *max_v = (int*) malloc(dsize);
+	int *min_v = (int*) malloc(dsize);
+	int *max_cnt = (int*) malloc(dsize);
+	int *min_cnt = (int*) malloc(dsize);
+	int *shuf = (int*) malloc(sizeof(int) * maxpatts);
+	patts = (int**) malloc(dsize);
+	patts_distr = (int**) malloc(dsize);
+	numpatts = (int*) malloc(dsize);
+	rowpatt = (int*) malloc(dsize);
+	diagpatt = (int*) malloc(dsize);
+	optimal = (int*) malloc(dsize);
+	int totalpatts = 0, no, i, j;
+	for (no = 0; no < disks; no++) {
+		int tot = 0, near_opt = 0;
+		rowpatt[no] = (1 << rows) - 1;
+		diagpatt[no] = 0;
+		if (sample)
+			tot = arm_sampling(meta, no, distrs, tmppatt, disks, limit);
+		else
+			tot = arm_filtering(meta, no, distrs, tmppatt, disks);
+		// row & diagonal only
+		rowpatt[no] = diagpatt[no] = tmppatt[0];
+		for (i = 0; i < tot; i++) {
+			rowpatt[no] &= tmppatt[i];
+			diagpatt[no] |= tmppatt[i];
+		}
+		// near optimal recovery scheme
+		memset(s, 0, sizeof(int) * tot);
+		for (i = 0; i < tot; i++) {
+			for (j = 0; j < disks; j++)
+				s[i] += distrs[i * disks + j];
+			sort[i] = s[i];
+		}
+		qsort(sort, tot, sizeof(int), cmp);
+		int thresh = sort[tot / 3];
+		for (i = 0; i < tot; i++)
+			if (s[i] <= thresh) {
+				memcpy(distrs + near_opt * disks, distrs + i * disks, dsize);
+				tmppatt[near_opt] = tmppatt[i];
+				shuf[near_opt] = near_opt;
+				near_opt++;
+			}
+		// Optimal & Balanced
+		int std = 0x3fffffff, pos = 0;
+		for (i = 0; i < tot; i++)
+			if (s[i] == sort[0]) {
+				int x = 0, sx = 0, sxx = 0;
+				int *a = distrs + i * disks;
+				for (j = 0; j < disks; j++) {
+					x = a[j];
+					sx += x;
+					sxx += x * x;
+				}
+				int curr = sxx * (disks - 1) -sx * sx;
+				if (curr < std) {
+					std = curr;
+					optimal[no] = tmppatt[i];
+				}
+			}
+		arm_selection_threshold(distrs, disks, near_opt, max_v, min_v);
+		arm_shuffle(shuf, near_opt);
+		memset(max_cnt, 0, dsize);
+		memset(min_cnt, 0, dsize);
+		numpatts[no] = 0;
+		for (i = 0; i < near_opt; i++) {
+			int ch = pos, *a = distrs + shuf[i] * disks;
+			do {
+				if (a[ch] >= max_v[ch] && max_cnt[ch] < pattcnt)
+					break;
+				if (a[ch] <= min_v[ch] && min_cnt[ch] < pattcnt)
+					break;
+				ch = (ch + 1 == disks ? 0 : ch + 1);
+			} while (ch != pos);
+			if (a[ch] >= max_v[ch] && max_cnt[ch] < pattcnt) {
+				numpatts[no]++;
+				max_cnt[ch] += 1;
+				s[shuf[i]] = -1; // selected
+			}
+			else if (a[ch] <= min_v[ch] && min_cnt[ch] < pattcnt) {
+				numpatts[no]++;
+				min_cnt[ch] += 1;
+				s[shuf[i]] = -1; // selected
+			}
+			pos = (pos + 1 == disks ? 0 : pos + 1);
+		}
+		patts[no] = (int*) malloc(sizeof(int) * numpatts[no]);
+		patts_distr[no] = (int*) malloc(dsize * numpatts[no]);
+		int t = 0;
+		for (i = 0; i < near_opt; i++)
+			if (s[i] == -1) { // selected
+				patts[no][t] = tmppatt[i];
+				memcpy(patts_distr[no] + (t++) * disks, distrs + i * disks, dsize);
+			}
+		totalpatts += numpatts[no];
+	}
+	free(distrs); free(tmppatt); free(s); free(sort); free(shuf);
+	free(max_v); free(max_cnt); free(min_v); free(min_cnt);
+}
+
+/*
 void arm_initialize_patterns(metadata *meta, int pattcnt) {
 	int disks = meta->cols;
 	int *a = (int*) malloc(sizeof(int) * meta->cols * (1 << meta->rows));
@@ -345,7 +455,7 @@ void arm_initialize_patterns(metadata *meta, int pattcnt) {
 	int *sm = (int*) malloc(sizeof(int) * (1 << meta->rows));
 	int *sm2 = (int*) malloc(sizeof(int) * (1 << meta->rows));
 	size_t dsize = sizeof(int) * meta->cols;
-	int i, j, patt, *distr = (int*) malloc(dsize);
+	int *distr = (int*) malloc(dsize);
 	int *ma = (int*) malloc(dsize);
 	int *mi = (int*) malloc(dsize);
 	int *mac = (int*) malloc(dsize);
@@ -356,7 +466,7 @@ void arm_initialize_patterns(metadata *meta, int pattcnt) {
 	rowpatt = (int*) malloc(dsize);
 	diagpatt = (int*) malloc(dsize);
 	optimal = (int*) malloc(dsize);
-	int totalpatts = 0, stripeno;
+	int i, j, patt, totalpatts = 0, stripeno;
 	for (stripeno = 0; stripeno < disks; stripeno++) {
 		int tot = 0;
 		rowpatt[stripeno] = (1 << meta->rows) - 1;
@@ -403,14 +513,14 @@ void arm_initialize_patterns(metadata *meta, int pattcnt) {
 		}
 		for (i = 0; i < tot; i++)
 			sh[i] = i;
-		shuffle(sh, tot);
+		arm_shuffle(sh, tot);
 		memset(se, 0, sizeof(int) * tot);
 
 		numpatts[stripeno] = 0;
 		for (i = 0; i < tot; i++) {
 			int idx = sh[i], *b = a + idx * meta->cols;
 			if (sm[idx] < sum) continue;
-			unsigned hh = hash(b, disks), f = 1;
+			unsigned hh = arm_hash(b, disks), f = 1;
 			for (j = 0; j < numpatts[stripeno]; j++)
 				if (hh == ha[j])  f = 0;
 			if (f == 0) continue;
@@ -440,9 +550,9 @@ void arm_initialize_patterns(metadata *meta, int pattcnt) {
 			}
 		totalpatts += numpatts[stripeno];
 	}
-	free(a);  free(s);
-	free(se); free(sh);  free(sm);
-	free(ma); free(mac);
-	free(mi); free(mic);
+	free(a);  free(p);   free(s);  free(ha);
+	free(se); free(sh);  free(sm); free(sm2);
+	free(ma); free(mac); free(mi); free(mic);
 	free(distr);
 }
+*/

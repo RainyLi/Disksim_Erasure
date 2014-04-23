@@ -11,13 +11,14 @@
 #include <ctype.h>
 #include <time.h>
 
-#include "disksim_event_queue.h"
-#include "disksim_interface.h"
-#include "disksim_erasure.h"
-#include "disksim_iostat.h"
-#include "disksim_global.h"
-#include "disksim_rand48.h"
 #include "disksim_arm.h"
+#include "disksim_erasure.h"
+#include "disksim_event_queue.h"
+#include "disksim_global.h"
+#include "disksim_interface.h"
+#include "disksim_iostat.h"
+#include "disksim_rand48.h"
+#include "disksim_timer.h"
 
 #define EVENT_STOP_SIM			0
 #define EVENT_TRACE_FETCH		1
@@ -40,10 +41,10 @@ static int reqno = 0;
 static int method = 0;
 static int disks = 12;
 static int *distr;
-static int stripeno = 0;
-static int tstripes = 0; // test
+static int stripeno = 0, tstripes = 0;
 static int delay = 30;
 static int coef = 0;
+static int numrrc = 30, maxrrc = 1 << 16;
 static int unit = 16; // size in KB
 static long long limit = 0; // maximum operations
 static int code = CODE_RDP;
@@ -61,6 +62,7 @@ int help(const char *main) {
 	printf("\t-s, --stop    [number]\t stop after reconstruct how many stripes\n");
 	printf("\t-m, --method  [number]\t methods in [0..8] for ARM (please ignore)\n");
 	printf("\t    --coef    [number]\t coefficient for ARM (please ignore)\n");
+	printf("\t    --numrrc  [number]\t number of representative recovery schemes\n");
 	printf("\t-d, --delay   [number]\t io_stat sampling interval\n");
 	printf("\t-i, --input   [string]\t input trace file\n");
 	printf("\t-o, --output  [string]\t DiskSim output file\n");
@@ -182,8 +184,10 @@ void initialize_disk_failure(metadata *meta, const char *s) {
 			i = j;
 		}
 	if (fails > 0) {
-		arm_initialize_patterns(meta, 30);
+		timer_start(0);
+		arm_initialize_patterns_new(meta, numrrc, maxrrc);
 		event_queue_add(eventq, create_event_node(0, EVENT_TRACE_RECON, 0));
+		timer_end(0);
 	}
 }
 
@@ -240,8 +244,15 @@ int main(int argc, char **argv) {
         	fail = argu;
         else if (!strcmp(flag, "--coef"))
         	coef = atoi(argu);
-        else if (!strcmp(flag, "-c") || !strcmp(flag, "--code")) {
+        else if (!strcmp(flag, "--numrrc"))
+        	numrrc = atoi(argu);
+        else if (!strcmp(flag, "--maxrrc"))
+        	maxrrc = atoi(argu);
+        else if (!strcmp(flag, "-c") || !strcmp(flag, "--code"))
         	code = get_code_id(argu);
+        else {
+        	fprintf(stderr, "unknown flag: %s\n", flag);
+        	exit(0);
         }
 	}
 	if (coef == 0)
@@ -340,6 +351,8 @@ int main(int argc, char **argv) {
 	printf("Total Stripes Reconstructed = %d\n", stripeno);
 	printf("Throughput = %f MB/s\n", iostat_throughput());
 	printf("Experiment Duration = %d s\n", (int) duration);
+	printf("Number of Representative Recovery Schemes = %d\n", numrrc);
+	printf("Matching Time = %d\n", (int) timer_millisecond(2));
 
 	FILE *exp = fopen(result, "a");
 	if (exp != NULL) {
@@ -357,6 +370,7 @@ int main(int argc, char **argv) {
 		fprintf(exp, "Total Stripes Reconstructed = %d\n", stripeno);
 		fprintf(exp, "Throughput = %f MB/s\n", iostat_throughput());
 		fprintf(exp, "Experiment Duration = %d s\n", (int) duration);
+		fprintf(exp, "Number of Representative Recovery Schemes = %d\n", numrrc);
 		fclose(exp);
 	}
 	return 0;

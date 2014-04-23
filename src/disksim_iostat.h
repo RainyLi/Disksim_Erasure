@@ -8,7 +8,7 @@
 #ifndef DISKSIM_IOSTAT_H_
 #define DISKSIM_IOSTAT_H_
 
-#include "disksim_event_queue.h"
+#include "disksim_erasure.h"
 
 typedef struct hash_node_t {
 	int key;

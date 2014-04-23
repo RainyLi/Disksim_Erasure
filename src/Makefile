@@ -61,7 +61,7 @@ ifeq ($(MODULEDEPS),)
 MODULEDEPS = modules
 endif
 
-all: disksim rms hplcomb syssim reconsim unittest
+all: disksim rms hplcomb syssim reconsim
 
 clean:
 	rm -f TAGS *.o disksim syssim reconsim rms hplcomb core libdisksim.a
@@ -101,6 +101,7 @@ DISKSIM_SRC = disksim.c disksim_intr.c disksim_pfsim.c \
 	disksim_loadparams.c \
 	raw_layout.c \
 	disksim_erasure.c disksim_iostat.c disksim_event_queue.c disksim_arm.c \
+	disksim_timer.c \
 	reconsim.c
 
 DISKSIM_OBJ = $(DISKSIM_SRC:.c=.o) 

@@ -29,8 +29,10 @@ void arm_rebuild(metadata *meta, ioreq *req, int stripeno, int pattern);
 
 int arm_get_rebuild_distr(metadata *meta, int stripeno, int pattern, int *distr);
 
-void arm_initialize_patterns(metadata *meta, int pattcnt);
+void arm_preprocessing(metadata *meta, int pattcnt);
 
 int arm_select_pattern(metadata *meta, int stripeno, int method, int *distr, int coef);
+
+void arm_initialize_patterns_new(metadata *meta, int pattcnt, int limit);
 
 #endif /* DISKSIM_ARM_H_ */
