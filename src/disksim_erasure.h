@@ -12,6 +12,7 @@
 #define CODE_EVENODD	1
 #define CODE_HCODE		2
 #define CODE_XCODE		3
+#define CODE_LIBERATION	4
 
 typedef struct element_t {
 	int row;

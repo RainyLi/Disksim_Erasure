@@ -26,9 +26,12 @@ const char* get_code_name(int code) {
 		return "HCODE";
 	case CODE_XCODE:
 		return "XCODE";
+	case CODE_LIBERATION:
+		return "LIBERATION";
+	default:
+		fprintf(stderr, "invalid code ID: %d\n", code);
+		exit(-1);
 	}
-	fprintf(stderr, "invalid code ID: %d\n", code);
-	exit(-1);
 	return "";
 }
 
@@ -41,6 +44,8 @@ int get_code_id(const char *code) {
 		return CODE_HCODE;
 	if (!strcmp(code, "xcode"))
 		return CODE_XCODE;
+	if (!strcmp(code, "liberation"))
+		return CODE_LIBERATION;
 	fprintf(stderr, "invalid code: %s\n", code);
 	exit(-1);
 	return -1;
@@ -361,6 +366,82 @@ static void xcode_initialize(metadata *meta) {
 	}
 }
 
+static void liberation_initialize(metadata *meta) {
+	int i, r, c;
+	int delta, sumrc;
+	int p; // the prime number
+	int rows, cols;
+	int unitno, id;
+	parities *chain;
+	element *elem;
+
+	meta->numdisks = meta->phydisks - 2;
+	if (!check_prime(meta->numdisks)) {
+		fprintf(stderr, "invalid disk number using Liberation code\n");
+		exit(1);
+	}
+	p = meta->prime = meta->numdisks;
+	rows = meta->rows = meta->numdisks;
+	cols = meta->cols = meta->phydisks;
+	// initialize parity chains
+	meta->numchains = 2 * rows;
+	meta->chains = (parities*) malloc(meta->numchains * sizeof(parities));
+	for (r = 0; r < rows; r++) {
+		chain = meta->chains + r;
+		chain->type = 0;
+		chain->dest = (element*) malloc(sizeof(element));
+		chain->dest->row = r;
+		chain->dest->col = p;
+		chain->deps = NULL;
+		for (c = 0; c < p; c++) {
+			elem = (element*) malloc(sizeof(element));
+			elem->row = r;
+			elem->col = c;
+			elem->next = chain->deps;
+			chain->deps = elem;
+		}
+		chain->dest->next = chain->deps;
+	}
+	for (r = 0; r < rows; r++) {
+		chain = meta->chains + rows + r;
+		chain->type = 1;
+		chain->dest = (element*) malloc(sizeof(element));
+		chain->dest->row = r;
+		chain->dest->col = p + 1;
+		chain->deps = NULL;
+		for (c = 0; c < p; c++) {
+			elem = (element*) malloc(sizeof(element));
+			elem->row = (r + c) % p;
+			elem->col = c;
+			elem->next = chain->deps;
+			chain->deps = elem;
+		}
+	}
+	for (c = 1; c < p; c++) {
+		int y = c * (p - 1) / 2 % p;
+		chain = meta->chains + rows + y;
+		elem = (element*) malloc(sizeof(element));
+		elem->row = (y + c - 1) % p;
+		elem->col = c;
+		elem->next = chain->deps;
+		chain->deps = elem;
+	}
+	// map the data blocks to units in a stripe
+	meta->dataunits = rows * meta->numdisks;
+	meta->totalunits = rows * cols;
+	meta->entry = (struct entry_t*) malloc(meta->dataunits * sizeof(struct entry_t));
+	meta->rmap = (int*) malloc(meta->totalunits * sizeof(int));
+	memset(meta->rmap, -1, meta->totalunits * sizeof(int));
+	for (unitno = 0; unitno < meta->dataunits; unitno++) {
+		r = unitno / meta->numdisks;
+		c = unitno % meta->numdisks;
+		meta->entry[unitno].row = r;
+		meta->entry[unitno].col = c;
+		meta->entry[unitno].depends = NULL;
+		meta->rmap[r * meta->cols + c] = unitno;
+	}
+}
+
 static void erasure_make_table(metadata *meta) {
 	int rot;
 	int unitno, id, no;
@@ -478,6 +559,9 @@ void erasure_initialize(metadata *meta, int codetype, int disks, int unitsize) {
 		break;
 	case CODE_XCODE:
 		xcode_initialize(meta);
+		break;
+	case CODE_LIBERATION:
+		liberation_initialize(meta);
 		break;
 	default:
 		fprintf(stderr, "unrecognized reduntype in erasure_initialize\n");

@@ -60,17 +60,18 @@ int help(const char *main) {
 	printf("\t-n, --num     [number]\t number of disks\n");
 	printf("\t-u, --unit    [number]\t stripe unit size (KB)\n");
 	printf("\t-s, --stop    [number]\t stop after reconstruct how many stripes\n");
-	printf("\t-m, --method  [number]\t methods in [0..8] for ARM (please ignore)\n");
-	printf("\t    --coef    [number]\t coefficient for ARM (please ignore)\n");
-	printf("\t    --numrrc  [number]\t number of representative recovery schemes\n");
 	printf("\t-d, --delay   [number]\t io_stat sampling interval\n");
 	printf("\t-i, --input   [string]\t input trace file\n");
 	printf("\t-o, --output  [string]\t DiskSim output file\n");
-	printf("\t-c, --code    [string]\t erasure code [rdp, evenodd, hcode, xcode]\n");
+	printf("\t-c, --code    [string]\t erasure code [rdp, evenodd, hcode, xcode, liberation]\n");
 	printf("\t-p, --parv    [string]\t parv file\n");
-	printf("\t-a, --append  [string]\t save results to file\n");
+	printf("\t-a, --append  [string]\t append results to file\n");
 	printf("\t-f, --failure [string]\t set failed disks separated by ','\n");
 	printf("\t-h, --help            \t help information\n");
+	printf("--- Adaptive Reconstruction Method options (please ignore) ---\n");
+	printf("\t-m, --method  [number]\t methods in [0..8] for ARM\n");
+	printf("\t    --coef    [number]\t coefficient for ARM\n");
+	printf("\t    --numrrc  [number]\t number of representative recovery schemes\n");
 	return 0;
 }
 
