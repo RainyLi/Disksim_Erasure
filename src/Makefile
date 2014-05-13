@@ -61,10 +61,10 @@ ifeq ($(MODULEDEPS),)
 MODULEDEPS = modules
 endif
 
-all: disksim rms hplcomb syssim reconsim
+all: disksim rms hplcomb syssim raidsim partial
 
 clean:
-	rm -f TAGS *.o disksim syssim reconsim rms hplcomb core libdisksim.a
+	rm -f TAGS *.o disksim syssim raidsim rms hplcomb core libdisksim.a
 	$(MAKE) -C modules clean
 
 realclean: clean
@@ -101,8 +101,7 @@ DISKSIM_SRC = disksim.c disksim_intr.c disksim_pfsim.c \
 	disksim_loadparams.c \
 	raw_layout.c \
 	disksim_erasure.c disksim_iostat.c disksim_event_queue.c disksim_arm.c \
-	disksim_timer.c \
-	reconsim.c
+	disksim_timer.c
 
 DISKSIM_OBJ = $(DISKSIM_SRC:.c=.o) 
 
@@ -133,8 +132,11 @@ disksim : $(MODULEDEPS) libdisksim.a disksim_main.o
 syssim: syssim_driver.o libdisksim.a
 	$(CC) $(CFLAGS) -o $@ syssim_driver.o disksim_interface.o $(LDFLAGS)
 
-reconsim: $(MODULEDEPS) libdisksim.a reconsim.o
-	$(CC) -g $(CFLAGS) -o $@ reconsim.o $(LDFLAGS) -lm
+raidsim: $(MODULEDEPS) libdisksim.a raidsim.o
+	$(CC) -g $(CFLAGS) -o $@ raidsim.o $(LDFLAGS) -lm
+
+partial: $(MODULEDEPS) libdisksim.a partial.o
+	$(CC) -g $(CFLAGS) -o $@ partial.o $(LDFLAGS) -lm
 	
 ########################################################################
 
