@@ -8,11 +8,12 @@
 #ifndef DISKSIM_ERASURE_H_
 #define DISKSIM_ERASURE_H_
 
-#define CODE_RDP		0
-#define CODE_EVENODD	1
-#define CODE_HCODE		2
-#define CODE_XCODE		3
-#define CODE_LIBERATION	4
+#define CODE_RDP		0	// RDP code
+#define CODE_EVENODD	1	// EVENODD code
+#define CODE_HCODE		2	// H-code
+#define CODE_XCODE		3	// X-code
+#define CODE_LIBERATION	4	// Liberation code
+#define CODE_SHCODE		5	// shortened H-code
 
 typedef struct element_t {
 	int row;
@@ -89,6 +90,7 @@ typedef struct io_request_t {
 	iogroup *groups;
 	iogroup *curr;
 	int numxors;
+	int numIOs;
 } ioreq;
 
 const char* get_code_name(int code);

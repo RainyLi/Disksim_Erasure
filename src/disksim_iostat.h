@@ -40,5 +40,6 @@ double iostat_avg_response_time();
 double iostat_throughput();
 double iostat_peak_throughput();
 double iostat_avg_xors_per_write();
+double iostat_avg_IOs_per_request();
 
 #endif /* DISKSIM_IOSTAT_H_ */

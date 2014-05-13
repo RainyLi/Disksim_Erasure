@@ -52,6 +52,7 @@ static statnode *head = NULL, *tail = NULL;
 static double currtime = 0;
 static long long total_blks = 0;
 static long long total_xors = 0;
+static long long total_IOs = 0;
 
 void iostat_initialize(int disks) {
 	hashtable_init();
@@ -81,6 +82,10 @@ double iostat_avg_xors_per_write() {
 	return total_xors * 1.0 / numwrites;
 }
 
+double iostat_avg_IOs_per_request() {
+	return total_IOs * 1.0 / numreqs;
+}
+
 void iostat_ioreq_start(double time, ioreq *req) {
 	if (req->stat) {
 		hashtable_set(req->reqno, time);
@@ -101,6 +106,7 @@ void iostat_ioreq_complete(double time, ioreq *req) {
 		numwrites += (req->flag == 0);
 		items_in_table -= 1;
 		total_xors += req->numxors;
+		total_IOs += req->numIOs;
 	}
 }
 

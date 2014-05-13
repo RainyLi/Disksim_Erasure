@@ -28,6 +28,8 @@ const char* get_code_name(int code) {
 		return "XCODE";
 	case CODE_LIBERATION:
 		return "LIBERATION";
+	case CODE_SHCODE:
+		return "SHCODE";
 	default:
 		fprintf(stderr, "invalid code ID: %d\n", code);
 		exit(-1);
@@ -46,6 +48,8 @@ int get_code_id(const char *code) {
 		return CODE_XCODE;
 	if (!strcmp(code, "liberation"))
 		return CODE_LIBERATION;
+	if (!strcmp(code, "shcode"))
+		return CODE_SHCODE;
 	fprintf(stderr, "invalid code: %s\n", code);
 	exit(-1);
 	return -1;
@@ -139,7 +143,7 @@ static void evenodd_initialize(metadata *meta) {
 		chain->dest->next = chain->deps;
 	}
 	// map the data blocks to units in a stripe
-	meta->dataunits = rows * meta->numdisks;
+	meta->dataunits = rows * (cols - 2);
 	meta->totalunits = rows * cols;
 	meta->entry = (struct entry_t*) malloc(meta->dataunits * sizeof(struct entry_t));
 	meta->rmap = (int*) malloc(meta->totalunits * sizeof(int));
@@ -209,7 +213,7 @@ static void rdp_initialize(metadata *meta) {
 	}
 
 	// map the data blocks to units in a stripe
-	meta->dataunits = rows * meta->numdisks;
+	meta->dataunits = rows * (cols - 2);
 	meta->totalunits = rows * cols;
 	meta->entry = (struct entry_t*) malloc(meta->dataunits * sizeof(struct entry_t));
 	meta->rmap = (int*) malloc(meta->totalunits * sizeof(int));
@@ -280,7 +284,7 @@ static void hcode_initialize(metadata *meta) {
 		chain->dest->next = chain->deps;
 	}
 	// map the data blocks to units in a stripe
-	meta->dataunits = rows * meta->numdisks;
+	meta->dataunits = rows * (cols - 2);
 	meta->totalunits = rows * cols;
 	meta->entry = (struct entry_t*) malloc(meta->dataunits * sizeof(struct entry_t));
 	meta->rmap = (int*) malloc(meta->totalunits * sizeof(int));
@@ -289,6 +293,78 @@ static void hcode_initialize(metadata *meta) {
 		r = unitno / meta->numdisks;
 		c = unitno % meta->numdisks;
 		if (c > r) ++c;
+		meta->entry[unitno].row = r;
+		meta->entry[unitno].col = c;
+		meta->entry[unitno].depends = NULL;
+		meta->rmap[r * meta->cols + c] = unitno;
+	}
+}
+
+static void shortened_hcode_initialize(metadata *meta) {
+	int i, r, c;
+	int delta, sumrc;
+	int p; // the prime number
+	int rows, cols;
+	int unitno, id;
+	parities *chain;
+	element *elem;
+
+	meta->numdisks = meta->phydisks - 2;
+	if (!check_prime(meta->phydisks)) {
+		fprintf(stderr, "invalid disk number using SH-Code\n");
+		exit(1);
+	}
+	p = meta->prime = meta->phydisks;
+	rows = meta->rows = meta->prime - 1;
+	cols = meta->cols = meta->prime;
+	// initialize parity chains
+	meta->numchains = 2 * rows;
+	meta->chains = (parities*) malloc(meta->numchains * sizeof(parities));
+	for (r = 0; r < rows; r++) {
+		chain = meta->chains + r;
+		chain->type = 0;
+		chain->dest = (element*) malloc(sizeof(element));
+		chain->dest->row = r;
+		chain->dest->col = p;
+		chain->deps = NULL;
+		for (c = 0; c < p - 1; c++)
+			if (r != c) {
+				elem = (element*) malloc(sizeof(element));
+				elem->row = r;
+				elem->col = c;
+				elem->next = chain->deps;
+				chain->deps = elem;
+			}
+		chain->dest->next = chain->deps;
+	}
+	for (r = 0; r < rows; r++) {
+		delta = (r + 1) % p; // delta = c - r
+		chain = meta->chains + rows + r;
+		chain->type = 1;
+		chain->dest = (element*) malloc(sizeof(element));
+		chain->dest->row = r;
+		chain->dest->col = r;
+		chain->deps = NULL;
+		for (c = 0; c < p - 1; c++)
+			if ((c + p - delta + 1) % p) {
+				elem = (element*) malloc(sizeof(element));
+				elem->row = (c + p - delta) % p;
+				elem->col = c;
+				elem->next = chain->deps;
+				chain->deps = elem;
+			}
+		chain->dest->next = chain->deps;
+	}
+	// map the data blocks to units in a stripe
+	meta->dataunits = rows * (cols - 2);
+	meta->totalunits = rows * cols;
+	meta->entry = (struct entry_t*) malloc(meta->dataunits * sizeof(struct entry_t));
+	meta->rmap = (int*) malloc(meta->totalunits * sizeof(int));
+	memset(meta->rmap, -1, meta->totalunits * sizeof(int));
+	for (unitno = 0; unitno < meta->dataunits; unitno++) {
+		r = unitno / meta->numdisks;
+		c = unitno % meta->numdisks;
+		if (c >= r) ++c;
 		meta->entry[unitno].row = r;
 		meta->entry[unitno].col = c;
 		meta->entry[unitno].depends = NULL;
@@ -427,7 +503,7 @@ static void liberation_initialize(metadata *meta) {
 		chain->deps = elem;
 	}
 	// map the data blocks to units in a stripe
-	meta->dataunits = rows * meta->numdisks;
+	meta->dataunits = rows * (cols - 2);
 	meta->totalunits = rows * cols;
 	meta->entry = (struct entry_t*) malloc(meta->dataunits * sizeof(struct entry_t));
 	meta->rmap = (int*) malloc(meta->totalunits * sizeof(int));
@@ -563,6 +639,9 @@ void erasure_initialize(metadata *meta, int codetype, int disks, int unitsize) {
 	case CODE_LIBERATION:
 		liberation_initialize(meta);
 		break;
+	case CODE_SHCODE:
+		shortened_hcode_initialize(meta);
+		break;
 	default:
 		fprintf(stderr, "unrecognized reduntype in erasure_initialize\n");
 		exit(1);
@@ -576,7 +655,7 @@ void erasure_initialize(metadata *meta, int codetype, int disks, int unitsize) {
 static void rottable_update(rottable *tab, int r, int c, int ll, int rr) {
 	int no = r * tab->cols + c;
 	if (tab->hit[no] == 0) {
-		tab->hit[no] = -1;
+		tab->hit[no] = 1;
 		tab->ll[no] = ll;
 		tab->rr[no] = rr;
 	} else {
@@ -599,6 +678,7 @@ void erasure_maprequest(metadata *meta, ioreq *req) {
 
 	req->curr = NULL;
 	req->numxors = 0;
+	req->numIOs = 0;
 	while (stripeno * stripesize < end) {
 		int rot = stripeno % meta->cols;
 		memset(ph1->hit, 0, sizeof(int) * meta->totalunits);
@@ -678,7 +758,7 @@ void erasure_maprequest(metadata *meta, ioreq *req) {
 					int ll = ph2->ll[no] + (stripeno * meta->rows + r) * unitsize;
 					int rr = ph2->rr[no] + (stripeno * meta->rows + r) * unitsize;
 					for (nxt = r + 1; nxt < meta->rows; nxt++)
-						if (ph1->hit[nxt * meta->cols + dc]) {
+						if (ph2->hit[nxt * meta->cols + dc]) {
 							int no2 = nxt * meta->cols + dc;
 							int l2 = ph2->ll[no2] + (stripeno * meta->rows + nxt) * unitsize;
 							int r2 = ph2->rr[no2] + (stripeno * meta->rows + nxt) * unitsize;
@@ -711,7 +791,7 @@ void erasure_maprequest(metadata *meta, ioreq *req) {
 				int dc = (meta->entry[unitno].col + rot) % meta->cols;
 				int no = r * meta->cols + dc;
 				if (ph1->hit[no])
-					req->numxors ++;
+					req->numxors++;
 			}
 			// calculate the delta on each parity element
 			for (i = 0; i < meta->numchains; i++) {
@@ -725,6 +805,9 @@ void erasure_maprequest(metadata *meta, ioreq *req) {
 				}
 			}
 		}
+		// calculate number of I/Os
+		for (unitno = 0; unitno < meta->totalunits; unitno++)
+			req->numIOs += ph1->hit[unitno] + ph2->hit[unitno];
 	}
 }
 
