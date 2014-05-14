@@ -14,6 +14,7 @@
 #define CODE_XCODE		3	// X-code
 #define CODE_LIBERATION	4	// Liberation code
 #define CODE_SHCODE		5	// shortened H-code
+#define CODE_EXT_HCODE	6	// extended H-code
 
 typedef struct element_t {
 	int row;

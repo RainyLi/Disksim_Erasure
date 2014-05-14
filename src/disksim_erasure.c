@@ -30,6 +30,8 @@ const char* get_code_name(int code) {
 		return "LIBERATION";
 	case CODE_SHCODE:
 		return "SHCODE";
+	case CODE_EXT_HCODE:
+		return "EXTHCODE";
 	default:
 		fprintf(stderr, "invalid code ID: %d\n", code);
 		exit(-1);
@@ -50,6 +52,8 @@ int get_code_id(const char *code) {
 		return CODE_LIBERATION;
 	if (!strcmp(code, "shcode"))
 		return CODE_SHCODE;
+	if (!strcmp(code, "exthcode"))
+		return CODE_EXT_HCODE;
 	fprintf(stderr, "invalid code: %s\n", code);
 	exit(-1);
 	return -1;
@@ -535,6 +539,98 @@ static void erasure_make_table(metadata *meta) {
 	}
 }
 
+static void ext_hcode_initialize(metadata *meta) {
+	int i, r, c;
+	int delta, sumrc;
+	int p; // the prime number
+	int rows, cols;
+	int unitno, id;
+	parities *chain;
+	element *elem;
+
+	meta->numdisks = meta->phydisks - 3;
+	if (!check_prime(meta->phydisks - 2)) {
+		fprintf(stderr, "invalid disk number using H-Code\n");
+		exit(1);
+	}
+	p = meta->prime = meta->phydisks - 2;
+	rows = meta->rows = meta->prime - 1;
+	cols = meta->cols = meta->phydisks;
+	// initialize parity chains
+	meta->numchains = 3 * rows;
+	meta->chains = (parities*) malloc(meta->numchains * sizeof(parities));
+	for (r = 0; r < rows; r++) {
+		chain = meta->chains + r;
+		chain->type = 0;
+		chain->dest = (element*) malloc(sizeof(element));
+		chain->dest->row = r;
+		chain->dest->col = p;
+		chain->deps = NULL;
+		for (c = 0; c < p; c++)
+			if (r + 1 != c) {
+				elem = (element*) malloc(sizeof(element));
+				elem->row = r;
+				elem->col = c;
+				elem->next = chain->deps;
+				chain->deps = elem;
+			}
+		chain->dest->next = chain->deps;
+	}
+	for (r = 0; r < rows; r++) {
+		delta = (r + 2) % p; // delta = c - r
+		chain = meta->chains + rows + r;
+		chain->type = 1;
+		chain->dest = (element*) malloc(sizeof(element));
+		chain->dest->row = r;
+		chain->dest->col = r + 1;
+		chain->deps = NULL;
+		for (c = 0; c < p; c++)
+			if ((c + p - delta + 1) % p) {
+				elem = (element*) malloc(sizeof(element));
+				elem->row = (c + p - delta) % p;
+				elem->col = c;
+				elem->next = chain->deps;
+				chain->deps = elem;
+			}
+		chain->dest->next = chain->deps;
+	}
+	for (r = 0; r < rows; r++) {
+		sumrc = r;
+		chain = meta->chains + rows * 2 + r;
+		chain->type = 2;
+		chain->dest = (element*) malloc(sizeof(element));
+		chain->dest->row = r;
+		chain->dest->col = p + 1;
+		chain->deps = NULL;
+		for (c = 0; c < p; c++) {
+			int r1 = (sumrc + p - c) % p;
+			if (r1 + 1 != c) {
+				elem = (element*) malloc(sizeof(element));
+				elem->row = (r1 + 1 == p ? c - 1 : r1);
+				elem->col = c;
+				elem->next = chain->deps;
+				chain->deps = elem;
+			}
+		}
+		chain->dest->next = chain->deps;
+	}
+	// map the data blocks to units in a stripe
+	meta->dataunits = rows * (cols - 3);
+	meta->totalunits = rows * cols;
+	meta->entry = (struct entry_t*) malloc(meta->dataunits * sizeof(struct entry_t));
+	meta->rmap = (int*) malloc(meta->totalunits * sizeof(int));
+	memset(meta->rmap, -1, meta->totalunits * sizeof(int));
+	for (unitno = 0; unitno < meta->dataunits; unitno++) {
+		r = unitno / meta->numdisks;
+		c = unitno % meta->numdisks;
+		if (c > r) ++c;
+		meta->entry[unitno].row = r;
+		meta->entry[unitno].col = c;
+		meta->entry[unitno].depends = NULL;
+		meta->rmap[r * meta->cols + c] = unitno;
+	}
+}
+
 static void gen_matrix(int id, metadata *meta, int *visit) {
 	int ch = 0;
 	int id1;
@@ -641,6 +737,9 @@ void erasure_initialize(metadata *meta, int codetype, int disks, int unitsize) {
 		break;
 	case CODE_SHCODE:
 		shortened_hcode_initialize(meta);
+		break;
+	case CODE_EXT_HCODE:
+		ext_hcode_initialize(meta);
 		break;
 	default:
 		fprintf(stderr, "unrecognized reduntype in erasure_initialize\n");
