@@ -16,6 +16,7 @@
 #define CODE_SHCODE		5	// shortened H-code
 #define CODE_EXT_HCODE	6	// extended H-code
 #define CODE_STAR		7	// STAR code
+#define CODE_TRIPLE		8	// Triple Parity code
 
 typedef struct element_t {
 	int row;

@@ -11,7 +11,6 @@
 #include <ctype.h>
 #include <time.h>
 
-#include "disksim_arm.h"
 #include "disksim_erasure.h"
 #include "disksim_event_queue.h"
 #include "disksim_global.h"
@@ -51,7 +50,6 @@ static int help(const char *main) {
 	printf("  options are:\n");
 	printf("\t-n, --num     [number]\t number of disks\n");
 	printf("\t-u, --unit    [number]\t stripe unit size (KB)\n");
-	printf("\t-s, --stop    [number]\t stop after reconstruct how many stripes\n");
 	printf("\t-d, --delay   [number]\t io_stat sampling interval\n");
 	printf("\t-i, --input   [string]\t input trace file\n");
 	printf("\t-o, --output  [string]\t DiskSim output file\n");
@@ -82,16 +80,6 @@ static void trace_add_next(FILE *f) {
 	req->reqno = ++reqno; // auto increment ID
 	event_queue_add(eventq, create_event_node(req->time, EVENT_TRACE_MAPREQ, req));
 	event_queue_add(eventq, create_event_node(req->time, EVENT_TRACE_FETCH, f));
-}
-
-static void trace_add_recon(double time) {
-	ioreq *req = (ioreq*) getfromextraq();
-	req->time = time;
-	req->stat = 0;
-	req->curr = NULL;
-	req->groups = NULL;
-	req->reqno = ++reqno; // auto increment ID
-	event_queue_add(eventq, create_event_node(req->time, EVENT_TRACE_MAPREQ, req));
 }
 
 static void ioreq_maprequest(double time, ioreq *req) {
@@ -276,7 +264,9 @@ int main(int argc, char **argv)
 	printf("\n");
 	printf("===================================================\n");
 	printf("Disks = %d\n", disks);
+	printf("Prime Number = %d\n", meta->prime);
 	printf("Unit Size = %d\n", unit);
+	printf("Width = %d\n", width);
 	printf("Code = %s\n", get_code_name(code));
 	printf("Total Simulation Time = %f ms\n", currtime);
 	printf("Avg. Response Time = %f ms\n", iostat_avg_response_time());
@@ -289,7 +279,9 @@ int main(int argc, char **argv)
 	if (exp != NULL) {
 		fprintf(exp, "===================================================\n");
 		fprintf(exp, "Disks = %d\n", disks);
+		fprintf(exp, "Prime Number = %d\n", meta->prime);
 		fprintf(exp, "Unit Size = %d\n", unit);
+		fprintf(exp, "Width = %d\n", width);
 		fprintf(exp, "Code = %s\n", get_code_name(code));
 		fprintf(exp, "Total Simulation Time = %f ms\n", currtime);
 		fprintf(exp, "Avg. Response Time = %f ms\n", iostat_avg_response_time());

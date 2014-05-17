@@ -34,6 +34,8 @@ const char* get_code_name(int code) {
 		return "EXTHCODE";
 	case CODE_STAR:
 		return "STAR";
+	case CODE_TRIPLE:
+		return "TRIPLE";
 	default:
 		fprintf(stderr, "invalid code ID: %d\n", code);
 		exit(-1);
@@ -58,6 +60,8 @@ int get_code_id(const char *code) {
 		return CODE_EXT_HCODE;
 	if (!strcmp(code, "star"))
 		return CODE_STAR;
+	if (!strcmp(code, "triple"))
+		return CODE_TRIPLE;
 	fprintf(stderr, "invalid code: %s\n", code);
 	exit(-1);
 	return -1;
@@ -324,7 +328,7 @@ static void shortened_hcode_initialize(metadata *meta) {
 	}
 	p = meta->prime = meta->phydisks;
 	rows = meta->rows = meta->prime - 1;
-	cols = meta->cols = meta->prime;
+	cols = meta->cols = meta->phydisks;
 	// initialize parity chains
 	meta->numchains = 2 * rows;
 	meta->chains = (parities*) malloc(meta->numchains * sizeof(parities));
@@ -333,7 +337,7 @@ static void shortened_hcode_initialize(metadata *meta) {
 		chain->type = 0;
 		chain->dest = (element*) malloc(sizeof(element));
 		chain->dest->row = r;
-		chain->dest->col = p;
+		chain->dest->col = p - 1;
 		chain->deps = NULL;
 		for (c = 0; c < p - 1; c++)
 			if (r != c) {
@@ -719,6 +723,92 @@ static void star_initialize(metadata *meta) {
 	}
 }
 
+static void triple_initialize(metadata *meta) {
+	int i, r, c;
+	int delta, sumrc;
+	int p; // the prime number
+	int rows, cols;
+	int unitno, id;
+	parities *chain;
+	element *elem;
+
+	meta->numdisks = meta->phydisks - 3;
+	if (!check_prime(meta->numdisks + 1)) {
+		fprintf(stderr, "invalid disk number using RDP\n");
+		exit(1);
+	}
+	p = meta->prime = meta->numdisks + 1;
+	rows = meta->rows = meta->numdisks;
+	cols = meta->cols = meta->phydisks;
+	// initialize parity chains
+	meta->numchains = 3 * rows;
+	meta->chains = (parities*) malloc(meta->numchains * sizeof(parities));
+	for (r = 0; r < rows; r++) {
+		chain = meta->chains + r;
+		chain->type = 0; // row parity
+		chain->dest = (element*) malloc(sizeof(element));
+		chain->dest->row = r;
+		chain->dest->col = p - 1;
+		chain->deps = NULL;
+		for (c = 0; c < p - 1; c++) {
+			elem = (element*) malloc(sizeof(element));
+			elem->row = r;
+			elem->col = c;
+			elem->next = chain->deps;
+			chain->deps = elem;
+		}
+		chain->dest->next = chain->deps;
+	}
+	for (r = 0; r < rows; r++) {
+		chain = meta->chains + rows + r;
+		chain->type = 1; // diagonal parity
+		chain->dest = (element*) malloc(sizeof(element));
+		chain->dest->row = r;
+		chain->dest->col = p;
+		chain->deps = NULL;
+		for (c = 0; c < p; c++)
+			if ((r - c + p + 1) % p) {
+				elem = (element*) malloc(sizeof(element));
+				elem->row = (r - c + p) % p;
+				elem->col = c;
+				elem->next = chain->deps;
+				chain->deps = elem;
+			}
+		chain->dest->next = chain->deps;
+	}
+	for (r = 0; r < rows; r++) {
+		chain = meta->chains + rows * 2 + r;
+		chain->type = 2;
+		chain->dest = (element*) malloc(sizeof(element));
+		chain->dest->row = r;
+		chain->dest->col = p + 1;
+		chain->deps = NULL;
+		for (c = 0; c < p; c++)
+			if ((r + c + 1) % p) {
+				elem = (element*) malloc(sizeof(element));
+				elem->row = (r + c) % p;
+				elem->col = c;
+				elem->next = chain->deps;
+				chain->deps = elem;
+			}
+		chain->dest->next = chain->deps;
+	}
+	// map the data blocks to units in a stripe
+	meta->dataunits = rows * (cols - 3);
+	meta->totalunits = rows * cols;
+	meta->entry = (struct entry_t*) malloc(meta->dataunits * sizeof(struct entry_t));
+	meta->rmap = (int*) malloc(meta->totalunits * sizeof(int));
+	memset(meta->rmap, -1, meta->totalunits * sizeof(int));
+	for (unitno = 0; unitno < meta->dataunits; unitno++) {
+		r = unitno / meta->numdisks;
+		c = unitno % meta->numdisks;
+		meta->entry[unitno].row = r;
+		meta->entry[unitno].col = c;
+		meta->entry[unitno].depends = NULL;
+		meta->rmap[r * meta->cols + c] = unitno;
+	}
+}
+
 static void erasure_make_table(metadata *meta) {
 	int rot;
 	int unitno, id, no;
@@ -848,6 +938,9 @@ void erasure_initialize(metadata *meta, int codetype, int disks, int unitsize) {
 		break;
 	case CODE_STAR:
 		star_initialize(meta);
+		break;
+	case CODE_TRIPLE:
+		triple_initialize(meta);
 		break;
 	default:
 		fprintf(stderr, "unrecognized reduntype in erasure_initialize\n");

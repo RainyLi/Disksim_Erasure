@@ -59,19 +59,19 @@ int help(const char *main) {
 	printf("  options are:\n");
 	printf("\t-n, --num     [number]\t number of disks\n");
 	printf("\t-u, --unit    [number]\t stripe unit size (KB)\n");
-	printf("\t-s, --stop    [number]\t stop after reconstruct how many stripes\n");
 	printf("\t-d, --delay   [number]\t io_stat sampling interval\n");
 	printf("\t-i, --input   [string]\t input trace file\n");
 	printf("\t-o, --output  [string]\t DiskSim output file\n");
-	printf("\t-c, --code    [string]\t erasure code [rdp, evenodd, hcode, xcode, liberation]\n");
+	printf("\t-c, --code    [string]\t erasure code [rdp, evenodd, hcode, xcode, liberation, star, shcode]\n");
 	printf("\t-p, --parv    [string]\t parv file\n");
 	printf("\t-a, --append  [string]\t append results to file\n");
 	printf("\t-f, --failure [string]\t set failed disks separated by ','\n");
 	printf("\t-h, --help            \t help information\n");
-	//printf("--- Adaptive Reconstruction Method options (please ignore) ---\n");
+	//printf("\n--- Adaptive Reconstruction Method options (please ignore) ---\n");
 	//printf("\t-m, --method  [number]\t methods in [0..8] for ARM\n");
 	//printf("\t    --coef    [number]\t coefficient for ARM\n");
 	//printf("\t    --numrrc  [number]\t number of representative recovery schemes\n");
+	//printf("\t-s, --stop    [number]\t stop after reconstruct how many stripes\n");
 	return 0;
 }
 
@@ -341,37 +341,39 @@ int main(int argc, char **argv) {
 	printf("===================================================\n");
 	printf("Trace File = %s\n", inpfile);
 	printf("Disks = %d\n", disks);
+	printf("Prime Number = %d\n", meta->prime);
 	printf("Unit Size = %d\n", unit);
-	printf("Method = %s\n", arm_method_name(method));
+	//printf("Method = %s\n", arm_method_name(method));
 	printf("Code = %s\n", get_code_name(code));
-	printf("Coefficient = %d\n", coef);
-	printf("Delay = %d\n", delay);
+	//printf("Coefficient = %d\n", coef);
+	//printf("Delay = %d\n", delay);
 	printf("Total Simulation Time = %f ms\n", currtime);
 	printf("Avg. Response Time = %f ms\n", iostat_avg_response_time());
 	printf("Avg. XORs per Write = %f\n", iostat_avg_xors_per_write());
-	printf("Total Stripes Reconstructed = %d\n", stripeno);
+	//printf("Total Stripes Reconstructed = %d\n", stripeno);
 	printf("Throughput = %f MB/s\n", iostat_throughput());
 	printf("Experiment Duration = %.3f s\n", duration / 1000.0);
-	printf("Number of Representative Recovery Schemes = %d\n", numrrc);
-	printf("Matching Time = %d\n", (int) timer_millisecond(2));
+	//printf("Number of Representative Recovery Schemes = %d\n", numrrc);
+	//printf("Matching Time = %d\n", (int) timer_millisecond(2));
 
 	FILE *exp = fopen(result, "a");
 	if (exp != NULL) {
 		fprintf(exp, "===================================================\n");
 		fprintf(exp, "Trace File = %s\n", inpfile);
 		fprintf(exp, "Disks = %d\n", disks);
+		fprintf(exp, "Prime Number = %d\n", meta->prime);
 		fprintf(exp, "Unit Size = %d\n", unit);
-		fprintf(exp, "Method = %s\n", arm_method_name(method));
+		//fprintf(exp, "Method = %s\n", arm_method_name(method));
 		fprintf(exp, "Code = %s\n", get_code_name(code));
-		fprintf(exp, "Coefficient = %d\n", coef);
-		fprintf(exp, "Delay = %d\n", delay);
+		//fprintf(exp, "Coefficient = %d\n", coef);
+		//fprintf(exp, "Delay = %d\n", delay);
 		fprintf(exp, "Total Simulation Time = %f ms\n", currtime);
 		fprintf(exp, "Avg. Response Time = %f ms\n", iostat_avg_response_time());
 		fprintf(exp, "Avg. XORs Per Write = %f\n", iostat_avg_xors_per_write());
-		fprintf(exp, "Total Stripes Reconstructed = %d\n", stripeno);
+		//fprintf(exp, "Total Stripes Reconstructed = %d\n", stripeno);
 		fprintf(exp, "Throughput = %f MB/s\n", iostat_throughput());
 		fprintf(exp, "Experiment Duration = %.3f s\n", duration / 1000.0);
-		fprintf(exp, "Number of Representative Recovery Schemes = %d\n", numrrc);
+		//fprintf(exp, "Number of Representative Recovery Schemes = %d\n", numrrc);
 		fclose(exp);
 	}
 	return 0;
