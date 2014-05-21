@@ -61,27 +61,6 @@ static int help(const char *main) {
 	return 0;
 }
 
-static void trace_add_next(FILE *f) {
-	ioreq *req = (ioreq*) getfromextraq();
-	static char line[201];
-	if (fgets(line, 200, f) == NULL) {
-		event_queue_add(eventq, create_event_node(currtime + 1000, EVENT_STOP_SIM, 0));
-		return;
-	}
-	if (sscanf(line, "%lf%*d%d%d%d", &req->time, &req->blkno, &req->bcount, &req->flag) != 4) {
-		fprintf(stderr, "Wrong number of arguments for I/O trace event type\n");
-		fprintf(stderr, "line: %s\n", line);
-		exit(-1);
-	}
-	req->time *= scale;
-	req->stat = 1;
-	req->curr = NULL;
-	req->groups = NULL;
-	req->reqno = ++reqno; // auto increment ID
-	event_queue_add(eventq, create_event_node(req->time, EVENT_TRACE_MAPREQ, req));
-	event_queue_add(eventq, create_event_node(req->time, EVENT_TRACE_FETCH, f));
-}
-
 static void ioreq_maprequest(double time, ioreq *req) {
 	struct disksim_request *tmpreq;
 	erasure_maprequest(meta, req);
@@ -169,7 +148,7 @@ int main(int argc, char **argv)
         	result = argu;
         else if (!strcmp(flag, "-c") || !strcmp(flag, "--code"))
         	code = get_code_id(argu);
-        else if (!strcmp(flag, "-w"))
+        else if (!strcmp(flag, "-w") || !strcmp(flag, "--width"))
         	width = atoi(argu);
         else {
         	fprintf(stderr, "unknown flag: %s\n", flag);

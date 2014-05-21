@@ -13,11 +13,13 @@
 #define CODE_HCODE		2	// H-code
 #define CODE_XCODE		3	// X-code
 #define CODE_LIBERATION	4	// Liberation code
-#define CODE_SHCODE		5	// shortened H-code
-#define CODE_EXT_HCODE	6	// extended H-code
+#define CODE_SHCODE		5	// Shortened H-code
+#define CODE_EXT_HCODE	6	// Extended H-code
 #define CODE_STAR		7	// STAR code
 #define CODE_TRIPLE		8	// Triple Parity code
 #define CODE_CODE56		9	// Code 5-6
+#define CODE_PCODE		10	// P-code
+#define CODE_CYCLIC		11	// Cyclic code
 
 typedef struct element_t {
 	int row;

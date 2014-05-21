@@ -38,6 +38,10 @@ const char* get_code_name(int code) {
 		return "TRIPLE";
 	case CODE_CODE56:
 		return "CODE56";
+	case CODE_PCODE:
+		return "PCODE";
+	case CODE_CYCLIC:
+		return "CYCLIC";
 	default:
 		fprintf(stderr, "invalid code ID: %d\n", code);
 		exit(-1);
@@ -66,6 +70,10 @@ int get_code_id(const char *code) {
 		return CODE_TRIPLE;
 	if (!strcmp(code, "code56"))
 		return CODE_CODE56;
+	if (!strcmp(code, "pcode"))
+		return CODE_PCODE;
+	if (!strcmp(code, "cyclic"))
+		return CODE_CYCLIC;
 	fprintf(stderr, "invalid code: %s\n", code);
 	exit(-1);
 	return -1;
@@ -327,7 +335,7 @@ static void shortened_hcode_initialize(metadata *meta) {
 
 	meta->numdisks = meta->phydisks - 2;
 	if (!check_prime(meta->phydisks)) {
-		fprintf(stderr, "invalid disk number using SH-Code\n");
+		fprintf(stderr, "invalid disk number using Shortened H-Code\n");
 		exit(1);
 	}
 	p = meta->prime = meta->phydisks;
@@ -738,7 +746,7 @@ static void triple_initialize(metadata *meta) {
 
 	meta->numdisks = meta->phydisks - 3;
 	if (!check_prime(meta->numdisks + 1)) {
-		fprintf(stderr, "invalid disk number using RDP\n");
+		fprintf(stderr, "invalid disk number using Triple Parity\n");
 		exit(1);
 	}
 	p = meta->prime = meta->numdisks + 1;
@@ -813,20 +821,70 @@ static void triple_initialize(metadata *meta) {
 	}
 }
 
-static void erasure_make_table(metadata *meta) {
-	int rot;
-	int unitno, id, no;
-	element *dep, *tmp;
+static void pcode_initialize(metadata *meta) {
+	int i, j, r, c;
+	int p; // the prime number
+	int rows, cols;
+	int unitno, id;
+	parities *chain;
+	element *elem;
 
+	meta->numdisks = meta->phydisks - 2;
+	if (!check_prime(meta->phydisks + 1)) {
+		fprintf(stderr, "invalid disk number using P-Code\n");
+		exit(1);
+	}
+	p = meta->prime = meta->phydisks + 1;
+	rows = meta->rows = (meta->prime - 1) / 2;
+	cols = meta->cols = meta->phydisks;
+	// initialize parity chains
+	meta->numchains = cols;
+	meta->chains = (parities*) malloc(meta->numchains * sizeof(parities));
+	for (c = 0; c < p - 1; c++) {
+		chain = meta->chains + c;
+		chain->type = 0;
+		chain->dest = (element*) malloc(sizeof(element));
+		chain->dest->row = 0;
+		chain->dest->col = c;
+		chain->deps = NULL;
+	}
+	int *rno = malloc(sizeof(int) * cols);
+	memset(rno, 0, sizeof(int) * cols);
+	for (i = 0; i < p - 1; i++)
+		for (j = i + 1; j < p - 1; j++) {
+			c = (i + j + 1) % p;
+			if (c == p - 1) continue;
+			r = ++rno[c];
+			chain = meta->chains + i;
+			elem = (element*) malloc(sizeof(element));
+			elem->row = r;
+			elem->col = c;
+			elem->next = chain->deps;
+			chain->deps = elem;
+			chain = meta->chains + j;
+			elem = (element*) malloc(sizeof(element));
+			elem->row = r;
+			elem->col = c;
+			elem->next = chain->deps;
+			chain->deps = elem;
+		}
+	for (c = 0; c < p - 1; c++) {
+		chain = meta->chains + c;
+		chain->dest->next = chain->deps;
+	}
+	// map the data blocks to units in a stripe
+	meta->dataunits = (rows - 1) * cols;
+	meta->totalunits = rows * cols;
+	meta->entry = (struct entry_t*) malloc(meta->dataunits * sizeof(struct entry_t));
+	meta->rmap = (int*) malloc(meta->totalunits * sizeof(int));
+	memset(meta->rmap, -1, meta->totalunits * sizeof(int));
 	for (unitno = 0; unitno < meta->dataunits; unitno++) {
-		for (id = 0; id < meta->totalunits; id++)
-			if (meta->rmap[id] != unitno && meta->matrix[id * meta->dataunits + unitno] == 1) {
-				tmp = (element*) malloc(sizeof(element));
-				tmp->row = id / meta->cols;
-				tmp->col = id % meta->cols;
-				tmp->next = meta->entry[unitno].depends;
-				meta->entry[unitno].depends = tmp;
-			}
+		r = unitno / meta->cols + 1;
+		c = unitno % meta->cols;
+		meta->entry[unitno].row = r;
+		meta->entry[unitno].col = c;
+		meta->entry[unitno].depends = NULL;
+		meta->rmap[r * meta->cols + c] = unitno;
 	}
 }
 
@@ -901,7 +959,111 @@ static void code56_initialize(metadata *meta) {
 	}
 }
 
-static void gen_matrix(int id, metadata *meta, int *visit) {
+static void cyclic_initialize(metadata *meta) {
+	int i, j, r, c;
+	int p; // the prime number
+	int rows, cols;
+	int unitno, id;
+	parities *chain;
+	element *elem;
+
+	meta->numdisks = meta->phydisks - 2;
+	if (!check_prime(meta->phydisks + 1)) {
+		fprintf(stderr, "invalid disk number using Cyclic code\n");
+		exit(-1);
+	}
+	p = meta->prime = meta->phydisks + 1;
+	rows = meta->rows = (meta->prime - 1) / 2;
+	cols = meta->cols = meta->phydisks;
+
+	meta->numchains = cols;
+	meta->chains = (parities*) malloc(meta->numchains * sizeof(parities));
+	for (c = 0; c < p - 1; c++) {
+		chain = meta->chains + c;
+		chain->type = 0;
+		chain->dest = (element*) malloc(sizeof(element));
+		chain->dest->row = 0;
+		chain->dest->col = c;
+		chain->deps = NULL;
+	}
+
+	int alpha = -1, beta = -1, k = 2;
+	for (i = 2; i < p; i++) {
+		int a = i;
+		for (j = 2; a != 1 && j < p; j++) {
+			a = a * i % p;
+			if (j == k && a == 1)
+				alpha = i;
+			if (j == p - 1 && a == 1 && beta < 0)
+				beta = i;
+		}
+	}
+	int *perm = (int*) malloc(sizeof(int) * cols);
+	for (i = 0; i < p - 1; i++) {
+		int a = 1;
+		for (j = 0; j < i; j++)
+			a = a * beta % p;
+		perm[(a + p - 1) % p] = i;
+	}
+	int ll = 1, rr = alpha, rowno = 1;
+	for (i = 0; i < rows; i++) {
+		if (ll < p - 1 && rr < p - 1) {
+			for (c = 0; c < cols; c++) {
+				chain = meta->chains + (perm[ll] + c) % cols;
+				elem = (element*) malloc(sizeof(element));
+				elem->row = rowno;
+				elem->col = c;
+				elem->next = chain->deps;
+				chain->deps = elem;
+				chain = meta->chains + (perm[rr] + c) % cols;
+				elem = (element*) malloc(sizeof(element));
+				elem->row = rowno;
+				elem->col = c;
+				elem->next = chain->deps;
+				chain->deps = elem;
+			}
+			rowno += 1;
+		}
+		ll = ll * beta % p;
+		rr = rr * beta % p;
+	}
+	for (i = 0; i < cols; i++) {
+		chain = meta->chains + i;
+		chain->dest->next = chain->deps;
+	}
+	meta->dataunits = (rows - 1) * cols;
+	meta->totalunits = rows * cols;
+	meta->entry = (struct entry_t*) malloc(meta->dataunits * sizeof(struct entry_t));
+	meta->rmap = (int*) malloc(meta->totalunits * sizeof(int));
+	memset(meta->rmap, -1, meta->totalunits * sizeof(int));
+	for (unitno = 0; unitno < meta->dataunits; unitno++) {
+		r = unitno / meta->cols + 1;
+		c = unitno % meta->cols;
+		meta->entry[unitno].row = r;
+		meta->entry[unitno].col = c;
+		meta->entry[unitno].depends = NULL;
+		meta->rmap[r * meta->cols + c] = unitno;
+	}
+}
+
+static void erasure_make_table(metadata *meta) {
+	int rot;
+	int unitno, id, no;
+	element *dep, *tmp;
+
+	for (unitno = 0; unitno < meta->dataunits; unitno++) {
+		for (id = 0; id < meta->totalunits; id++)
+			if (meta->rmap[id] != unitno && meta->matrix[id * meta->dataunits + unitno] == 1) {
+				tmp = (element*) malloc(sizeof(element));
+				tmp->row = id / meta->cols;
+				tmp->col = id % meta->cols;
+				tmp->next = meta->entry[unitno].depends;
+				meta->entry[unitno].depends = tmp;
+			}
+	}
+}
+
+static void gen_matrix_dfs(int id, metadata *meta, int *visit) {
 	int ch = 0;
 	int id1;
 	int unitno;
@@ -919,7 +1081,7 @@ static void gen_matrix(int id, metadata *meta, int *visit) {
 	for (elem = meta->chains[ch].deps; elem != NULL; elem = elem->next) {
 		id1 = elem->row * meta->cols + elem->col;
 		if (visit[id1] == 0)
-			gen_matrix(id1, meta, visit);
+			gen_matrix_dfs(id1, meta, visit);
 		for (unitno = 0; unitno < meta->dataunits; unitno++)
 			meta->matrix[id * meta->dataunits + unitno] ^= meta->matrix[id1 * meta->dataunits + unitno];
 	}
@@ -941,7 +1103,7 @@ static void erasure_gen_matrix(metadata *meta) {
 	}
 	for (id = 0; id < meta->totalunits; id++)
 		if (visit[id] == 0)
-			gen_matrix(id, meta, visit);
+			gen_matrix_dfs(id, meta, visit);
 	free(visit);
 }
 
@@ -1019,6 +1181,12 @@ void erasure_initialize(metadata *meta, int codetype, int disks, int unitsize) {
 		break;
 	case CODE_CODE56:
 		code56_initialize(meta);
+		break;
+	case CODE_PCODE:
+		pcode_initialize(meta);
+		break;
+	case CODE_CYCLIC:
+		cyclic_initialize(meta);
 		break;
 	default:
 		fprintf(stderr, "unrecognized reduntype in erasure_initialize\n");
