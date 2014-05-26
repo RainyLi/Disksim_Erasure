@@ -42,6 +42,8 @@ const char* get_code_name(int code) {
 		return "PCODE";
 	case CODE_CYCLIC:
 		return "CYCLIC";
+	case CODE_RAID5:
+		return "RAID5";
 	default:
 		fprintf(stderr, "invalid code ID: %d\n", code);
 		exit(-1);
@@ -74,6 +76,8 @@ int get_code_id(const char *code) {
 		return CODE_PCODE;
 	if (!strcmp(code, "cyclic"))
 		return CODE_CYCLIC;
+	if (!strcmp(code, "raid5"))
+		return CODE_RAID5;
 	fprintf(stderr, "invalid code: %s\n", code);
 	exit(-1);
 	return -1;
@@ -1046,6 +1050,72 @@ static void cyclic_initialize(metadata *meta) {
 	}
 }
 
+static void hover_initialize(metadata *meta) {
+	int r, c, i, j, p;
+	int rows, cols;
+	parities *chain;
+	element *elem;
+
+	meta->numdisks = meta->phydisks - 3;
+	if (!check_prime(meta->phydisks + 1)) {
+		fprintf(stderr, "invalid disk number using HoVer code\n");
+		exit(-1);
+	}
+	p = meta->prime = meta->phydisks + 1;
+	rows = meta->rows = (meta->prime - 1) / 2;
+	cols = meta->cols = meta->phydisks;
+
+	meta->numchains = cols;
+	meta->chains = (parities*) malloc(meta->numchains * sizeof(parities));
+	for (c = 0; c < p - 1; c++) {
+		chain = meta->chains + c;
+		chain->type = 0;
+		chain->dest = (element*) malloc(sizeof(element));
+		chain->dest->row = 0;
+		chain->dest->col = c;
+		chain->deps = NULL;
+	}
+}
+
+static void raid5_initialize(metadata *meta) {
+	int r, c, i, p;
+	int rows, cols;
+	parities *chain;
+	element *elem;
+
+	meta->numdisks = meta->phydisks - 1;
+	p = meta->prime = meta->phydisks;
+	rows = meta->rows = 1;
+	cols = meta->cols = meta->phydisks;
+
+	meta->numchains = 1;
+	chain = meta->chains = (parities*) malloc(meta->numchains * sizeof(parities));
+	chain->type = 0;
+	chain->dest = (element*) malloc(sizeof(element));
+	chain->dest->row = 0;
+	chain->dest->col = cols - 1;
+	chain->deps = NULL;
+	for (c = 0; c < cols - 1; c++) {
+		elem = (element*) malloc(sizeof(element));
+		elem->row = 0;
+		elem->col = c;
+		elem->next = chain->deps;
+		chain->deps = elem;
+	}
+	chain->dest->next = chain->deps;
+	meta->dataunits = cols - 1;
+	meta->totalunits = cols;
+	meta->entry = (struct entry_t*) malloc(meta->dataunits * sizeof(struct entry_t));
+	meta->rmap = (int*) malloc(meta->totalunits * sizeof(int));
+	memset(meta->rmap, -1, meta->totalunits * sizeof(int));
+	for (c = 0; c < meta->dataunits; c++) {
+		meta->entry[c].row = 0;
+		meta->entry[c].col = c;
+		meta->entry[c].depends = NULL;
+		meta->rmap[c] = c;
+	}
+}
+
 static void erasure_make_table(metadata *meta) {
 	int rot;
 	int unitno, id, no;
@@ -1187,6 +1257,9 @@ void erasure_initialize(metadata *meta, int codetype, int disks, int unitsize) {
 		break;
 	case CODE_CYCLIC:
 		cyclic_initialize(meta);
+		break;
+	case CODE_RAID5:
+		raid5_initialize(meta);
 		break;
 	default:
 		fprintf(stderr, "unrecognized reduntype in erasure_initialize\n");

@@ -20,6 +20,10 @@
 #define CODE_CODE56		9	// Code 5-6
 #define CODE_PCODE		10	// P-code
 #define CODE_CYCLIC		11	// Cyclic code
+#define CODE_RAID0		12	// RAID-0
+#define CODE_RAID5		13	// RAID-5
+
+#define CODE_HOVER		30	// HoVer code (non-MDS)
 
 typedef struct element_t {
 	int row;
