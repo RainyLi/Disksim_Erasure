@@ -14,7 +14,7 @@
 #include "disksim_erasure.h"
 #include "disksim_interface.h"
 
-#define THRESHOLD	8
+#define THRESHOLD	16
 
 const char* get_code_name(int code) {
 	switch (code) {
@@ -99,6 +99,17 @@ void add_to_ioreq(ioreq *req, iogroup *group) {
 		req->curr = group;
 		group->next = NULL;
 	}
+}
+
+void add_to_iogroup(iogroup *g, struct disksim_request *tmp) {
+	tmp->next = NULL;
+	if (g->reqs == NULL)
+		g->reqs = g->tail = tmp;
+	else {
+		g->tail->next = tmp;
+		g->tail = tmp;
+	}
+	g->numreqs++;
 }
 
 static int check_prime(int number) {
@@ -1165,6 +1176,7 @@ static void erasure_gen_matrix(metadata *meta) {
 	visit = (int*) malloc(meta->totalunits * sizeof(int));
 	memset(visit, 0, meta->totalunits * sizeof(int));
 	meta->matrix = (int*) malloc(meta->totalunits * meta->dataunits * sizeof(int));
+	// TODO to be optimized
 	memset(meta->matrix, 0, meta->totalunits * meta->dataunits * sizeof(int));
 	for (unitno = 0; unitno < meta->dataunits; unitno++) {
 		id = meta->entry[unitno].row * meta->cols + meta->entry[unitno].col;
@@ -1202,6 +1214,7 @@ static void erasure_rebuild_init(metadata *meta) {
 	meta->failed = (int*) malloc(sizeof(int) * meta->phydisks);
 	memset(meta->failed, 0, sizeof(int) * meta->phydisks);
 	meta->laststripe = -1;
+	/*
 	meta->chs = (parities***) malloc(sizeof(void*) * meta->totalunits);
 	meta->chl = (int*) malloc(sizeof(int) * meta->totalunits);
 	memset(meta->chl, 0, sizeof(int) * meta->totalunits);
@@ -1215,6 +1228,7 @@ static void erasure_rebuild_init(metadata *meta) {
 		}
 	}
 	meta->test = (int*) malloc(sizeof(int) * meta->totalunits);
+	*/
 }
 
 void erasure_initialize(metadata *meta, int codetype, int disks, int unitsize) {
@@ -1269,6 +1283,7 @@ void erasure_initialize(metadata *meta, int codetype, int disks, int unitsize) {
 	erasure_make_table(meta);
 	erasure_init_rottable(meta);
 	erasure_rebuild_init(meta);
+	free(meta->matrix);
 }
 
 static void rottable_update(rottable *tab, int r, int c, int ll, int rr) {
@@ -1298,6 +1313,7 @@ void erasure_maprequest(metadata *meta, ioreq *req) {
 	req->curr = NULL;
 	req->numxors = 0;
 	req->numIOs = 0;
+	iogroup *g = create_ioreq_group();
 	while (stripeno * stripesize < end) {
 		int rot = stripeno % meta->cols;
 		memset(ph1->hit, 0, sizeof(int) * meta->totalunits);
@@ -1337,7 +1353,7 @@ void erasure_maprequest(metadata *meta, ioreq *req) {
 		}
 		int r, nxt, dc;
 		struct disksim_request *tmp = (struct disksim_request*) getfromextraq();
-		iogroup *g1 = create_ioreq_group();
+		//iogroup *g1 = create_ioreq_group();
 		for (dc = 0; dc < meta->cols; dc++) {
 			if (meta->failed[dc]) continue;
 			for (r = 0; r < meta->rows; r = nxt)
@@ -1362,13 +1378,11 @@ void erasure_maprequest(metadata *meta, ioreq *req) {
 					tmp->blkno = ll;
 					tmp->bytecount = (rr - ll) * 512;
 					tmp->flags = DISKSIM_READ; // read
-					tmp->next = g1->reqs;
 					tmp->reqctx = req;
-					g1->reqs = tmp;
-					g1->numreqs++;
+					add_to_iogroup(g, tmp);
 				} else nxt = r + 1;
 		}
-		iogroup *g2 = create_ioreq_group();
+		//iogroup *g2 = create_ioreq_group();
 		for (dc = 0; dc < meta->cols; dc++) {
 			if (meta->failed[dc]) continue;
 			for (r = 0; r < meta->rows; r = nxt)
@@ -1393,14 +1407,12 @@ void erasure_maprequest(metadata *meta, ioreq *req) {
 					tmp->blkno = ll;
 					tmp->bytecount = (rr - ll) * 512;
 					tmp->flags = DISKSIM_WRITE; // write
-					tmp->next = g2->reqs;
 					tmp->reqctx = req;
-					g2->reqs = tmp;
-					g2->numreqs++;
+					add_to_iogroup(g, tmp);
 				} else nxt = r + 1;
 		}
-		add_to_ioreq(req, g1);
-		add_to_ioreq(req, g2);
+		//add_to_ioreq(req, g1);
+		//add_to_ioreq(req, g2);
 		stripeno++;
 		// calculate number of XORs
 		if (req->flag == DISKSIM_WRITE) {
@@ -1428,6 +1440,7 @@ void erasure_maprequest(metadata *meta, ioreq *req) {
 		for (unitno = 0; unitno < meta->totalunits; unitno++)
 			req->numIOs += ph1->hit[unitno] + ph2->hit[unitno];
 	}
+	add_to_ioreq(req, g);
 }
 
 void erasure_disk_failure(metadata *meta, int devno) {

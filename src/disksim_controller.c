@@ -472,8 +472,6 @@ struct controller *disksim_ctlr_loadparams(struct lp_block *b)
 	/* temp vars for parameters */
 
 
-
-
 	/* initialize top-level controller info struct if necessary */
 	if (disksim->ctlrinfo == NULL) {
 		disksim->ctlrinfo = DISKSIM_malloc (sizeof(ctlrinfo_t));

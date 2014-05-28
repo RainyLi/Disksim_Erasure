@@ -87,6 +87,7 @@ typedef struct io_request_group_t {
 	int numreqs;
 	int cnt;
 	struct io_request_group_t *next;
+	struct disksim_request *tail;
 } iogroup;
 
 typedef struct io_request_t {
