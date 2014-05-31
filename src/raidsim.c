@@ -65,20 +65,23 @@ int help(const char *main) {
 }
 
 void trace_add_next(FILE *f) {
-	ioreq *req = (ioreq*) getfromextraq();
 	static char line[201];
-	if (fgets(line, 200, f) == NULL) return;
+	if (fgets(line, 200, f) == NULL) {
+		event_queue_add(eventq, create_event_node(currtime + 3000, EVENT_STOP_SIM, NULL));
+		return;
+	}
+	ioreq *req = (ioreq*) getfromextraq();
 	if (sscanf(line, "%lf%*d%d%d%d", &req->time, &req->blkno, &req->bcount, &req->flag) != 4) {
 		fprintf(stderr, "Wrong number of arguments for I/O trace event type\n");
 		fprintf(stderr, "line: %s\n", line);
 		exit(-1);
 	}
+	if (stop > 0 && req->time > stop) return;
 	req->time *= scale;
 	req->stat = 1;
 	req->curr = NULL;
 	req->groups = NULL;
 	req->reqno = ++reqno; // auto increment ID
-	if (stop > 0 && req->time > stop) return;
 	event_queue_add(eventq, create_event_node(req->time, EVENT_TRACE_MAPREQ, req));
 	event_queue_add(eventq, create_event_node(req->time, EVENT_TRACE_FETCH, f));
 }
@@ -200,6 +203,8 @@ int main(int argc, char **argv) {
         	fail = argu;
         else if (!strcmp(flag, "-c") || !strcmp(flag, "--code"))
         	code = get_code_id(argu);
+        else if (!strcmp(flag, "--scale"))
+        	scale = atof(argu);
         else {
         	fprintf(stderr, "unknown flag: %s\n", flag);
         	exit(0);

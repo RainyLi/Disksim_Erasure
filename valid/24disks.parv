@@ -123,37 +123,37 @@ topology disksim_iodriver driver0 [
         ],
         disksim_ctlr ctlr4 [
           disksim_bus bus5 [
-            disksim_disk disk1 []
+            disksim_disk disk3 []
           ]
         ],
         disksim_ctlr ctlr5 [
           disksim_bus bus6 [
-            disksim_disk disk2 []
+            disksim_disk disk6 []
           ]
         ],
         disksim_ctlr ctlr6 [
           disksim_bus bus7 [
-            disksim_disk disk3 []
+            disksim_disk disk9 []
           ]
         ],
         disksim_ctlr ctlr7 [
           disksim_bus bus8 [
-            disksim_disk disk4 []
+            disksim_disk disk12 []
           ]
         ],
         disksim_ctlr ctlr8 [
           disksim_bus bus9 [
-            disksim_disk disk5 []
+            disksim_disk disk15 []
           ]
         ],
         disksim_ctlr ctlr9 [
           disksim_bus bus10 [
-            disksim_disk disk6 []
+            disksim_disk disk18 []
           ]
         ],
         disksim_ctlr ctlr10 [
           disksim_bus bus11 [
-            disksim_disk disk7 []
+            disksim_disk disk21 []
           ]
         ] 
       ]
@@ -162,42 +162,42 @@ topology disksim_iodriver driver0 [
       disksim_bus bus2 [
         disksim_ctlr ctlr11 [
           disksim_bus bus12 [
-            disksim_disk disk8 []
+            disksim_disk disk1 []
           ]
         ],
         disksim_ctlr ctlr12 [
           disksim_bus bus13 [
-            disksim_disk disk9 []
+            disksim_disk disk4 []
           ]
         ],
         disksim_ctlr ctlr13 [
           disksim_bus bus14 [
-            disksim_disk disk10 []
+            disksim_disk disk7 []
           ]
         ],
         disksim_ctlr ctlr14 [
           disksim_bus bus15 [
-            disksim_disk disk11 []
+            disksim_disk disk10 []
           ]
         ],
         disksim_ctlr ctlr15 [
           disksim_bus bus16 [
-            disksim_disk disk12 []
+            disksim_disk disk13 []
           ]
         ],
         disksim_ctlr ctlr16 [
           disksim_bus bus17 [
-            disksim_disk disk13 []
+            disksim_disk disk16 []
           ]
         ],
         disksim_ctlr ctlr17 [
           disksim_bus bus18 [
-            disksim_disk disk14 []
+            disksim_disk disk19 []
           ]
         ],
         disksim_ctlr ctlr18 [
           disksim_bus bus19 [
-            disksim_disk disk15 []
+            disksim_disk disk22 []
           ]
         ] 
       ]
@@ -206,37 +206,37 @@ topology disksim_iodriver driver0 [
       disksim_bus bus3 [
         disksim_ctlr ctlr19 [
           disksim_bus bus20 [
-            disksim_disk disk16 []
+            disksim_disk disk2 []
           ]
         ],
         disksim_ctlr ctlr20 [
           disksim_bus bus21 [
-            disksim_disk disk17 []
+            disksim_disk disk5 []
           ]
         ],
         disksim_ctlr ctlr21 [
           disksim_bus bus22 [
-            disksim_disk disk18 []
+            disksim_disk disk8 []
           ]
         ],
         disksim_ctlr ctlr22 [
           disksim_bus bus23 [
-            disksim_disk disk19 []
+            disksim_disk disk11 []
           ]
         ],
         disksim_ctlr ctlr23 [
           disksim_bus bus24 [
-            disksim_disk disk20 []
+            disksim_disk disk14 []
           ]
         ],
         disksim_ctlr ctlr24 [
           disksim_bus bus25 [
-            disksim_disk disk21 []
+            disksim_disk disk17 []
           ]
         ],
         disksim_ctlr ctlr25 [
           disksim_bus bus26 [
-            disksim_disk disk22 []
+            disksim_disk disk20 []
           ]
         ],
         disksim_ctlr ctlr26 [
