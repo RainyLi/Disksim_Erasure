@@ -96,7 +96,7 @@ void trace_add_recon(double time) {
 
 void ioreq_maprequest(double time, ioreq *req) {
 	struct disksim_request *tmpreq;
-	erasure_maprequest(meta, req);
+	erasure_standard_maprequest(meta, req);
 	if (req->numreqs == 0) {
 		fprintf(stderr, "map_request failed.\n");
 		exit(-1);
@@ -129,7 +129,6 @@ void initialize_disk_failure(metadata *meta, const char *s) {
 			int c = 0;
 			for (j = i; j < l && isdigit(s[j]); j++)
 				c = (c << 3) + (c << 1) + (s[j] - '0');
-			erasure_disk_failure(meta, c);
 			fails += 1;
 			i = j;
 		}
@@ -218,8 +217,8 @@ int main(int argc, char **argv) {
 		event_queue_add(eventq, create_event_node(0, EVENT_STAT_PEAK, 0));
 
 	meta = (metadata*) malloc(sizeof(metadata));
+	erasure_initialize();
 	erasure_init_code(meta, code, disks, unit * 2);
-	initialize_disk_failure(meta, fail);
 
 	iostat_initialize(disks);
 	distr = malloc(sizeof(int) * disks);

@@ -32,7 +32,6 @@ static equeue *eventq;
 static metadata *meta; // erasure code metadata
 static struct disksim_interface *interface;
 static double currtime = 0;
-static double scale = 1;
 static int reqno = 0;
 static int disks = 12;
 static int unit = 16; // size in KB
@@ -62,7 +61,7 @@ static int help(const char *main) {
 
 static void ioreq_maprequest(double time, ioreq *req) {
 	struct disksim_request *tmpreq;
-	erasure_maprequest(meta, req);
+	erasure_standard_maprequest(meta, req);
 	if (req->numreqs == 0) {
 		fprintf(stderr, "map_request failed.\n");
 		exit(-1);
@@ -85,6 +84,7 @@ static void ioreq_complete(double time, struct disksim_request *tmpreq) {
 			addtoextraq((event*)tmpreq);
 		}
 		addtoextraq((event*)req);
+		event_queue_add(eventq, create_event_node(time, EVENT_TRACE_FETCH, 0));
 	}
 }
 
@@ -107,6 +107,7 @@ static void recon_descheduled_callback(double time, void *ctx) {
 
 int main(int argc, char **argv)
 {
+	erasure_initialize();
 	int i, p = 1;
 	while (p < argc) {
 		const char *flag = argv[p++];
@@ -147,11 +148,10 @@ int main(int argc, char **argv)
 	eventq = malloc(sizeof(equeue));
 	event_queue_initialize(eventq);
 
-	erasure_initialize();
-	iostat_initialize(disks);
 	meta = (metadata*) malloc(sizeof(metadata));
 	erasure_init_code(meta, code, disks, unit * 2);
 
+	iostat_initialize(disks);
 
 	int currblock = 0, totblocks = meta->dataunits;
 	event_queue_add(eventq, create_event_node(0, EVENT_TRACE_FETCH, 0));
@@ -179,7 +179,7 @@ int main(int argc, char **argv)
 				req->time = currtime;
 				req->blkno = currblock * unit * 2;
 				req->bcount = width * unit * 2;
-				req->flag = WRITE;
+				req->flag = DISKSIM_WRITE;
 				req->stat = 1;
 				req->reqno = ++reqno; // auto increment ID
 				event_queue_add(eventq, create_event_node(req->time, EVENT_TRACE_MAPREQ, req));

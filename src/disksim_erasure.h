@@ -37,46 +37,26 @@ typedef struct parity_t {
 } parity;
 
 typedef struct {
-	int row; // unit number
-	int col; // device number
-	element *depends; // depends
-} entry;
-
-typedef struct {
 	int rows, cols;
 	int *hit; // hit
 	int *ll, *rr; // range
-	entry *entry;
+	element *map;
 } rottable;
 
 typedef struct {
-	// general attributes
 	int codetype;
 	int phydisks;
 	int numdisks;
 	int unitsize;
-
-	// stripe level variables, maintained by functions provided by erasure codes
 	int prime;
-	int rows;
-	int cols;
+	int rows, cols;
 	parity *chains;
 	int numchains;
 	int dataunits;
 	int totalunits;
-	entry *entry; // map from data block number to position on disks
-	int *matrix; // totalunits by dataunits
+	int stripesize;
+	element *map; // map from data block ID to corresponding data & parity blocks
 	int *rmap; // map from position to data block number
-
-	// disk rebuild
-	int numfailures;
-	int *failed;
-	int laststripe;
-	int totstripes;
-
-	parity ***chs; // parity chains protecting the unit
-	int *chl; // num of chains
-	int *test;
 	rottable *ph1, *ph2;
 } metadata;
 
@@ -92,7 +72,7 @@ typedef struct {
 	struct disksim_request *reqs, *tail;
 	int numreqs, donereqs;
 
-	int numxors;
+	int numXORs;
 	int numIOs;
 } ioreq;
 
@@ -110,9 +90,7 @@ int get_code_id(const char *code);
 
 void erasure_initialize();
 void erasure_init_code(metadata *meta, int codetype, int disks, int unit);
-void erasure_maprequest(metadata *meta, ioreq *req);
-
-void erasure_disk_failure(metadata *meta, int devno);
+void erasure_standard_maprequest(metadata *meta, ioreq *req);
 
 void add_to_ioreq(ioreq *req, struct disksim_request *tmp);
 

@@ -51,7 +51,7 @@ static statnode *space = NULL;
 static statnode *head = NULL, *tail = NULL;
 static double currtime = 0;
 static long long total_blks;
-static long long total_xors;
+static long long total_XORs;
 static long long total_IOs;
 
 void iostat_initialize(int disks) {
@@ -61,7 +61,7 @@ void iostat_initialize(int disks) {
 	numdisks = disks;
 	total_response_time = 0;
 	total_blks = 0;
-	total_xors = 0;
+	total_XORs = 0;
 	total_IOs = 0;
 	iocount = malloc(sizeof(int) * disks);
 	memset(iocount, 0, sizeof(int) * disks);
@@ -80,7 +80,7 @@ double iostat_peak_throughput() {
 }
 
 double iostat_avg_xors_per_write() {
-	return total_xors * 1.0 / numwrites;
+	return total_XORs * 1.0 / numwrites;
 }
 
 double iostat_avg_IOs_per_request() {
@@ -107,7 +107,7 @@ void iostat_ioreq_complete(double time, ioreq *req) {
 		numreqs += 1;
 		numwrites += (req->flag == 0);
 		items_in_table -= 1;
-		total_xors += req->numxors;
+		total_XORs += req->numXORs;
 		total_IOs += req->numIOs;
 	}
 }
