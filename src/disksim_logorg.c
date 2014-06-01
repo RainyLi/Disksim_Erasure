@@ -104,7 +104,7 @@
 #include "disksim_logorg.h"
 #include "modules/modules.h"
 
-#define MAX_QUEUE_LENGTH 10000
+#define MAX_QUEUE_LENGTH 1000000
 
 
 /* read-only globals used during readparams phase */
@@ -399,6 +399,7 @@ static void logorg_maprequest_update_stats (logorg *currlogorg, ioreq_event *cur
 		fprintf (outputfile, "Stopping simulation because of saturation: simtime %f, totalreqs %d\n", simtime, disksim->totalreqs);
 		fprintf (outputfile, "last request:  dev=%d, blk=%d, cnt=%d, %d (R==1)\n",curr->devno, curr->blkno, curr->bcount, (curr->flags & READ));
 		disksim_simstop();
+		exit(0);
 	}
 	if (req->flags & READ) {
 		currlogorg->stat.readoutstanding++;

@@ -13,7 +13,15 @@
 #define CODE_HCODE		2	// H-code
 #define CODE_XCODE		3	// X-code
 #define CODE_LIBERATION	4	// Liberation code
-#define CODE_SHCODE		5	// shortened H-code
+#define CODE_SHCODE		5	// Shortened H-code
+#define CODE_EXT_HCODE	6	// Extended H-code
+#define CODE_STAR		7	// STAR code
+#define CODE_TRIPLE		8	// Triple Parity code
+#define CODE_CODE56		9	// Code 5-6
+#define CODE_PCODE		10	// P-code
+#define CODE_CYCLIC		11	// Cyclic code
+#define CODE_RAID0		12	// RAID-0
+#define CODE_RAID5		13	// RAID-5
 
 typedef struct element_t {
 	int row;
@@ -21,65 +29,38 @@ typedef struct element_t {
 	struct element_t *next;
 } element;
 
-typedef struct parity_chain_t {
+typedef struct parity_t {
 	int type; // row=0, diagonal=1,2...
 	element *dest;
 	element *deps;
-	struct erasure_chain_t *next;
-} parities;
+	struct parity_t *next;
+} parity;
 
-typedef struct entry_t {
-	int row; // unit number
-	int col; // device number
-	element *depends; // depends
-} entry;
-
-typedef struct rottable_t {
+typedef struct {
 	int rows, cols;
 	int *hit; // hit
 	int *ll, *rr; // range
-	struct entry_t *entry;
+	element *map;
 } rottable;
 
-typedef struct metadata_t {
-	// general attributes
+typedef struct {
 	int codetype;
 	int phydisks;
 	int numdisks;
 	int unitsize;
-
-	// stripe level variables, maintained by functions provided by erasure codes
 	int prime;
-	int rows;
-	int cols;
-	parities *chains;
+	int rows, cols;
+	parity *chains;
 	int numchains;
 	int dataunits;
 	int totalunits;
-	struct entry_t *entry; // map from data block number to position on disks
-	int *matrix; // totalunits by dataunits
+	int stripesize;
+	element *map; // map from data block ID to corresponding data & parity blocks
 	int *rmap; // map from position to data block number
-
-	// disk rebuild
-	int numfailures;
-	int *failed;
-	int laststripe;
-	int totstripes;
-
-	parities ***chs; // parity chains protecting the unit
-	int *chl; // num of chains
-	int *test;
 	rottable *ph1, *ph2;
 } metadata;
 
-typedef struct io_request_group_t {
-	struct disksim_request *reqs;
-	int numreqs;
-	int cnt;
-	struct io_request_group_t *next;
-} iogroup;
-
-typedef struct io_request_t {
+typedef struct {
 	int reqno;
 	int reqtype;
 	double time;
@@ -87,21 +68,30 @@ typedef struct io_request_t {
 	int bcount;
 	int flag;
 	int stat;
-	iogroup *groups;
-	iogroup *curr;
-	int numxors;
+
+	struct disksim_request *reqs, *tail;
+	int numreqs, donereqs;
+
+	int numXORs;
 	int numIOs;
 } ioreq;
+
+typedef void(*initializer)(metadata*);
+
+typedef struct {
+	int codeID;
+	const char *flag;
+	const char *name;
+	initializer func;
+} codespec;
 
 const char* get_code_name(int code);
 int get_code_id(const char *code);
 
-void erasure_initialize(metadata *meta, int codetype, int disks, int unit);
-void erasure_maprequest(metadata *meta, ioreq *req);
+void erasure_initialize();
+void erasure_init_code(metadata *meta, int codetype, int disks, int unit);
+void erasure_standard_maprequest(metadata *meta, ioreq *req);
 
-void erasure_disk_failure(metadata *meta, int devno);
-
-iogroup* create_ioreq_group();
-void   add_to_ioreq(ioreq *req, iogroup *group);
+void add_to_ioreq(ioreq *req, struct disksim_request *tmp);
 
 #endif /* DISKSIM_ERASURE_H_ */

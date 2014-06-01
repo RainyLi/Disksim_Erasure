@@ -18,7 +18,7 @@ static int items_in_table = 0;
 static double peak = 0;
 
 void hashtable_init() {
-	htable = malloc(sizeof(hashnode) * P);
+	htable = (hashnode*) malloc(sizeof(hashnode) * P);
 	memset(htable, -1, sizeof(hashnode) * P);
 }
 
@@ -50,9 +50,9 @@ static int *iocount;
 static statnode *space = NULL;
 static statnode *head = NULL, *tail = NULL;
 static double currtime = 0;
-static long long total_blks = 0;
-static long long total_xors = 0;
-static long long total_IOs = 0;
+static long long total_blks;
+static long long total_XORs;
+static long long total_IOs;
 
 void iostat_initialize(int disks) {
 	hashtable_init();
@@ -61,7 +61,8 @@ void iostat_initialize(int disks) {
 	numdisks = disks;
 	total_response_time = 0;
 	total_blks = 0;
-	total_xors = 0;
+	total_XORs = 0;
+	total_IOs = 0;
 	iocount = malloc(sizeof(int) * disks);
 	memset(iocount, 0, sizeof(int) * disks);
 }
@@ -79,7 +80,7 @@ double iostat_peak_throughput() {
 }
 
 double iostat_avg_xors_per_write() {
-	return total_xors * 1.0 / numwrites;
+	return total_XORs * 1.0 / numwrites;
 }
 
 double iostat_avg_IOs_per_request() {
@@ -92,6 +93,7 @@ void iostat_ioreq_start(double time, ioreq *req) {
 		items_in_table += 1;
 		if (items_in_table + items_in_table > P) {
 			fprintf(stderr, "Stop simulation because of saturation.\n");
+			printf("items in table %d\n", items_in_table);
 			exit(0);
 		}
 	}
@@ -105,7 +107,7 @@ void iostat_ioreq_complete(double time, ioreq *req) {
 		numreqs += 1;
 		numwrites += (req->flag == 0);
 		items_in_table -= 1;
-		total_xors += req->numxors;
+		total_XORs += req->numXORs;
 		total_IOs += req->numIOs;
 	}
 }

@@ -11,7 +11,6 @@
 #include <ctype.h>
 #include <time.h>
 
-#include "disksim_arm.h"
 #include "disksim_erasure.h"
 #include "disksim_event_queue.h"
 #include "disksim_global.h"
@@ -33,17 +32,15 @@ static equeue *eventq;
 static metadata *meta; // erasure code metadata
 static struct disksim_interface *interface;
 static double currtime = 0;
-static double scale = 1;
 static int reqno = 0;
 static int disks = 12;
-static int *distr;
 static int unit = 16; // size in KB
 static int width = 2;
 static int delay = 1000;
 static long long limit = 0; // maximum operations
-static int code = CODE_RDP;
+static int code = CODE_RAID5;
 static const char *result = "";
-static const char *parfile = "../valid/12disks.parv";
+static const char *parfile = "../valid/16disks.parv";
 static const char *outfile = "t.outv";
 
 static int help(const char *main) {
@@ -51,7 +48,6 @@ static int help(const char *main) {
 	printf("  options are:\n");
 	printf("\t-n, --num     [number]\t number of disks\n");
 	printf("\t-u, --unit    [number]\t stripe unit size (KB)\n");
-	printf("\t-s, --stop    [number]\t stop after reconstruct how many stripes\n");
 	printf("\t-d, --delay   [number]\t io_stat sampling interval\n");
 	printf("\t-i, --input   [string]\t input trace file\n");
 	printf("\t-o, --output  [string]\t DiskSim output file\n");
@@ -63,80 +59,32 @@ static int help(const char *main) {
 	return 0;
 }
 
-static void trace_add_next(FILE *f) {
-	ioreq *req = (ioreq*) getfromextraq();
-	static char line[201];
-	if (fgets(line, 200, f) == NULL) {
-		event_queue_add(eventq, create_event_node(currtime + 1000, EVENT_STOP_SIM, 0));
-		return;
-	}
-	if (sscanf(line, "%lf%*d%d%d%d", &req->time, &req->blkno, &req->bcount, &req->flag) != 4) {
-		fprintf(stderr, "Wrong number of arguments for I/O trace event type\n");
-		fprintf(stderr, "line: %s\n", line);
-		exit(-1);
-	}
-	req->time *= scale;
-	req->stat = 1;
-	req->curr = NULL;
-	req->groups = NULL;
-	req->reqno = ++reqno; // auto increment ID
-	event_queue_add(eventq, create_event_node(req->time, EVENT_TRACE_MAPREQ, req));
-	event_queue_add(eventq, create_event_node(req->time, EVENT_TRACE_FETCH, f));
-}
-
-static void trace_add_recon(double time) {
-	ioreq *req = (ioreq*) getfromextraq();
-	req->time = time;
-	req->stat = 0;
-	req->curr = NULL;
-	req->groups = NULL;
-	req->reqno = ++reqno; // auto increment ID
-	event_queue_add(eventq, create_event_node(req->time, EVENT_TRACE_MAPREQ, req));
-}
-
 static void ioreq_maprequest(double time, ioreq *req) {
 	struct disksim_request *tmpreq;
-	erasure_maprequest(meta, req);
-	if (req->groups == 0) {
+	erasure_standard_maprequest(meta, req);
+	if (req->numreqs == 0) {
 		fprintf(stderr, "map_request failed.\n");
 		exit(-1);
 	}
 	iostat_ioreq_start(time, req);
-	req->curr = req->groups;
-	req->curr->cnt = req->curr->numreqs;
-	for (tmpreq = req->curr->reqs; tmpreq != NULL; tmpreq = tmpreq->next) {
+	for (tmpreq = req->reqs; tmpreq != NULL; tmpreq = tmpreq->next)
 		disksim_interface_request_arrive(interface, time, tmpreq);
-		event_queue_add(eventq, create_event_node(time, EVENT_STAT_ADD,
-				iostat_create_node(time, tmpreq->devno, tmpreq->bytecount / 512)));
-	}
 }
 
-static void ioreq_complete(double time, ioreq *req) {
-	struct disksim_request *tmpreq, *nq;
-	iogroup *group, *ng;
-	req->curr->cnt--;
-	if (req->curr->cnt == 0) {
-		if (req->curr->next != NULL) {
-			req->curr = req->curr->next;
-			req->curr->cnt = req->curr->numreqs;
-			for (tmpreq = req->curr->reqs; tmpreq != NULL; tmpreq = tmpreq->next) {
-				disksim_interface_request_arrive(interface, time, tmpreq);
-				event_queue_add(eventq, create_event_node(time, EVENT_STAT_ADD,
-						iostat_create_node(time, tmpreq->devno, tmpreq->bytecount / 512)));
-			}
-			event_queue_add(eventq, create_event_node(currtime, EVENT_TRACE_FETCH, 0));
-		} else { // request complete
-			iostat_ioreq_complete(time, req);
-			for (group = req->groups; group != NULL; group = ng) {
-				for (tmpreq = group->reqs; tmpreq != NULL; tmpreq = nq) {
-					nq = tmpreq->next;
-					addtoextraq((event*)tmpreq);
-				}
-				ng = group->next;
-				addtoextraq((event*)group);
-			}
-			addtoextraq((event*)req);
+static void ioreq_complete(double time, struct disksim_request *tmpreq) {
+	ioreq *req = tmpreq->reqctx;
+	event_queue_add(eventq, create_event_node(time, EVENT_STAT_ADD,
+			iostat_create_node(time, tmpreq->devno, tmpreq->bytecount / 512)));
+	req->donereqs++;
+	if (req->donereqs == req->numreqs) {
+		iostat_ioreq_complete(time, req);
+		struct disksim_request *nq;
+		for (tmpreq = req->reqs; tmpreq != NULL; tmpreq = nq) {
+			nq = tmpreq->next;
+			addtoextraq((event*)tmpreq);
 		}
+		addtoextraq((event*)req);
+		event_queue_add(eventq, create_event_node(time, EVENT_TRACE_FETCH, 0));
 	}
 }
 
@@ -147,7 +95,7 @@ static void calculate_peak_throughput(double time) {
 
 static void recon_complete_callback(double time, struct disksim_request *dr, void *ctx) {
 	event_queue_add(eventq, create_event_node(time, EVENT_IO_INTERNAL, ctx));
-	event_queue_add(eventq, create_event_node(time + 1e-9, EVENT_IO_COMPLETE, dr->reqctx));
+	event_queue_add(eventq, create_event_node(time + 1e-9, EVENT_IO_COMPLETE, dr));
 }
 
 static void recon_schedule_callback(disksim_interface_callback_t fn, double time, void *ctx) {
@@ -159,6 +107,7 @@ static void recon_descheduled_callback(double time, void *ctx) {
 
 int main(int argc, char **argv)
 {
+	erasure_initialize();
 	int i, p = 1;
 	while (p < argc) {
 		const char *flag = argv[p++];
@@ -181,7 +130,7 @@ int main(int argc, char **argv)
         	result = argu;
         else if (!strcmp(flag, "-c") || !strcmp(flag, "--code"))
         	code = get_code_id(argu);
-        else if (!strcmp(flag, "-w"))
+        else if (!strcmp(flag, "-w") || !strcmp(flag, "--width"))
         	width = atoi(argu);
         else {
         	fprintf(stderr, "unknown flag: %s\n", flag);
@@ -200,10 +149,9 @@ int main(int argc, char **argv)
 	event_queue_initialize(eventq);
 
 	meta = (metadata*) malloc(sizeof(metadata));
-	erasure_initialize(meta, code, disks, unit * 2);
+	erasure_init_code(meta, code, disks, unit * 2);
 
 	iostat_initialize(disks);
-	distr = malloc(sizeof(int) * disks);
 
 	int currblock = 0, totblocks = meta->dataunits;
 	event_queue_add(eventq, create_event_node(0, EVENT_TRACE_FETCH, 0));
@@ -227,13 +175,12 @@ int main(int argc, char **argv)
 			//printf("time = %f, type = EVENT_TRACE_FETCH\n", node->time);
 			if (currblock < totblocks) {
 				ioreq *req = (ioreq*) getfromextraq();
+				memset(req, 0, sizeof(ioreq));
 				req->time = currtime;
 				req->blkno = currblock * unit * 2;
 				req->bcount = width * unit * 2;
-				req->flag = WRITE;
+				req->flag = DISKSIM_WRITE;
 				req->stat = 1;
-				req->curr = NULL;
-				req->groups = NULL;
 				req->reqno = ++reqno; // auto increment ID
 				event_queue_add(eventq, create_event_node(req->time, EVENT_TRACE_MAPREQ, req));
 				currblock++;
@@ -248,7 +195,7 @@ int main(int argc, char **argv)
 			break;
 		case EVENT_IO_COMPLETE:
 			//printf("time = %f, type = EVENT_IO_COMPLETE\n", node->time);
-			ioreq_complete(node->time, (ioreq*)node->ctx);
+			ioreq_complete(node->time, (struct disksim_request*)node->ctx);
 			break;
 		case EVENT_STAT_ADD:
 			//printf("time = %f, type = EVENT_STAT_COMPLETE\n", node->time);
@@ -276,7 +223,9 @@ int main(int argc, char **argv)
 	printf("\n");
 	printf("===================================================\n");
 	printf("Disks = %d\n", disks);
+	printf("Prime Number = %d\n", meta->prime);
 	printf("Unit Size = %d\n", unit);
+	printf("Width = %d\n", width);
 	printf("Code = %s\n", get_code_name(code));
 	printf("Total Simulation Time = %f ms\n", currtime);
 	printf("Avg. Response Time = %f ms\n", iostat_avg_response_time());
@@ -289,7 +238,9 @@ int main(int argc, char **argv)
 	if (exp != NULL) {
 		fprintf(exp, "===================================================\n");
 		fprintf(exp, "Disks = %d\n", disks);
+		fprintf(exp, "Prime Number = %d\n", meta->prime);
 		fprintf(exp, "Unit Size = %d\n", unit);
+		fprintf(exp, "Width = %d\n", width);
 		fprintf(exp, "Code = %s\n", get_code_name(code));
 		fprintf(exp, "Total Simulation Time = %f ms\n", currtime);
 		fprintf(exp, "Avg. Response Time = %f ms\n", iostat_avg_response_time());
