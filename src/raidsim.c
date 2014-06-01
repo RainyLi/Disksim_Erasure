@@ -71,6 +71,7 @@ void trace_add_next(FILE *f) {
 		return;
 	}
 	ioreq *req = (ioreq*) getfromextraq();
+	memset(req, 0, sizeof(ioreq));
 	if (sscanf(line, "%lf%*d%d%d%d", &req->time, &req->blkno, &req->bcount, &req->flag) != 4) {
 		fprintf(stderr, "Wrong number of arguments for I/O trace event type\n");
 		fprintf(stderr, "line: %s\n", line);
@@ -79,19 +80,16 @@ void trace_add_next(FILE *f) {
 	if (stop > 0 && req->time > stop) return;
 	req->time *= scale;
 	req->stat = 1;
-	req->curr = NULL;
-	req->groups = NULL;
 	req->reqno = ++reqno; // auto increment ID
+	req->reqs = NULL;
 	event_queue_add(eventq, create_event_node(req->time, EVENT_TRACE_MAPREQ, req));
 	event_queue_add(eventq, create_event_node(req->time, EVENT_TRACE_FETCH, f));
 }
 
 void trace_add_recon(double time) {
 	ioreq *req = (ioreq*) getfromextraq();
+	memset(req, 0, sizeof(ioreq));
 	req->time = time;
-	req->stat = 0;
-	req->curr = NULL;
-	req->groups = NULL;
 	req->reqno = ++reqno; // auto increment ID
 	event_queue_add(eventq, create_event_node(req->time, EVENT_TRACE_MAPREQ, req));
 }
@@ -99,42 +97,28 @@ void trace_add_recon(double time) {
 void ioreq_maprequest(double time, ioreq *req) {
 	struct disksim_request *tmpreq;
 	erasure_maprequest(meta, req);
-	if (req->groups == 0) {
+	if (req->numreqs == 0) {
 		fprintf(stderr, "map_request failed.\n");
 		exit(-1);
 	}
 	iostat_ioreq_start(time, req);
-	req->curr = req->groups;
-	req->curr->cnt = req->curr->numreqs;
-	for (tmpreq = req->curr->reqs; tmpreq != NULL; tmpreq = tmpreq->next)
+	for (tmpreq = req->reqs; tmpreq != NULL; tmpreq = tmpreq->next)
 		disksim_interface_request_arrive(interface, time, tmpreq);
 }
 
 void ioreq_complete(double time, struct disksim_request *tmpreq) {
 	ioreq *req = tmpreq->reqctx;
-	iogroup *group, *ng;
 	event_queue_add(eventq, create_event_node(time, EVENT_STAT_ADD,
 			iostat_create_node(time, tmpreq->devno, tmpreq->bytecount / 512)));
-	req->curr->cnt--;
-	if (req->curr->cnt == 0) {
-		if (req->curr->next != NULL) {
-			req->curr = req->curr->next;
-			req->curr->cnt = req->curr->numreqs;
-			for (tmpreq = req->curr->reqs; tmpreq != NULL; tmpreq = tmpreq->next)
-				disksim_interface_request_arrive(interface, time, tmpreq);
-		} else { // request complete
-			iostat_ioreq_complete(time, req);
-			struct disksim_request *nq;
-			for (group = req->groups; group != NULL; group = ng) {
-				for (tmpreq = group->reqs; tmpreq != NULL; tmpreq = nq) {
-					nq = tmpreq->next;
-					addtoextraq((event*)tmpreq);
-				}
-				ng = group->next;
-				addtoextraq((event*)group);
-			}
-			addtoextraq((event*)req);
+	req->donereqs++;
+	if (req->donereqs == req->numreqs) {
+		iostat_ioreq_complete(time, req);
+		struct disksim_request *nq;
+		for (tmpreq = req->reqs; tmpreq != NULL; tmpreq = nq) {
+			nq = tmpreq->next;
+			addtoextraq((event*)tmpreq);
 		}
+		addtoextraq((event*)req);
 	}
 }
 
@@ -234,7 +218,7 @@ int main(int argc, char **argv) {
 		event_queue_add(eventq, create_event_node(0, EVENT_STAT_PEAK, 0));
 
 	meta = (metadata*) malloc(sizeof(metadata));
-	erasure_initialize(meta, code, disks, unit * 2);
+	erasure_init_code(meta, code, disks, unit * 2);
 	initialize_disk_failure(meta, fail);
 
 	iostat_initialize(disks);

@@ -35,14 +35,13 @@ static double currtime = 0;
 static double scale = 1;
 static int reqno = 0;
 static int disks = 12;
-static int *distr;
 static int unit = 16; // size in KB
 static int width = 2;
 static int delay = 1000;
 static long long limit = 0; // maximum operations
-static int code = CODE_RDP;
+static int code = CODE_RAID5;
 static const char *result = "";
-static const char *parfile = "../valid/12disks.parv";
+static const char *parfile = "../valid/16disks.parv";
 static const char *outfile = "t.outv";
 
 static int help(const char *main) {
@@ -64,46 +63,28 @@ static int help(const char *main) {
 static void ioreq_maprequest(double time, ioreq *req) {
 	struct disksim_request *tmpreq;
 	erasure_maprequest(meta, req);
-	if (req->groups == 0) {
+	if (req->numreqs == 0) {
 		fprintf(stderr, "map_request failed.\n");
 		exit(-1);
 	}
 	iostat_ioreq_start(time, req);
-	req->curr = req->groups;
-	req->curr->cnt = req->curr->numreqs;
-	for (tmpreq = req->curr->reqs; tmpreq != NULL; tmpreq = tmpreq->next) {
+	for (tmpreq = req->reqs; tmpreq != NULL; tmpreq = tmpreq->next)
 		disksim_interface_request_arrive(interface, time, tmpreq);
-		event_queue_add(eventq, create_event_node(time, EVENT_STAT_ADD,
-				iostat_create_node(time, tmpreq->devno, tmpreq->bytecount / 512)));
-	}
 }
 
-static void ioreq_complete(double time, ioreq *req) {
-	struct disksim_request *tmpreq, *nq;
-	iogroup *group, *ng;
-	req->curr->cnt--;
-	if (req->curr->cnt == 0) {
-		if (req->curr->next != NULL) {
-			req->curr = req->curr->next;
-			req->curr->cnt = req->curr->numreqs;
-			for (tmpreq = req->curr->reqs; tmpreq != NULL; tmpreq = tmpreq->next) {
-				disksim_interface_request_arrive(interface, time, tmpreq);
-				event_queue_add(eventq, create_event_node(time, EVENT_STAT_ADD,
-						iostat_create_node(time, tmpreq->devno, tmpreq->bytecount / 512)));
-			}
-			event_queue_add(eventq, create_event_node(currtime, EVENT_TRACE_FETCH, 0));
-		} else { // request complete
-			iostat_ioreq_complete(time, req);
-			for (group = req->groups; group != NULL; group = ng) {
-				for (tmpreq = group->reqs; tmpreq != NULL; tmpreq = nq) {
-					nq = tmpreq->next;
-					addtoextraq((event*)tmpreq);
-				}
-				ng = group->next;
-				addtoextraq((event*)group);
-			}
-			addtoextraq((event*)req);
+static void ioreq_complete(double time, struct disksim_request *tmpreq) {
+	ioreq *req = tmpreq->reqctx;
+	event_queue_add(eventq, create_event_node(time, EVENT_STAT_ADD,
+			iostat_create_node(time, tmpreq->devno, tmpreq->bytecount / 512)));
+	req->donereqs++;
+	if (req->donereqs == req->numreqs) {
+		iostat_ioreq_complete(time, req);
+		struct disksim_request *nq;
+		for (tmpreq = req->reqs; tmpreq != NULL; tmpreq = nq) {
+			nq = tmpreq->next;
+			addtoextraq((event*)tmpreq);
 		}
+		addtoextraq((event*)req);
 	}
 }
 
@@ -114,7 +95,7 @@ static void calculate_peak_throughput(double time) {
 
 static void recon_complete_callback(double time, struct disksim_request *dr, void *ctx) {
 	event_queue_add(eventq, create_event_node(time, EVENT_IO_INTERNAL, ctx));
-	event_queue_add(eventq, create_event_node(time + 1e-9, EVENT_IO_COMPLETE, dr->reqctx));
+	event_queue_add(eventq, create_event_node(time + 1e-9, EVENT_IO_COMPLETE, dr));
 }
 
 static void recon_schedule_callback(disksim_interface_callback_t fn, double time, void *ctx) {
@@ -166,11 +147,11 @@ int main(int argc, char **argv)
 	eventq = malloc(sizeof(equeue));
 	event_queue_initialize(eventq);
 
-	meta = (metadata*) malloc(sizeof(metadata));
-	erasure_initialize(meta, code, disks, unit * 2);
-
+	erasure_initialize();
 	iostat_initialize(disks);
-	distr = malloc(sizeof(int) * disks);
+	meta = (metadata*) malloc(sizeof(metadata));
+	erasure_init_code(meta, code, disks, unit * 2);
+
 
 	int currblock = 0, totblocks = meta->dataunits;
 	event_queue_add(eventq, create_event_node(0, EVENT_TRACE_FETCH, 0));
@@ -194,13 +175,12 @@ int main(int argc, char **argv)
 			//printf("time = %f, type = EVENT_TRACE_FETCH\n", node->time);
 			if (currblock < totblocks) {
 				ioreq *req = (ioreq*) getfromextraq();
+				memset(req, 0, sizeof(ioreq));
 				req->time = currtime;
 				req->blkno = currblock * unit * 2;
 				req->bcount = width * unit * 2;
 				req->flag = WRITE;
 				req->stat = 1;
-				req->curr = NULL;
-				req->groups = NULL;
 				req->reqno = ++reqno; // auto increment ID
 				event_queue_add(eventq, create_event_node(req->time, EVENT_TRACE_MAPREQ, req));
 				currblock++;
@@ -215,7 +195,7 @@ int main(int argc, char **argv)
 			break;
 		case EVENT_IO_COMPLETE:
 			//printf("time = %f, type = EVENT_IO_COMPLETE\n", node->time);
-			ioreq_complete(node->time, (ioreq*)node->ctx);
+			ioreq_complete(node->time, (struct disksim_request*)node->ctx);
 			break;
 		case EVENT_STAT_ADD:
 			//printf("time = %f, type = EVENT_STAT_COMPLETE\n", node->time);

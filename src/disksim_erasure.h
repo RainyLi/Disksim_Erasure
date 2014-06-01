@@ -23,35 +23,33 @@
 #define CODE_RAID0		12	// RAID-0
 #define CODE_RAID5		13	// RAID-5
 
-#define CODE_HOVER		30	// HoVer code (non-MDS)
-
 typedef struct element_t {
 	int row;
 	int col;
 	struct element_t *next;
 } element;
 
-typedef struct parity_chain_t {
+typedef struct parity_t {
 	int type; // row=0, diagonal=1,2...
 	element *dest;
 	element *deps;
-	struct erasure_chain_t *next;
-} parities;
+	struct parity_t *next;
+} parity;
 
-typedef struct entry_t {
+typedef struct {
 	int row; // unit number
 	int col; // device number
 	element *depends; // depends
 } entry;
 
-typedef struct rottable_t {
+typedef struct {
 	int rows, cols;
 	int *hit; // hit
 	int *ll, *rr; // range
-	struct entry_t *entry;
+	entry *entry;
 } rottable;
 
-typedef struct metadata_t {
+typedef struct {
 	// general attributes
 	int codetype;
 	int phydisks;
@@ -62,11 +60,11 @@ typedef struct metadata_t {
 	int prime;
 	int rows;
 	int cols;
-	parities *chains;
+	parity *chains;
 	int numchains;
 	int dataunits;
 	int totalunits;
-	struct entry_t *entry; // map from data block number to position on disks
+	entry *entry; // map from data block number to position on disks
 	int *matrix; // totalunits by dataunits
 	int *rmap; // map from position to data block number
 
@@ -76,21 +74,13 @@ typedef struct metadata_t {
 	int laststripe;
 	int totstripes;
 
-	parities ***chs; // parity chains protecting the unit
+	parity ***chs; // parity chains protecting the unit
 	int *chl; // num of chains
 	int *test;
 	rottable *ph1, *ph2;
 } metadata;
 
-typedef struct io_request_group_t {
-	struct disksim_request *reqs;
-	int numreqs;
-	int cnt;
-	struct io_request_group_t *next;
-	struct disksim_request *tail;
-} iogroup;
-
-typedef struct io_request_t {
+typedef struct {
 	int reqno;
 	int reqtype;
 	double time;
@@ -98,21 +88,32 @@ typedef struct io_request_t {
 	int bcount;
 	int flag;
 	int stat;
-	iogroup *groups;
-	iogroup *curr;
+
+	struct disksim_request *reqs, *tail;
+	int numreqs, donereqs;
+
 	int numxors;
 	int numIOs;
 } ioreq;
 
+typedef void(*initializer)(metadata*);
+
+typedef struct {
+	int codeID;
+	const char *flag;
+	const char *name;
+	initializer func;
+} codespec;
+
 const char* get_code_name(int code);
 int get_code_id(const char *code);
 
-void erasure_initialize(metadata *meta, int codetype, int disks, int unit);
+void erasure_initialize();
+void erasure_init_code(metadata *meta, int codetype, int disks, int unit);
 void erasure_maprequest(metadata *meta, ioreq *req);
 
 void erasure_disk_failure(metadata *meta, int devno);
 
-iogroup* create_ioreq_group();
-void   add_to_ioreq(ioreq *req, iogroup *group);
+void add_to_ioreq(ioreq *req, struct disksim_request *tmp);
 
 #endif /* DISKSIM_ERASURE_H_ */

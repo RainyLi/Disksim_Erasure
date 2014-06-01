@@ -150,7 +150,7 @@ void arm_rebuild(metadata *meta, ioreq *req, int stripeno, int pattern) {
 	int bcount = unitsize * meta->rows;
 	int blkno = stripeno * bcount;
 	int i, numreqs = 0, r;
-	parities *chain;
+	parity *chain;
 	element *elem;
 
 	if (meta->numfailures > 1) {
@@ -165,7 +165,6 @@ void arm_rebuild(metadata *meta, ioreq *req, int stripeno, int pattern) {
 		for (i = 0; i < meta->totalunits; i++)
 			meta->test[i] *= unitsize;
 		struct disksim_request *tmp;
-		iogroup *g1 = create_ioreq_group();
 		for (dc = 0; dc < meta->cols; dc++)
 			if (!meta->failed[dc]) {
 				for (r = 0; r < meta->rows; r = nxt)
@@ -188,13 +187,10 @@ void arm_rebuild(metadata *meta, ioreq *req, int stripeno, int pattern) {
 						tmp->blkno = ll;
 						tmp->bytecount = (rr - ll) * 512;
 						tmp->flags = DISKSIM_READ; // read
-						tmp->next = g1->reqs;
 						tmp->reqctx = req;
-						g1->reqs = tmp;
-						g1->numreqs++;
+						add_to_ioreq(req, tmp);
 					} else nxt = r + 1;
 			}
-		iogroup *g2 = create_ioreq_group();
 		for (dc = 0; dc < meta->cols; dc++)
 			if (meta->failed[dc]) {
 				tmp = (struct disksim_request*) getfromextraq();
@@ -203,14 +199,9 @@ void arm_rebuild(metadata *meta, ioreq *req, int stripeno, int pattern) {
 				tmp->blkno = stripeno * meta->rows * unitsize;
 				tmp->bytecount = meta->rows * unitsize * 512;
 				tmp->flags = DISKSIM_WRITE;
-				tmp->next = g2->reqs;
 				tmp->reqctx = req;
-				g2->reqs = tmp;
-				g2->numreqs++;
+				add_to_ioreq(req, tmp);
 			}
-		req->curr = NULL;
-		add_to_ioreq(req, g1);
-		add_to_ioreq(req, g2);
 	}
 }
 
