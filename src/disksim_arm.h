@@ -21,6 +21,16 @@
 #define STRATEGY_MIN_MAX	8
 #define STRATEGY_MIN_DIFF	9
 
+typedef struct {
+	int *distr; // reconstruction distribution
+} arm_desc;
+
+typedef struct {
+	metadata *meta; // the configuration of underlying erasure code
+
+	int *gdistr; // I/O distribution of applications
+} arm_struct;
+
 const char* arm_method_name(int method);
 
 double arm_score(int *a, int *b, int *mask, int disks, int method);

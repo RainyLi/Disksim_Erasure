@@ -13,29 +13,34 @@
 
 static long long total_milli[NUM_TIMERS] = {0};
 static struct timeval start[NUM_TIMERS], stop[NUM_TIMERS];
+static int curr_timers;
 
-void timer_start(int handle) {
-	gettimeofday(start + handle, NULL);
+int timer_index() {
+	return curr_timers++;
 }
 
-void timer_end(int handle) {
-	gettimeofday(stop + handle, NULL);
-	total_milli[handle] += (stop[handle].tv_sec - start[handle].tv_sec) * 1000000ll
-			+ (stop[handle].tv_usec - start[handle].tv_usec);
+void timer_start(int index) {
+	gettimeofday(start + index, NULL);
 }
 
-void timer_reset(int handle) {
-	total_milli[handle] = 0;
+void timer_end(int index) {
+	gettimeofday(stop + index, NULL);
+	total_milli[index] += (stop[index].tv_sec - start[index].tv_sec) * 1000000ll
+			+ (stop[index].tv_usec - start[index].tv_usec);
+}
+
+void timer_reset(int index) {
+	total_milli[index] = 0;
 }
 
 void timer_reset_all() {
 	memset(total_milli, 0, sizeof(long long) * NUM_TIMERS);
 }
 
-long long timer_millisecond(int handle) {
-	return total_milli[handle];
+long long timer_millisecond(int index) {
+	return total_milli[index];
 }
 
-long long timer_microsecond(int handle) {
-	return total_milli[handle] / 1000;
+long long timer_microsecond(int index) {
+	return total_milli[index] / 1000;
 }

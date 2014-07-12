@@ -71,7 +71,7 @@ disksim_iodriver DRIVER0 {
     Scheduling timeout scheme = 0,
     Timeout time/weight = 30,
     Timeout scheduling = 3,
-    Scheduling priority scheme = 0,
+    Scheduling priority scheme = 1,
     Priority scheduling = 3
   },
   Use queueing in subsystem = 0

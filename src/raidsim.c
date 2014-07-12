@@ -40,10 +40,10 @@ static int delay = 1000;
 static double stop = -1;
 static int unit = 16; // size in KB
 static long long limit = 0; // maximum operations
-static int code = CODE_RDP;
+static const char *code = "rdp";
 static const char *result = "";
 static const char *fail = "";
-static const char *parfile = "../valid/12disks.parv";
+static const char *parfile = "../valid/16disks.parv";
 static const char *outfile = "t.outv";
 static const char *inpfile = "";
 
@@ -53,7 +53,7 @@ int help(const char *main) {
 	printf("\t-n, --num     [number]\t number of disks\n");
 	printf("\t-u, --unit    [number]\t stripe unit size (KB)\n");
 	printf("\t-d, --delay   [number]\t io_stat sampling interval\n");
-	printf("\t-s, --stop    [number]\t stop simulation after some seconds");
+	printf("\t-s, --stop    [number]\t stop simulation after some seconds\n");
 	printf("\t-i, --input   [string]\t input trace file\n");
 	printf("\t-o, --output  [string]\t DiskSim output file\n");
 	printf("\t-c, --code    [string]\t erasure code [rdp, evenodd, hcode, xcode, liberation, star, shcode]\n");
@@ -106,8 +106,10 @@ void ioreq_maprequest(double time, ioreq *req) {
 		disksim_interface_request_arrive(interface, time, tmpreq);
 }
 
+static FILE *comp;
 void ioreq_complete(double time, struct disksim_request *tmpreq) {
 	ioreq *req = tmpreq->reqctx;
+	fprintf(comp, "%f %d %d\n", time, tmpreq->devno, tmpreq->bytecount / 512);
 	event_queue_add(eventq, create_event_node(time, EVENT_STAT_ADD,
 			iostat_create_node(time, tmpreq->devno, tmpreq->bytecount / 512)));
 	req->donereqs++;
@@ -185,7 +187,7 @@ int main(int argc, char **argv) {
         else if (!strcmp(flag, "-f") || !strcmp(flag, "--fail"))
         	fail = argu;
         else if (!strcmp(flag, "-c") || !strcmp(flag, "--code"))
-        	code = get_code_id(argu);
+        	code = argu;
         else if (!strcmp(flag, "--scale"))
         	scale = atof(argu);
         else {
@@ -202,6 +204,7 @@ int main(int argc, char **argv) {
 	//struct dm_disk_if *dm = disksim_getdiskmodel(interface, 0);
 	//printf("sectors = %d\n", ((int*)dm)[2]);
 	//printf("size = %.2fG\n", ((int*)dm)[2] * 512. / 1e9);
+	comp = fopen("complete.txt", "w");
 
 	DISKSIM_srand48(1);
 
@@ -218,11 +221,14 @@ int main(int argc, char **argv) {
 
 	meta = (metadata*) malloc(sizeof(metadata));
 	erasure_initialize();
-	erasure_init_code(meta, code, disks, unit * 2);
+	int codeid = get_code_id(code);
+	erasure_init_code(meta, codeid, disks, unit * 2);
 
 	iostat_initialize(disks);
 	distr = malloc(sizeof(int) * disks);
-	timer_start(0);
+
+	int timer_main = timer_index();
+	timer_start(timer_main);
 
 	struct disksim_request *tmpreq;
 	int stop_simulation = 0;
@@ -280,15 +286,15 @@ int main(int argc, char **argv) {
 	}
 	disksim_interface_shutdown(interface, currtime);
 
-	timer_end(0);
-	long long duration = timer_microsecond(0);
+	timer_end(timer_main);
+	long long duration = timer_microsecond(timer_main);
 	printf("\n");
 	printf("===================================================\n");
 	printf("Trace File = %s\n", inpfile);
 	printf("Disks = %d\n", disks);
 	printf("Prime Number = %d\n", meta->prime);
 	printf("Unit Size = %d\n", unit);
-	printf("Code = %s\n", get_code_name(code));
+	printf("Code = %s\n", get_code_name(codeid));
 	printf("Total Simulation Time = %f ms\n", currtime);
 	printf("Avg. Response Time = %f ms\n", iostat_avg_response_time());
 	printf("Avg. XORs per Write = %f\n", iostat_avg_xors_per_write());
@@ -304,7 +310,7 @@ int main(int argc, char **argv) {
 		fprintf(exp, "Disks = %d\n", disks);
 		fprintf(exp, "Prime Number = %d\n", meta->prime);
 		fprintf(exp, "Unit Size = %d\n", unit);
-		fprintf(exp, "Code = %s\n", get_code_name(code));
+		fprintf(exp, "Code = %s\n", get_code_name(codeid));
 		fprintf(exp, "Total Simulation Time = %f ms\n", currtime);
 		fprintf(exp, "Avg. Response Time = %f ms\n", iostat_avg_response_time());
 		fprintf(exp, "Avg. XORs Per Write = %f\n", iostat_avg_xors_per_write());

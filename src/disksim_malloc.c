@@ -85,3 +85,37 @@ void *DISKSIM_malloc (int size)
 
 }
 
+static const int BASE = sizeof(void*);
+static void* space[32];
+
+int malloc_index(unsigned size) {
+	unsigned true_size = BASE;
+	int ret = 0;
+	while (size > true_size) {
+		true_size <<= 1;
+		ret += 1;
+	}
+	return ret;
+}
+
+void* disksim_malloc(int index) {
+	int *ptr = space[index], size = (BASE << index);
+	if (ptr == NULL) {
+		int *tmp = (int*) malloc(size << 4); // 16 elements
+		int *addr = tmp, *end = tmp + (size << 4);
+		while (addr < end) {
+			*addr = (int) ptr;
+			ptr = addr;
+			addr += size;
+		}
+	}
+	void *ret = ptr;
+	ptr = (int*) (*ptr);
+	return ret;
+}
+
+void disksim_free(int index, void *item) {
+	void *ptr = space[index];
+	*(int*)item = (int) ptr;
+	ptr = item;
+}

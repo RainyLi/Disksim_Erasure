@@ -31,8 +31,8 @@ typedef struct element_t {
 
 typedef struct parity_t {
 	int type; // row=0, diagonal=1,2...
-	element *dest;
-	element *deps;
+	element *dest; // parity block (make sure dest->next = deps)
+	element *deps; // list of dependent blocks
 	struct parity_t *next;
 } parity;
 
@@ -57,7 +57,7 @@ typedef struct {
 	int stripesize;
 	element *map; // map from data block ID to corresponding data & parity blocks
 	int *rmap; // map from position to data block number
-	rottable *ph1, *ph2;
+	rottable *ph1, *ph2; // two phases
 } metadata;
 
 typedef struct {
@@ -80,10 +80,17 @@ typedef void(*initializer)(metadata*);
 
 typedef struct {
 	int codeID;
-	const char *flag;
-	const char *name;
-	initializer func;
+	const char *flag; // command line spelling of the code (eg. rdp, hcode)
+	const char *name; // name of the code (eg. RDP, H-code)
+	initializer init; // initializer
 } codespec;
+
+typedef struct logaddr_t {
+	int stripeno;
+	int diskno;
+	int unitno;
+	struct logaddr_t *next;
+} logaddr;
 
 const char* get_code_name(int code);
 int get_code_id(const char *code);

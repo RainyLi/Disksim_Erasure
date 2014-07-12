@@ -1115,7 +1115,7 @@ static void create_code(int code, const char *flag, const char *name, initialize
 	specs[ncodes].codeID = code;
 	specs[ncodes].flag = flag;
 	specs[ncodes].name = name;
-	specs[ncodes].func = func;
+	specs[ncodes].init = func;
 	ncodes++;
 }
 
@@ -1142,7 +1142,7 @@ void erasure_init_code(metadata *meta, int codetype, int disks, int unitsize) {
 	meta->unitsize = unitsize;
 	for (codeid = 0; codeid < ncodes; codeid++)
 		if (meta->codetype == specs[codeid].codeID) {
-			specs[codeid].func(meta);
+			specs[codeid].init(meta);
 			erasure_make_table(meta);
 			erasure_init_rottable(meta);
 			return;
