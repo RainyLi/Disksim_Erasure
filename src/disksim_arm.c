@@ -136,7 +136,7 @@ double arm_get_score(int *a, int *b, int *mask, int disks, int method) {
 	}
 }
 
-void arm_rebuild(metadata *meta, ioreq *req, int stripeno, int pattern) {
+void arm_rebuild(metadata_t *meta, ioreq_t *req, int stripeno, int pattern) {
 	static int distr[50];
 	if (meta->numfailures == 0) return;
 	int unitsize = meta->unitsize;
@@ -151,7 +151,7 @@ void arm_rebuild(metadata *meta, ioreq *req, int stripeno, int pattern) {
 	int blkno = stripeno * bcount;
 	int i, numreqs = 0, r;
 	parity *chain;
-	element *elem;
+	element_t *elem;
 
 	if (meta->numfailures > 1) {
 		// normal
@@ -205,7 +205,7 @@ void arm_rebuild(metadata *meta, ioreq *req, int stripeno, int pattern) {
 	}
 }
 
-int arm_get_rebuild_distr(metadata *meta, int stripeno, int pattern, int *distr) {
+int arm_get_rebuild_distr(metadata_t *meta, int stripeno, int pattern, int *distr) {
 	if (meta->numfailures == 0)
 		return -1;
 	memset(distr, 0, sizeof(int) * meta->cols);
@@ -215,7 +215,7 @@ int arm_get_rebuild_distr(metadata *meta, int stripeno, int pattern, int *distr)
 	while (!meta->failed[dc]) dc++;
 	int c = (dc + meta->cols - rot) % meta->cols;
 	int i, j, r;
-	element *elem;
+	element_t *elem;
 
 	for (r = 0; r < meta->rows; r++) {
 		int flag = 0;
@@ -236,7 +236,7 @@ int arm_get_rebuild_distr(metadata *meta, int stripeno, int pattern, int *distr)
 	return 0;
 }
 
-int arm_select_pattern(metadata *meta, int stripeno, int method, int *distr, int coef) {
+int arm_select_pattern(metadata_t *meta, int stripeno, int method, int *distr, int coef) {
 	static int tmp[24];
 	int disks = meta->cols;
 	stripeno %= meta->cols;
@@ -282,7 +282,7 @@ unsigned arm_hash(int *a, int n) {
 	return ret;
 }
 
-int arm_filtering(metadata *meta, int stripeno, int *distrs, int *patts, int disks) {
+int arm_filtering(metadata_t *meta, int stripeno, int *distrs, int *patts, int disks) {
 	int patt, dsize = sizeof(int) * disks, tot = 0;
 	int *distr = malloc(dsize);
 	for (patt = 0; patt < (1 << meta->rows); patt++)
@@ -296,7 +296,7 @@ int arm_filtering(metadata *meta, int stripeno, int *distrs, int *patts, int dis
 	return tot;
 }
 
-int arm_sampling(metadata *meta, int stripeno, int *distrs, int *patts, int disks, int limit) {
+int arm_sampling(metadata_t *meta, int stripeno, int *distrs, int *patts, int disks, int limit) {
 	int patt, dsize = sizeof(int) * disks, tot = 0, iter;
 	int mask = (1 << meta->rows) - 1;
 	int *distr = malloc(dsize);
@@ -326,7 +326,7 @@ void arm_selection_threshold(int *distrs, int disks, int tot, int *max_v, int *m
 	free(sort);
 }
 
-void arm_initialize_patterns_new(metadata *meta, int pattcnt, int limit) {
+void arm_initialize_patterns_new(metadata_t *meta, int pattcnt, int limit) {
 	int disks = meta->cols, rows = meta->rows;
 	int maxpatts = min(limit, 1 << rows);
 	int sample = (1 << rows) > limit;

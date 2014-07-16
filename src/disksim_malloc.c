@@ -85,21 +85,50 @@ void *DISKSIM_malloc (int size)
 
 }
 
-static const int BASE = sizeof(void*);
-static void* space[32];
+#include "disksim_container.h"
+#include "disksim_erasure.h"
+#include "disksim_event_queue.h"
+#include "disksim_interface.h"
+#include "disksim_req.h"
 
-int malloc_index(unsigned size) {
-	unsigned true_size = BASE;
-	int ret = 0;
-	while (size > true_size) {
-		true_size <<= 1;
-		ret += 1;
-	}
-	return ret;
+int ht_idx; // hash_table_t
+int hn_idx; // hash_node_t
+int en_idx; // event_node_t
+int sh_idx; // stripe_head_t
+int wt_idx; // wait_req_t
+int dr_idx; // disksim_request
+int el_idx; // element_t
+int sb_idx; // sub_ioreq
+
+#define INDEX(type) malloc_index(sizeof(struct type))
+
+static int malloc_index(unsigned x)
+{
+    int n = 0;
+    if (x >> 8) {x >>= 8; n += 8;}
+    if (x >> 4) {x >>= 4; n += 4;}
+    if (x >> 2) {x >>= 2; n += 2;}
+    if (x >> 1) {x >>= 1; n += 1;}
+    return n;
 }
 
-void* disksim_malloc(int index) {
-	int *ptr = space[index], size = (BASE << index);
+void malloc_initialize()
+{
+	ht_idx = INDEX(hash_table);
+	hn_idx = INDEX(hash_node);
+	en_idx = INDEX(event_node);
+	sh_idx = INDEX(stripe_head);
+	wt_idx = INDEX(wait_request);
+	dr_idx = INDEX(disksim_request);
+	el_idx = INDEX(element);
+	sb_idx = INDEX(sub_ioreq);
+}
+
+static void* space[32];
+
+void* disksim_malloc(int index)
+{
+	int *ptr = space[index], size = (1 << index);
 	if (ptr == NULL) {
 		int *tmp = (int*) malloc(size << 4); // 16 elements
 		int *addr = tmp, *end = tmp + (size << 4);
@@ -114,7 +143,8 @@ void* disksim_malloc(int index) {
 	return ret;
 }
 
-void disksim_free(int index, void *item) {
+void disksim_free(int index, void *item)
+{
 	void *ptr = space[index];
 	*(int*)item = (int) ptr;
 	ptr = item;

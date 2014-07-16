@@ -28,8 +28,8 @@
 #define EVENT_STAT_ADD			7
 #define EVENT_STAT_PEAK			8
 
-static equeue *eventq;
-static metadata *meta; // erasure code metadata
+static event_queue_t *eventq;
+static metadata_t *meta; // erasure code metadata
 static struct disksim_interface *interface;
 static double currtime = 0;
 static int reqno = 0;
@@ -59,7 +59,7 @@ static int help(const char *main) {
 	return 0;
 }
 
-static void ioreq_maprequest(double time, ioreq *req) {
+static void ioreq_maprequest(double time, ioreq_t *req) {
 	struct disksim_request *tmpreq;
 	erasure_standard_maprequest(meta, req);
 	if (req->numreqs == 0) {
@@ -72,8 +72,8 @@ static void ioreq_maprequest(double time, ioreq *req) {
 }
 
 static void ioreq_complete(double time, struct disksim_request *tmpreq) {
-	ioreq *req = tmpreq->reqctx;
-	event_queue_add(eventq, create_event_node(time, EVENT_STAT_ADD,
+	ioreq_t *req = tmpreq->reqctx;
+	event_queue_add(eventq, create_event(time, EVENT_STAT_ADD,
 			iostat_create_node(time, tmpreq->devno, tmpreq->bytecount / 512)));
 	req->donereqs++;
 	if (req->donereqs == req->numreqs) {
@@ -84,22 +84,22 @@ static void ioreq_complete(double time, struct disksim_request *tmpreq) {
 			addtoextraq((event*)tmpreq);
 		}
 		addtoextraq((event*)req);
-		event_queue_add(eventq, create_event_node(time, EVENT_TRACE_FETCH, 0));
+		event_queue_add(eventq, create_event(time, EVENT_TRACE_FETCH, 0));
 	}
 }
 
 static void calculate_peak_throughput(double time) {
 	iostat_detect_peak(time, delay);
-	event_queue_add(eventq, create_event_node(time + delay, EVENT_STAT_PEAK, 0));
+	event_queue_add(eventq, create_event(time + delay, EVENT_STAT_PEAK, 0));
 }
 
 static void recon_complete_callback(double time, struct disksim_request *dr, void *ctx) {
-	event_queue_add(eventq, create_event_node(time, EVENT_IO_INTERNAL, ctx));
-	event_queue_add(eventq, create_event_node(time + 1e-9, EVENT_IO_COMPLETE, dr));
+	event_queue_add(eventq, create_event(time, EVENT_IO_INTERNAL, ctx));
+	event_queue_add(eventq, create_event(time + 1e-9, EVENT_IO_COMPLETE, dr));
 }
 
 static void recon_schedule_callback(disksim_interface_callback_t fn, double time, void *ctx) {
-	event_queue_add(eventq, create_event_node(time, EVENT_IO_INTERNAL, ctx));
+	event_queue_add(eventq, create_event(time, EVENT_IO_INTERNAL, ctx));
 }
 
 static void recon_descheduled_callback(double time, void *ctx) {
@@ -145,23 +145,23 @@ int main(int argc, char **argv)
 
 	DISKSIM_srand48(1);
 
-	eventq = malloc(sizeof(equeue));
+	eventq = malloc(sizeof(event_queue_t));
 	event_queue_initialize(eventq);
 
-	meta = (metadata*) malloc(sizeof(metadata));
-	erasure_init_code(meta, code, disks, unit * 2);
+	meta = (metadata_t*) malloc(sizeof(metadata_t));
+	erasure_code_init(meta, code, disks, unit * 2);
 
 	iostat_initialize(disks);
 
 	int currblock = 0, totblocks = meta->dataunits;
-	event_queue_add(eventq, create_event_node(0, EVENT_TRACE_FETCH, 0));
+	event_queue_add(eventq, create_event(0, EVENT_TRACE_FETCH, 0));
 	timer_start(0);
 
 	struct disksim_request *tmpreq;
 	int stop_simulation = 0;
 	double checkpoint = 0;
 	while (!stop_simulation) {
-		enode *node = event_queue_pop(eventq);
+		event_node_t *node = event_queue_pop(eventq);
 		if (node == NULL)
 			break; // stop simulation
 		if (currtime != node->time)
@@ -174,21 +174,21 @@ int main(int argc, char **argv)
 		case EVENT_TRACE_FETCH:
 			//printf("time = %f, type = EVENT_TRACE_FETCH\n", node->time);
 			if (currblock < totblocks) {
-				ioreq *req = (ioreq*) getfromextraq();
-				memset(req, 0, sizeof(ioreq));
+				ioreq_t *req = (ioreq_t*) getfromextraq();
+				memset(req, 0, sizeof(ioreq_t));
 				req->time = currtime;
 				req->blkno = currblock * unit * 2;
 				req->bcount = width * unit * 2;
 				req->flag = DISKSIM_WRITE;
 				req->stat = 1;
 				req->reqno = ++reqno; // auto increment ID
-				event_queue_add(eventq, create_event_node(req->time, EVENT_TRACE_MAPREQ, req));
+				event_queue_add(eventq, create_event(req->time, EVENT_TRACE_MAPREQ, req));
 				currblock++;
 			}
 			break;
 		case EVENT_TRACE_MAPREQ:
 			//printf("time = %f, type = EVENT_TRACE_ITEM\n", node->time);
-			ioreq_maprequest(node->time, (ioreq*)node->ctx);
+			ioreq_maprequest(node->time, (ioreq_t*)node->ctx);
 			break;
 		case EVENT_IO_INTERNAL:
 			//printf("time = %f, type = EVENT_IO_INTERNAL\n", node->time);

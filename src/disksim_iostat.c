@@ -87,7 +87,7 @@ double iostat_avg_IOs_per_request() {
 	return total_IOs * 1.0 / numreqs;
 }
 
-void iostat_ioreq_start(double time, ioreq *req) {
+void iostat_ioreq_start(double time, ioreq_t *req) {
 	if (req->stat) {
 		hashtable_set(req->reqno, time);
 		items_in_table += 1;
@@ -99,7 +99,7 @@ void iostat_ioreq_start(double time, ioreq *req) {
 	}
 }
 
-void iostat_ioreq_complete(double time, ioreq *req) {
+void iostat_ioreq_complete(double time, ioreq_t *req) {
 	if (req->stat) {
 		double start = hashtable_get(req->reqno);
 		hashtable_remove(req->reqno);

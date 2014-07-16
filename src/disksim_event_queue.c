@@ -9,29 +9,12 @@
 
 #include "disksim_event_queue.h"
 #include "disksim_global.h"
+#include "disksim_malloc.h"
 
-static enode *space = NULL;
+extern int en_idx;
 
-static enode* get_event_node() {
-	if (space == NULL) {
-		int i;
-		space = malloc(sizeof(enode) * 16);
-		for (i = 0; i < 15; i++)
-			space[i].next = space + i + 1;
-		space[15].next = NULL;
-	}
-	enode *ret = space;
-	space = space->next;
-	return ret;
-}
-
-void free_event_node(enode *node) {
-	node->next = space;
-	space = node;
-}
-
-enode* create_event_node(double time, int type, void *ctx) {
-	enode *ret = get_event_node();
+event_node_t* create_event(double time, int type, void *ctx) {
+	event_node_t *ret = (event_node_t*) disksim_malloc(en_idx);
 	ret->time = time;
 	ret->type = type;
 	ret->ctx = ctx;
@@ -41,12 +24,17 @@ enode* create_event_node(double time, int type, void *ctx) {
 	return ret;
 }
 
-void event_queue_initialize(equeue *queue) {
+void free_event(event_node_t *node)
+{
+	disksim_free(en_idx, node);
+}
+
+void event_queue_initialize(event_queue_t *queue) {
 	queue->root = NULL;
 }
 
-static enode* merge(enode *a, enode *b) {
-	enode *t;
+static event_node_t* merge(event_node_t *a, event_node_t *b) {
+	event_node_t *t;
 	if (a == NULL) return b;
 	if (a->time < b->time) {
 		a->right = merge(a->right, b);
@@ -69,14 +57,14 @@ static enode* merge(enode *a, enode *b) {
 	}
 }
 
-void event_queue_add(equeue *queue, enode *node) {
+void event_queue_add(event_queue_t *queue, event_node_t *node) {
 	queue->root = merge(queue->root, node);
 }
 
-enode* event_queue_pop(equeue *queue) {
+event_node_t* event_queue_pop(event_queue_t *queue) {
 	if (queue->root == NULL)
 		return NULL;
-	enode *ret = queue->root;
+	event_node_t *ret = queue->root;
 	queue->root = merge(ret->right, ret->left);
 	return ret;
 }

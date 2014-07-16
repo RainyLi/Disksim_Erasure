@@ -8,6 +8,8 @@
 #ifndef DISKSIM_ERASURE_H_
 #define DISKSIM_ERASURE_H_
 
+#include "disksim_req.h"
+
 #define CODE_RDP		0	// RDP code
 #define CODE_EVENODD	1	// EVENODD code
 #define CODE_HCODE		2	// H-code
@@ -23,82 +25,52 @@
 #define CODE_RAID0		12	// RAID-0
 #define CODE_RAID5		13	// RAID-5
 
-typedef struct element_t {
+typedef void(*erasure_complete_t)(double time, ioreq_t *req, void* ctx);
+
+typedef struct element {
 	int row;
 	int col;
-	struct element_t *next;
-} element;
+	struct element *next;
+} element_t;
 
-typedef struct parity_t {
-	int type; // row=0, diagonal=1,2...
-	element *dest; // parity block (make sure dest->next = deps)
-	element *deps; // list of dependent blocks
-	struct parity_t *next;
-} parity;
+typedef struct metadata {
+	int codetype; // a unique id for each code
+	int usize;    // unit size in sectors (512K)
+	int n;  // number of logical disks
+	int k;  // number of data disks
+	int m;  // number of parity disks
+	int w;  // word size
+	int pr; // prime number if exists
 
-typedef struct {
-	int rows, cols;
-	int *hit; // hit
-	int *ll, *rr; // range
-	element *map;
-} rottable;
+	element_t **chains; // an array of m*w chains
+	element_t *map;     // map from data block ID to corresponding data & parity blocks
 
-typedef struct {
-	int codetype;
-	int phydisks;
-	int numdisks;
-	int unitsize;
-	int prime;
-	int rows, cols;
-	parity *chains;
-	int numchains;
-	int dataunits;
-	int totalunits;
-	int stripesize;
-	element *map; // map from data block ID to corresponding data & parity blocks
-	int *rmap; // map from position to data block number
-	rottable *ph1, *ph2; // two phases
-} metadata;
+	page_t *page; // internal calculation
 
-typedef struct {
-	int reqno;
-	int reqtype;
-	double time;
-	int blkno;
-	int bcount;
-	int flag;
-	int stat;
+	stripe_ctlr_t *sctlr;
 
-	struct disksim_request *reqs, *tail;
-	int numreqs, donereqs;
+	erasure_complete_t comp_fn;  // call this function when finishes a request
+} metadata_t;
 
-	int numXORs;
-	int numIOs;
-} ioreq;
-
-typedef void(*initializer)(metadata*);
+typedef int(*initializer_t)(struct metadata*);
 
 typedef struct {
 	int codeID;
+	int level;        // number of maximum concurrent disk failures
 	const char *flag; // command line spelling of the code (eg. rdp, hcode)
 	const char *name; // name of the code (eg. RDP, H-code)
-	initializer init; // initializer
-} codespec;
-
-typedef struct logaddr_t {
-	int stripeno;
-	int diskno;
-	int unitno;
-	struct logaddr_t *next;
-} logaddr;
+	initializer_t init; // initializer
+} codespec_t;
 
 const char* get_code_name(int code);
 int get_code_id(const char *code);
 
+// class level initialization
 void erasure_initialize();
-void erasure_init_code(metadata *meta, int codetype, int disks, int unit);
-void erasure_standard_maprequest(metadata *meta, ioreq *req);
-
-void add_to_ioreq(ioreq *req, struct disksim_request *tmp);
+// code level initialization
+void erasure_code_init(metadata_t *meta, int codetype, int disks, int usize, erasure_complete_t comp);
+void erasure_handle_request(double time, metadata_t *meta, ioreq_t *req);
+void erasure_maprequest(double time, sub_ioreq_t *subreq, stripe_head_t *sh);
+void erasure_iocomplete(double time, sub_ioreq_t *subreq, stripe_head_t *sh);
 
 #endif /* DISKSIM_ERASURE_H_ */

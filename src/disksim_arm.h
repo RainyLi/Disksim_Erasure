@@ -26,7 +26,7 @@ typedef struct {
 } arm_desc;
 
 typedef struct {
-	metadata *meta; // the configuration of underlying erasure code
+	metadata_t *meta; // the configuration of underlying erasure code
 
 	int *gdistr; // I/O distribution of applications
 } arm_struct;
@@ -35,14 +35,14 @@ const char* arm_method_name(int method);
 
 double arm_score(int *a, int *b, int *mask, int disks, int method);
 
-void arm_rebuild(metadata *meta, ioreq *req, int stripeno, int pattern);
+void arm_rebuild(metadata_t *meta, ioreq_t *req, int stripeno, int pattern);
 
-int arm_get_rebuild_distr(metadata *meta, int stripeno, int pattern, int *distr);
+int arm_get_rebuild_distr(metadata_t *meta, int stripeno, int pattern, int *distr);
 
-void arm_preprocessing(metadata *meta, int pattcnt);
+void arm_preprocessing(metadata_t *meta, int pattcnt);
 
-int arm_select_pattern(metadata *meta, int stripeno, int method, int *distr, int coef);
+int arm_select_pattern(metadata_t *meta, int stripeno, int method, int *distr, int coef);
 
-void arm_initialize_patterns_new(metadata *meta, int pattcnt, int limit);
+void arm_initialize_patterns_new(metadata_t *meta, int pattcnt, int limit);
 
 #endif /* DISKSIM_ARM_H_ */

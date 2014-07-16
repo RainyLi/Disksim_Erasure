@@ -28,8 +28,8 @@ void   hashtable_set(int key, double value);
 void   hashtable_remove(int key);
 
 void iostat_initialize(int disks);
-void iostat_ioreq_start(double time, ioreq *req);
-void iostat_ioreq_complete(double time, ioreq *req);
+void iostat_ioreq_start(double time, ioreq_t *req);
+void iostat_ioreq_complete(double time, ioreq_t *req);
 
 statnode* iostat_create_node(double time, int devno, int bcount);
 void iostat_add(statnode *node);
