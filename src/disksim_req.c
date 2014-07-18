@@ -12,6 +12,7 @@
 #include "disksim_malloc.h"
 #include "disksim_interface.h"
 #include "disksim_req.h"
+#include "disksim_timer.h"
 
 extern struct disksim_interface *interface;
 extern int sh_idx, wt_idx, dr_idx;
@@ -34,6 +35,10 @@ void sh_init(stripe_ctlr_t *sctlr, int nr_stripes, int nr_disks, int nr_units, i
 		memset(sh->page, 0, sizeof(page_t) * nr_units * u_size);
 		list_add_tail(&(sh->list), &(sctlr->inactive));
 	}
+	sctlr->fails = 0; // normal
+	sctlr->dev_failed = (int*) malloc(sizeof(int) * sctlr->nr_disks);
+	sctlr->log_failed = (int*) malloc(sizeof(int) * sctlr->nr_disks);
+	memset(sctlr->dev_failed, 0, sizeof(int) * sctlr->nr_disks);
 }
 
 void sh_set_mapreq_callback(stripe_ctlr_t *sctlr, sh_maprequest_t mapreq)
@@ -41,9 +46,47 @@ void sh_set_mapreq_callback(stripe_ctlr_t *sctlr, sh_maprequest_t mapreq)
 	sctlr->mapreq_fn = mapreq;
 }
 
+void sh_set_degraded_callback(stripe_ctlr_t *sctlr, sh_degraded_t degraded)
+{
+	sctlr->degraded_fn = degraded;
+}
+
 void sh_set_complete_callback(stripe_ctlr_t *sctlr, sh_iocomplete_t comp)
 {
 	sctlr->comp_fn = comp;
+}
+
+void sh_set_disk_failure(double time, stripe_ctlr_t *sctlr, int devno) {
+	if (!sctlr->dev_failed[devno]) {
+		sctlr->dev_failed[devno] = 1;
+		sctlr->fails += 1;
+	}
+	if (sctlr->fails)
+		sctlr->rec_prog = 0;
+}
+
+void sh_set_disk_repaired(double time, stripe_ctlr_t *sctlr, int devno) {
+	if (sctlr->dev_failed[devno]) {
+		sctlr->dev_failed[devno] = 0;
+		sctlr->fails -= 1;
+	}
+}
+
+static void sh_return_stripe(double time, stripe_ctlr_t *sctlr, sub_ioreq_t *subreq, stripe_head_t *sh)
+{
+	int stripeno = subreq->stripeno;
+	if (subreq->reqtype == REQ_TYPE_NORMAL) {
+		if (sctlr->fails == 0 || stripeno < sctlr->rec_prog)
+			sctlr->mapreq_fn(time, subreq, sh);
+		else {
+			int i, disks = sctlr->nr_disks;
+			memset(sctlr->log_failed, 0, sizeof(int) * disks);
+			for (i = 0; i < disks; i++)
+				if (sctlr->dev_failed[i])
+					sctlr->log_failed[(i + disks - stripeno % disks) % disks] = 1;
+			sctlr->degraded_fn(time, subreq, sh, sctlr->log_failed);
+		}
+	}
 }
 
 void sh_get_active_stripe(double time, stripe_ctlr_t *sctlr, sub_ioreq_t *subreq)
@@ -54,8 +97,7 @@ void sh_get_active_stripe(double time, stripe_ctlr_t *sctlr, sub_ioreq_t *subreq
 		sh->users += 1;
 		if (sh->users == 1) // remove from inactive queue
 			list_del(&(sh->list));
-		if (subreq->reqtype == REQ_TYPE_NORMAL)
-			sctlr->mapreq_fn(time, subreq, sh);
+		sh_return_stripe(time, sctlr, subreq, sh);
 		return;
 	}
 	if (!list_empty(&(sctlr->inactive))) {
@@ -68,8 +110,7 @@ void sh_get_active_stripe(double time, stripe_ctlr_t *sctlr, sub_ioreq_t *subreq
 		sh->stripeno = stripeno;
 		ht_insert(sctlr->ht, stripeno, sh);
 		sh->users += 1;
-		if (subreq->reqtype == REQ_TYPE_NORMAL)
-			sctlr->mapreq_fn(time, subreq, sh);
+		sh_return_stripe(time, sctlr, subreq, sh);
 		return;
 	}
 	// sleep
@@ -93,6 +134,7 @@ void sh_release_stripe(double time, stripe_ctlr_t *sctlr, int stripeno)
 	}
 }
 
+int dr_reqs = 0, intr_events = 0;
 static void sh_send_request(double time, stripe_ctlr_t *sctlr, sh_request_t *shreq)
 {
 	struct disksim_request *dr = (struct disksim_request*) disksim_malloc(dr_idx);
@@ -103,6 +145,11 @@ static void sh_send_request(double time, stripe_ctlr_t *sctlr, sh_request_t *shr
 	dr->blkno = base + shreq->v_begin;
 	dr->bytecount = (shreq->v_end - shreq->v_begin) * 512;
 	dr->reqctx = (void*) shreq;
+	if (sctlr->dev_failed[dr->devno]) {
+		fprintf(stderr, "invalid request: device %d is failed!\n", dr->devno);
+		exit(-1);
+	}
+	dr_reqs++;
 	disksim_interface_request_arrive(interface, time, dr);
 }
 
@@ -127,9 +174,13 @@ static int lasttime = 0, iops = 0;
 void sh_request_complete(double time, struct disksim_request *dr)
 {
 	while ((lasttime + 1 ) * 1000. < time) {
-		printf("time %4d, IOPS %d\n", lasttime, iops);
+		timer_stop(TIMER_GLOBAL);
+		double secs = timer_millisecond(TIMER_GLOBAL) * 1e-6;
+		printf("time %4d, IOPS %4d, now %.3f, freqs %5d, events/s %.2f\n", lasttime, iops,
+				timer_millisecond(TIMER_GLOBAL) * 1e-6, dr_reqs, intr_events / secs);
 		lasttime += 1;
 		iops = 0;
+		timer_start(TIMER_GLOBAL);
 	}
 	fflush(stdout);
 	iops += 1;

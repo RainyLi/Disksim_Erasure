@@ -436,7 +436,7 @@ static int erasure_make_table(metadata_t *meta)
 	if (nr_parity > 64) return -1;
 	meta->loc_d = (element_t*) malloc(nr_data * sizeof(element_t));
 	meta->map_p = (int**) malloc(nr_data * sizeof(void*));
-	meta->page = (page_t*) malloc(nr_parity * sizeof(page_t));
+	meta->page = (page_t*) malloc(nr_total * sizeof(page_t));
 	int *parity = (int*) malloc(nr_total * sizeof(int));
 	memset(parity, -1, nr_total * sizeof(int));
 	for (i = 0; i < nr_parity; i++) {
@@ -550,7 +550,7 @@ void erasure_code_init(metadata_t *meta, int codetype, int disks, int usize, era
 			sh_set_complete_callback(meta->sctlr, erasure_iocomplete);
 			return;
 		}
-	fprintf(stderr, "unrecognized codetype in erasure_init_code()\n");
+	fprintf(stderr, "unrecognized codetype in erasure_code_init()\n");
 	exit(-1);
 }
 
@@ -605,6 +605,7 @@ void erasure_maprequest(double time, sub_ioreq_t *subreq, stripe_head_t *sh)
 		shreq->blkno = meta->loc_d[did].row;
 		shreq->v_begin = vb;
 		shreq->v_end = ve;
+		shreq->is_parity = 0;
 		shreq->reqctx = (void*) subreq;
 		shreq->meta = (void*) meta->sctlr;
 		subreq->out_reqs += 1;
@@ -640,12 +641,99 @@ void erasure_maprequest(double time, sub_ioreq_t *subreq, stripe_head_t *sh)
 				shreq->blkno = meta->chains[pid]->row;
 				shreq->v_begin = pg->v_begin;
 				shreq->v_end = pg->v_end;
+				shreq->is_parity = 1;
 				shreq->reqctx = (void*) subreq;
 				shreq->meta = (void*) meta->sctlr;
 				subreq->out_reqs += 1;
 				sh_request_arrive(time, meta->sctlr, sh, shreq);
 			}
 	erasure_iocomplete(time, subreq, sh);
+}
+
+void erasure_degraded(double time, sub_ioreq_t *subreq, stripe_head_t *sh, int *failed)
+{
+	subreq->state += 1;
+	subreq->out_reqs = 1;
+	metadata_t *meta = (metadata_t*) subreq->meta;
+	int usize = meta->usize;
+	int begin = subreq->blkno, end = begin + subreq->bcount;
+	int flag = subreq->flag;
+	int nr_total = meta->n * meta->w;
+	int did = subreq->blkno / meta->usize;
+	int lo = did * usize; // current region = [lo, lo + usize]
+	if (!(subreq->flag & DISKSIM_READ) && subreq->state == STATE_READ)
+		flag |= DISKSIM_READ;
+	// TODO
+	memset(meta->page, 0, sizeof(page_t) * nr_total);
+	while (lo < end && lo + usize > begin) {
+		int vb = max(0, begin - lo), ve = min(usize, end - lo);
+		element_t *elem = meta->loc_d + did;
+		int unit_id = ID(elem->row, elem->col);
+		if (failed[meta->loc_d[did].col]) {
+			if (flag & DISKSIM_READ) {
+				for (elem = meta->chains[meta->map_p2[unit_id][0]]; elem; elem = elem->next) {
+					int new_id = ID(elem->row, elem->col);
+					if (new_id == unit_id) continue;
+					page_t *pg = meta->page + new_id;
+					if (pg->state) {
+						pg->v_begin = min(pg->v_begin, vb);
+						pg->v_end = max(pg->v_end, ve);
+					} else {
+						pg->state = 1;
+						pg->v_begin = vb;
+						pg->v_end = ve;
+					}
+				}
+
+			} // do not handle write!
+		} else {
+			page_t *pg = meta->page + unit_id;
+			if (pg->state) {
+				pg->v_begin = min(pg->v_begin, vb);
+				pg->v_end = max(pg->v_end, ve);
+			} else {
+				pg->state = 1;
+				pg->v_begin = vb;
+				pg->v_end = ve;
+			}
+		}
+		if (!(subreq->flag & DISKSIM_READ)) {
+			int i = 0, *par = meta->map_p[did];
+			while (par[i] != -1) {
+				int pid = par[i++];
+				int new_id = ID(meta->chains[pid]->row, meta->chains[pid]->col);
+				page_t *pg = meta->page + new_id;
+				if (pg->state) {
+					pg->v_begin = min(pg->v_begin, vb);
+					pg->v_end = max(pg->v_end, ve);
+				} else {
+					pg->state = 1;
+					pg->v_begin = vb;
+					pg->v_end = ve;
+				}
+			}
+		}
+		did += 1;
+		lo += usize;
+	}
+	int new_id;
+	for (new_id = 0; new_id < nr_total; new_id++) {
+		page_t *pg = meta->page + new_id;
+		if (!(pg->state)) continue;
+		sh_request_t *shreq = (sh_request_t*) disksim_malloc(sh_idx);
+		shreq->time = time;
+		shreq->flag = flag;
+		shreq->stripeno = subreq->stripeno;
+		shreq->devno = meta->chains[new_id]->col;
+		shreq->blkno = meta->chains[new_id]->row;
+		shreq->v_begin = pg->v_begin;
+		shreq->v_end = pg->v_end;
+		shreq->is_parity = 0;
+		shreq->reqctx = (void*) subreq;
+		shreq->meta = (void*) meta->sctlr;
+		subreq->out_reqs += 1;
+		sh_request_arrive(time, meta->sctlr, sh, shreq);
+	}
 }
 
 void erasure_iocomplete(double time, sub_ioreq_t *subreq, stripe_head_t *sh)

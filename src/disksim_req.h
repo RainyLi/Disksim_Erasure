@@ -58,6 +58,7 @@ typedef struct sh_request {
 	int devno;    // logical device number
 	long int blkno; // unit number
 	int v_begin, v_end; // range
+	int is_parity;
 	void *reqctx, *meta;
 } sh_request_t;
 
@@ -79,6 +80,7 @@ typedef struct wait_request {
 	struct list_head list; // wait list
 } wait_req_t;
 
+typedef void(*sh_degraded_t)(double time, struct sub_ioreq *subreq, struct stripe_head *sh, int *erasures);
 typedef void(*sh_maprequest_t)(double time, struct sub_ioreq *subreq, struct stripe_head *sh);
 typedef void(*sh_iocomplete_t)(double time, struct sub_ioreq *subreq, struct stripe_head *sh);
 
@@ -87,13 +89,19 @@ typedef struct stripe_ctlr {
 	int nr_units; // number of units
 	int u_size;   // unit size (in sectors)
 
+	int fails;   // number of failed disks
+	int rec_prog; // progress of recovery
+	int *dev_failed; // failed devices
+	int *log_failed; // failed logical devices
+
 	struct list_head inactive; // inactive queue
 
 	struct list_head waitreqs; // no enough stripe_head
 
 	hash_table_t *ht;
 
-	sh_maprequest_t mapreq_fn; // call this function when becomes active
+	sh_maprequest_t mapreq_fn; // call this function when stripe becomes active
+	sh_degraded_t degraded_fn; // call this function when stripe becomes active
 	sh_iocomplete_t comp_fn; // call this function when finishes requests
 } stripe_ctlr_t;
 
@@ -111,7 +119,10 @@ static inline void free_ioreq(ioreq_t *req)
 
 void sh_init(stripe_ctlr_t *sctlr, int nr_stripes, int nr_disks, int nr_units, int u_size);
 void sh_set_mapreq_callback(stripe_ctlr_t *sctlr, sh_maprequest_t mapreq);
+void sh_set_degraded_callback(stripe_ctlr_t *sctlr, sh_degraded_t degraded);
 void sh_set_complete_callback(stripe_ctlr_t *sctlr, sh_iocomplete_t comp);
+void sh_set_disk_failure(double time, stripe_ctlr_t *sctlr, int devno);
+void sh_set_disk_repaired(double time, stripe_ctlr_t *sctlr, int devno);
 
 void sh_get_active_stripe(double time, stripe_ctlr_t *sctlr, sub_ioreq_t *subreq);
 void sh_release_stripe(double time, stripe_ctlr_t *sctlr, int stripeno);

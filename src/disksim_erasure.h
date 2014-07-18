@@ -45,7 +45,8 @@ typedef struct metadata {
 
 	element_t **chains; // an array of m*w chains
 	element_t *loc_d;   // map from data block ID to its location
-	int **map_p;        // map from data block ID to a list of parity block ID
+	int **map_p;  // map from data ID to a list of parity IDs it affects
+	int **map_p2; // map from any ID to a list of parity chains it is protected by
 
 	long long bitmap;  // parity bitmap
 	page_t *page; // internal calculation
@@ -74,6 +75,7 @@ void erasure_initialize();
 void erasure_code_init(metadata_t *meta, int codetype, int disks, int usize, erasure_complete_t comp);
 void erasure_handle_request(double time, metadata_t *meta, ioreq_t *req);
 void erasure_maprequest(double time, sub_ioreq_t *subreq, stripe_head_t *sh);
+void erasure_degraded(double time, sub_ioreq_t *subreq, stripe_head_t *sh, int *erasures);
 void erasure_iocomplete(double time, sub_ioreq_t *subreq, stripe_head_t *sh);
 
 #endif /* DISKSIM_ERASURE_H_ */

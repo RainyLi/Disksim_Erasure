@@ -15,7 +15,6 @@
 #include "disksim_event_queue.h"
 #include "disksim_global.h"
 #include "disksim_interface.h"
-#include "disksim_iostat.h"
 #include "disksim_rand48.h"
 #include "disksim_timer.h"
 
@@ -146,7 +145,7 @@ int main(int argc, char **argv)
 	DISKSIM_srand48(1);
 
 	eventq = malloc(sizeof(event_queue_t));
-	event_queue_initialize(eventq);
+	event_queue_init(eventq);
 
 	meta = (metadata_t*) malloc(sizeof(metadata_t));
 	erasure_code_init(meta, code, disks, unit * 2);
@@ -218,7 +217,7 @@ int main(int argc, char **argv)
 		}
 	}
 	disksim_interface_shutdown(interface, currtime);
-	timer_end(0);
+	timer_stop(0);
 	long long duration = timer_microsecond(0);
 	printf("\n");
 	printf("===================================================\n");

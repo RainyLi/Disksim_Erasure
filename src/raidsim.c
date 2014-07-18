@@ -115,6 +115,8 @@ void descheduled_callback(double time, void *ctx)
 {
 }
 
+extern int intr_events;
+
 int main(int argc, char **argv)
 {
 	int i, p = 1;
@@ -181,8 +183,7 @@ int main(int argc, char **argv)
 	//if (stop > 0)
 	//	event_queue_add(eventq, create_event_node(stop, EVENT_STOP_SIM, NULL));
 
-	int tm = timer_index();
-	timer_start(tm);
+	timer_start(TIMER_GLOBAL);
 	int cur = 0, numreqs = 0;
 
 	int stop_simulation = 0;
@@ -219,6 +220,7 @@ int main(int argc, char **argv)
 			break;
 		case EVENT_IO_INTERNAL:
 			//printf("time = %f, type = EVENT_IO_INTERNAL\n", node->time);
+			intr_events++;
 			disksim_interface_internal_event(interface, node->time, node->ctx);
 			break;
 		case EVENT_IO_COMPLETE:
@@ -240,8 +242,8 @@ int main(int argc, char **argv)
 	}
 	disksim_interface_shutdown(interface, currtime);
 
-	timer_stop(tm);
-	long long duration = timer_microsecond(tm);
+	timer_stop(TIMER_GLOBAL);
+	long long duration = timer_microsecond(TIMER_GLOBAL);
 	printf("\n");
 	printf("===================================================\n");
 	printf("Trace File = %s\n", inpfile);

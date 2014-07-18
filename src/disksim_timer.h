@@ -8,7 +8,10 @@
 #ifndef DISKSIM_TIMER_H_
 #define DISKSIM_TIMER_H_
 
-int  timer_index();
+#define TIMER_GLOBAL	0
+#define TIMER_DISKSIM	1
+
+//int  timer_index();
 void timer_start(int index);
 void timer_stop(int index);
 void timer_reset(int index);
