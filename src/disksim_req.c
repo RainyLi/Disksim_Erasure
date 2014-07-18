@@ -134,7 +134,6 @@ void sh_release_stripe(double time, stripe_ctlr_t *sctlr, int stripeno)
 	}
 }
 
-int dr_reqs = 0, intr_events = 0;
 static void sh_send_request(double time, stripe_ctlr_t *sctlr, sh_request_t *shreq)
 {
 	struct disksim_request *dr = (struct disksim_request*) disksim_malloc(dr_idx);
@@ -149,7 +148,6 @@ static void sh_send_request(double time, stripe_ctlr_t *sctlr, sh_request_t *shr
 		fprintf(stderr, "invalid request: device %d is failed!\n", dr->devno);
 		exit(-1);
 	}
-	dr_reqs++;
 	disksim_interface_request_arrive(interface, time, dr);
 }
 
@@ -170,20 +168,8 @@ void sh_request_arrive(double time, stripe_ctlr_t *sctlr, stripe_head_t *sh, sh_
 	}
 }
 
-static int lasttime = 0, iops = 0;
 void sh_request_complete(double time, struct disksim_request *dr)
 {
-	while ((lasttime + 1 ) * 1000. < time) {
-		timer_stop(TIMER_GLOBAL);
-		double secs = timer_millisecond(TIMER_GLOBAL) * 1e-6;
-		printf("time %4d, IOPS %4d, now %.3f, freqs %5d, events/s %.2f\n", lasttime, iops,
-				timer_millisecond(TIMER_GLOBAL) * 1e-6, dr_reqs, intr_events / secs);
-		lasttime += 1;
-		iops = 0;
-		timer_start(TIMER_GLOBAL);
-	}
-	fflush(stdout);
-	iops += 1;
 	sh_request_t *shreq = (sh_request_t*) dr->reqctx;
 	sub_ioreq_t *subreq = (sub_ioreq_t*) shreq->reqctx;
 	stripe_ctlr_t *sctlr = (stripe_ctlr_t*) shreq->meta;

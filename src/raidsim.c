@@ -115,8 +115,6 @@ void descheduled_callback(double time, void *ctx)
 {
 }
 
-extern int intr_events;
-
 int main(int argc, char **argv)
 {
 	int i, p = 1;
@@ -184,11 +182,10 @@ int main(int argc, char **argv)
 	//	event_queue_add(eventq, create_event_node(stop, EVENT_STOP_SIM, NULL));
 
 	timer_start(TIMER_GLOBAL);
-	int cur = 0, numreqs = 0;
 
-	int stop_simulation = 0;
-	double checkpoint = 0;
-	while (!stop_simulation) {
+	int stopsim = 0;
+	double checkpoint = 0, last_internal = 0;
+	while (!stopsim) {
 		event_node_t *node = event_queue_pop(eventq);
 		if (node == NULL)
 			break; // stop simulation
@@ -196,23 +193,11 @@ int main(int argc, char **argv)
 		//printf("time = %f, type = %d\n", node->time, node->type);
 		switch (node->type) {
 		case EVENT_STOP_SIM:
-			stop_simulation = 1;
+			stopsim = 1;
 			break;
 		case EVENT_TRACE_FETCH:
 			//printf("time = %f, type = EVENT_TRACE_FETCH\n", node->time);
 			trace_add_next((FILE*)node->ctx);
-			if (cur < numreqs) {
-				ioreq_t *req = create_ioreq();
-				req->time = cur * 30 * scale;
-				req->flag = DISKSIM_WRITE;
-				req->blkno = cur * (unit * 2);
-				req->bcount = unit * 2;
-				req->reqno = ++reqno;
-				req->reqtype = REQ_TYPE_NORMAL;
-				event_queue_add(eventq, create_event(req->time, EVENT_TRACE_MAPREQ, req));
-				event_queue_add(eventq, create_event(req->time, EVENT_TRACE_FETCH, node->ctx));
-				cur += 1;
-			}
 			break;
 		case EVENT_TRACE_MAPREQ:
 			//printf("time = %f, type = EVENT_TRACE_ITEM\n", node->time);
@@ -220,8 +205,8 @@ int main(int argc, char **argv)
 			break;
 		case EVENT_IO_INTERNAL:
 			//printf("time = %f, type = EVENT_IO_INTERNAL\n", node->time);
-			intr_events++;
-			disksim_interface_internal_event(interface, node->time, node->ctx);
+			if (last_internal != node->time)
+				disksim_interface_internal_event(interface, last_internal = node->time, node->ctx);
 			break;
 		case EVENT_IO_COMPLETE:
 			//printf("time = %f, type = EVENT_IO_COMPLETE\n", node->time);

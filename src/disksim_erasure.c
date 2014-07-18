@@ -155,13 +155,13 @@ static int xcode_initialize(metadata_t *meta) {
 		element_t *elem = NULL;
 		for (r = 0; r < p - 2; r++)
 			elem = create_elem(r, (r + c + 2) % p, elem);
-		meta->chains[r] = create_elem(p - 2, c, elem);
+		meta->chains[c] = create_elem(p - 2, c, elem);
 	}
 	for (c = 0; c < p; c++) {
 		element_t *elem = NULL;
 		for (r = 0; r < p - 2; r++)
 			elem = create_elem(r, (c + p - r - 2) % p, elem);
-		meta->chains[meta->w + r] = create_elem(p - 1, c, elem);
+		meta->chains[meta->w + c] = create_elem(p - 1, c, elem);
 	}
 	return 0;
 }
@@ -433,6 +433,7 @@ static int erasure_make_table(metadata_t *meta)
 	int nr_data = meta->w * meta->k;
 	int nr_total = meta->w * meta->n;
 	int nr_parity = meta->w * meta->m;
+	fflush(stdout);
 	if (nr_parity > 64) return -1;
 	meta->loc_d = (element_t*) malloc(nr_data * sizeof(element_t));
 	meta->map_p = (int**) malloc(nr_data * sizeof(void*));
