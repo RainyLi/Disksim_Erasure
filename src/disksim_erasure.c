@@ -145,30 +145,6 @@ static int hcode_initialize(metadata_t *meta)
 	return 0;
 }
 
-static int shortened_hcode_initialize(metadata_t *meta)
-{
-	int r, c, p = meta->pr = meta->n - 2;
-	if (!check_prime(p)) return -1;
-	meta->w = p - 1;
-	meta->chains = (element_t**) malloc(meta->w * meta->m * sizeof(void*));
-	memset(meta->chains, 0, meta->w * meta->m * sizeof(void*));
-	for (r = 0; r < meta->w; r++) {
-		element_t *elem = NULL;
-		for (c = 0; c < p - 1; c++)
-			if (r != c)
-				elem = create_elem(r, c, elem);
-		meta->chains[r] = create_elem(r, p - 1, elem);
-	}
-	for (r = 0; r < meta->w; r++) {
-		element_t *elem = NULL;
-		for (c = 0; c < p - 1; c++)
-			if ((c + p - r) % p)
-				elem = create_elem((c + p - r - 1) % p, c, elem);
-		meta->chains[meta->w + r] = create_elem(r, r, elem);
-	}
-	return 0;
-}
-
 static int xcode_initialize(metadata_t *meta) {
 	int r, c, p = meta->pr = meta->n;
 	if (!check_prime(p)) return -1;
@@ -308,6 +284,41 @@ static int triple_initialize(metadata_t *meta)
 			if ((r + c + 1) % p)
 				elem = create_elem((r + c) % p, c, elem);
 		meta->chains[meta->w * 2 + r] = create_elem(r, p + 1, elem);
+	}
+	return 0;
+}
+
+static int xicode_initialize(metadata_t *meta)
+{
+	int i, r, c, p = meta->pr = meta->n;
+	if (!check_prime(p)) return -1;
+	meta->w = p - 1;
+	meta->chains = (element_t **) malloc(meta->w * meta->m * sizeof(void*));
+	memset(meta->chains, 0, meta->w * meta->m * sizeof(void*));
+	for (r = 0; r < meta->w; r++) {
+		element_t *elem = NULL;
+		for (c = 0; c < p - 1; c++)
+			if (r != c && r + c != p - 2)
+				elem = create_elem(r, c, elem);
+		meta->chains[r] = create_elem(r, p - 1, elem);
+	}
+	for (i = 0; i < p - 1; i++) {
+		element_t *elem = NULL;
+		for (c = 0; c < p - 1; c++) {
+			r = (p - 1 + i - c) % p;
+			if (r != p - 1 && r != c && r + c != p - 2)
+				elem = create_elem(r, c, elem);
+		}
+		meta->chains[meta->w + i] = create_elem(i, i, elem);
+	}
+	for (i = 0; i < p - 1; i++) {
+		element_t *elem = NULL;
+		for (c = 0; c < p - 1; c++) {
+			r = (c + i + 1) % p;
+			if (r != p - 1 && r != c && r + c != p - 2)
+				elem = create_elem(r, c, elem);
+		}
+		meta->chains[meta->w * 2 + i] = create_elem(i, p - 2 - i, elem);
 	}
 	return 0;
 }
@@ -512,6 +523,7 @@ void erasure_initialize()
 	create_code(CODE_STAR, 3, "star", "STAR", star_initialize);
 	create_code(CODE_TRIPLE, 3, "triple", "Triple-Star", triple_initialize);
 	create_code(CODE_EXT_HCODE, 3, "exthcode", "Extended.H-code", ext_hcode_initialize);
+	create_code(CODE_XICODE, 3, "xicode", "XI-code", xicode_initialize);
 }
 
 void erasure_code_init(metadata_t *meta, int codetype, int disks, int usize, erasure_complete_t comp)

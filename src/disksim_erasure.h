@@ -24,6 +24,7 @@
 #define CODE_CYCLIC		11	// Cyclic code
 #define CODE_RAID0		12	// RAID-0
 #define CODE_RAID5		13	// RAID-5
+#define CODE_XICODE		14  // XI-code
 
 typedef void(*erasure_complete_t)(double time, ioreq_t *req);
 
