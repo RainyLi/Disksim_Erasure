@@ -9,7 +9,6 @@
 
 #include "disksim_event_queue.h"
 #include "disksim_global.h"
-#include "disksim_malloc.h"
 
 extern int en_idx;
 
@@ -24,13 +23,9 @@ event_node_t* create_event(double time, int type, void *ctx) {
 	return ret;
 }
 
-void free_event(event_node_t *node)
-{
-	disksim_free(en_idx, node);
-}
-
-void event_queue_initialize(event_queue_t *queue) {
-	queue->root = NULL;
+void event_queue_init(event_queue_t *eq) {
+	eq->root = NULL;
+	eq->size = 0;
 }
 
 static event_node_t* merge(event_node_t *a, event_node_t *b) {
@@ -57,14 +52,16 @@ static event_node_t* merge(event_node_t *a, event_node_t *b) {
 	}
 }
 
-void event_queue_add(event_queue_t *queue, event_node_t *node) {
-	queue->root = merge(queue->root, node);
+void event_queue_add(event_queue_t *eq, event_node_t *en) {
+	eq->root = merge(eq->root, en);
+	eq->size += 1;
 }
 
-event_node_t* event_queue_pop(event_queue_t *queue) {
-	if (queue->root == NULL)
+event_node_t* event_queue_pop(event_queue_t *eq) {
+	if (eq->root == NULL)
 		return NULL;
-	event_node_t *ret = queue->root;
-	queue->root = merge(ret->right, ret->left);
+	event_node_t *ret = eq->root;
+	eq->root = merge(ret->right, ret->left);
+	eq->size -= 1;
 	return ret;
 }

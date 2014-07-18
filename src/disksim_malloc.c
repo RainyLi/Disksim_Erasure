@@ -91,20 +91,22 @@ void *DISKSIM_malloc (int size)
 #include "disksim_interface.h"
 #include "disksim_req.h"
 
-int ht_idx; // hash_table_t
-int hn_idx; // hash_node_t
-int en_idx; // event_node_t
-int sh_idx; // stripe_head_t
-int wt_idx; // wait_req_t
-int dr_idx; // disksim_request
-int el_idx; // element_t
-int sb_idx; // sub_ioreq
-
 #define INDEX(type) malloc_index(sizeof(struct type))
 
-static int malloc_index(unsigned x)
+int hn_idx; // hash_node & release in ht_remove (CK)
+int en_idx; // event_node & release in main (CK)
+int sh_idx; // stripe_head & DO NOT RELEASE (CK)
+int wt_idx; // wait_req & release in sh_release_stripe (CK)
+int dr_idx; // disksim_request & release in main (CK)
+int el_idx; // element & DO NOT RELEASE
+int rq_idx; // ioreq & release in main (CK)
+int sb_idx; // sub_ioreq & release in maprequest_iocomplete (CK)
+
+static void* space[32];
+
+int malloc_index(unsigned x)
 {
-    int n = 0;
+    int n = 2; x >>= 2;
     if (x >> 8) {x >>= 8; n += 8;}
     if (x >> 4) {x >>= 4; n += 4;}
     if (x >> 2) {x >>= 2; n += 2;}
@@ -114,38 +116,37 @@ static int malloc_index(unsigned x)
 
 void malloc_initialize()
 {
-	ht_idx = INDEX(hash_table);
 	hn_idx = INDEX(hash_node);
 	en_idx = INDEX(event_node);
 	sh_idx = INDEX(stripe_head);
 	wt_idx = INDEX(wait_request);
 	dr_idx = INDEX(disksim_request);
 	el_idx = INDEX(element);
+	rq_idx = INDEX(ioreq);
 	sb_idx = INDEX(sub_ioreq);
 }
 
-static void* space[32];
-
 void* disksim_malloc(int index)
 {
-	int *ptr = space[index], size = (1 << index);
-	if (ptr == NULL) {
-		int *tmp = (int*) malloc(size << 4); // 16 elements
-		int *addr = tmp, *end = tmp + (size << 4);
+	void **ptr = &space[index];
+	int size = (4 << index);
+	if (*ptr == NULL) {
+		void *tmp = (void*) malloc(size << 4); // 16 elements
+		void *addr = tmp, *end = tmp + (size << 4);
 		while (addr < end) {
-			*addr = (int) ptr;
-			ptr = addr;
+			*(void**)addr = *ptr;
+			*ptr = addr;
 			addr += size;
 		}
 	}
-	void *ret = ptr;
-	ptr = (int*) (*ptr);
+	void *ret = *ptr;
+	*ptr = *(void**)(*ptr);
 	return ret;
 }
 
 void disksim_free(int index, void *item)
 {
-	void *ptr = space[index];
-	*(int*)item = (int) ptr;
-	ptr = item;
+	void **ptr = &space[index];
+	*(void**)item = *ptr;
+	*ptr = item;
 }

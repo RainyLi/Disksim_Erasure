@@ -25,7 +25,7 @@
 #define CODE_RAID0		12	// RAID-0
 #define CODE_RAID5		13	// RAID-5
 
-typedef void(*erasure_complete_t)(double time, ioreq_t *req, void* ctx);
+typedef void(*erasure_complete_t)(double time, ioreq_t *req);
 
 typedef struct element {
 	int row;
@@ -43,8 +43,10 @@ typedef struct metadata {
 	int pr; // prime number if exists
 
 	element_t **chains; // an array of m*w chains
-	element_t *map;     // map from data block ID to corresponding data & parity blocks
+	element_t *loc_d;   // map from data block ID to its location
+	int **map_p;        // map from data block ID to a list of parity block ID
 
+	long long bitmap;  // parity bitmap
 	page_t *page; // internal calculation
 
 	stripe_ctlr_t *sctlr;

@@ -10,7 +10,7 @@
 
 int  timer_index();
 void timer_start(int index);
-void timer_end(int index);
+void timer_stop(int index);
 void timer_reset(int index);
 void timer_reset_all();
 long long timer_millisecond(int index);

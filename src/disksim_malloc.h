@@ -63,6 +63,7 @@
 /* Get space within the pre-allocated range of space. */
 void * DISKSIM_malloc (int size);
 
+int   malloc_index(unsigned x);
 void  malloc_initialize();
 void* disksim_malloc(int index);
 void  disksim_free(int index, void *item);

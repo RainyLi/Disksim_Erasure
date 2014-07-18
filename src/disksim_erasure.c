@@ -19,7 +19,9 @@
 static codespec_t specs[32];
 static int nr_codes = 0, code_id;
 
-extern int el_idx, sb_idx;
+#define ID(row, col) ((row) * meta->n + (col))
+
+extern int el_idx, sb_idx, sh_idx;
 
 const char* get_code_name(int code)
 {
@@ -59,6 +61,18 @@ static element_t* create_elem(int row, int col, element_t *next)
 	return ret;
 }
 
+static void print_chains(metadata_t *meta)
+{
+	int nr_parity = meta->w * meta->m, i;
+	element_t *elem;
+	for (i = 0; i < nr_parity; i++) {
+		for (elem = meta->chains[i]; elem != NULL; elem = elem->next)
+			printf(" (%d, %d)", elem->row, elem->col);
+		printf("\n");
+	}
+	DEBUG("");
+}
+
 static int evenodd_initialize(metadata_t *meta)
 {
 	int r, c, p = meta->pr = meta->n - 2;
@@ -86,7 +100,7 @@ static int evenodd_initialize(metadata_t *meta)
 
 static int rdp_initialize(metadata_t *meta)
 {
-	int r, c, p = meta->k + 1;
+	int r, c, p = meta->pr = meta->n - 1;
 	if (!check_prime(p)) return -1;
 	meta->w = p - 1;
 	meta->chains = (element_t**) malloc(meta->w * meta->m * sizeof(void*));
@@ -180,7 +194,7 @@ static int liberation_initialize(metadata_t *meta)
 {
 	int r, c, p = meta->pr = meta->n - 2;
 	if (!check_prime(p)) return -1;
-	meta->w = p - 1;
+	meta->w = p;
 	meta->chains = (element_t**) malloc(meta->w * meta->m * sizeof(void*));
 	memset(meta->chains, 0, meta->w * meta->m * sizeof(void*));
 	for (r = 0; r < meta->w; r++) {
@@ -403,60 +417,73 @@ static int raid5_initialize(metadata_t *meta)
 
 static int erasure_make_table(metadata_t *meta)
 {
-	int i, j, units = 0;
+	int i, did = 0, pid = 0;
 	element_t *elem;
 	int nr_data = meta->w * meta->k;
 	int nr_total = meta->w * meta->n;
 	int nr_parity = meta->w * meta->m;
-	meta->map = (element_t*) malloc(nr_data * sizeof(element_t));
-	meta->page = (page_t*) malloc(nr_total * sizeof(page_t));
+	if (nr_parity > 64) return -1;
+	meta->loc_d = (element_t*) malloc(nr_data * sizeof(element_t));
+	meta->map_p = (int**) malloc(nr_data * sizeof(void*));
+	meta->page = (page_t*) malloc(nr_parity * sizeof(page_t));
 	int *parity = (int*) malloc(nr_total * sizeof(int));
-	memset(parity, 0, nr_total * sizeof(int));
+	memset(parity, -1, nr_total * sizeof(int));
 	for (i = 0; i < nr_parity; i++) {
 		elem = meta->chains[i];
-		parity[elem->row * meta->n + elem->col] = 1; // parity blocks
+		parity[ID(elem->row, elem->col)] = pid++;
 	}
+	if (pid != nr_parity) return -1;
 	for (i = 0; i < nr_total; i++)
-		if (!parity[i]) {
-			meta->map[units].col = i % meta->n;
-			meta->map[units].row = i / meta->n;
-			meta->map[units].next = NULL;
-			units += 1;
+		if (parity[i] < 0) {
+			meta->map_p[did] = (int*) malloc(12 * sizeof(int));
+			memset(meta->map_p[did], -1, 12 * sizeof(int));
+			meta->loc_d[did].col = i % meta->n;
+			meta->loc_d[did].row = i / meta->n;
+			meta->loc_d[did].next = NULL;
+			did += 1;
 		}
-	if (units != nr_data) return -1;
+	if (did != nr_data) return -1;
 	int *depend = (int*) malloc(nr_parity * sizeof(int));
+	int *queue  = (int*) malloc(nr_parity * sizeof(int));
 	int *occur  = (int*) malloc(nr_total  * sizeof(int));
 	memset(depend, 0, nr_parity * sizeof(int));
 	memset(occur , 0, nr_total  * sizeof(int));
-	for (i = 0; i < nr_parity; i++)
-		for (elem = meta->chains[i]->next; elem != NULL; elem = elem->next)
-			if (parity[elem->row * meta->n + elem->col])
-				depend[i] += 1;
+	int front = 0, back = 0;
 	for (i = 0; i < nr_parity; i++) {
-		int ch = 0;
-		while (ch < nr_parity && depend[ch] != 0) ch++;
-		if (ch == nr_parity) return -1;
-		depend[ch]--;
+		for (elem = meta->chains[i]->next; elem != NULL; elem = elem->next)
+			if (parity[ID(elem->row, elem->col)] != -1)
+				depend[i] += 1;
+		if (depend[i] == 0)
+			queue[back++] = i;
+	}
+	while (front < back) {
+		int ch = queue[front++];
 		element_t *head = meta->chains[ch];
 		for (elem = head->next; elem != NULL; elem = elem->next)
-			occur[elem->row * meta->n + elem->col] ^= 1;
-		for (j = 0; j < nr_data; j++) {
-			int protect = 0;
-			for (elem = meta->map + j; elem != NULL; elem = elem->next)
-				protect ^= occur[elem->row * meta->n + elem->col];
-			if (protect)
-				meta->map[j].next = create_elem(head->row, head->col, meta->map[j].next);
+			occur[ID(elem->row, elem->col)] ^= 1;
+		for (i = 0; i < nr_data; i++) {
+			elem = meta->loc_d + i;
+			int protect = occur[ID(elem->row, elem->col)];
+			int j = 0, *par = meta->map_p[i];
+			while (par[j] != -1) {
+				elem = meta->chains[par[j++]];
+				protect ^= occur[ID(elem->row, elem->col)];
+			}
+			if (protect) par[j] = ch;
 		}
 		for (elem = head->next; elem != NULL; elem = elem->next)
-			occur[elem->row * meta->n + elem->col] ^= 1;
-		int currid = head->row * meta->n + head->col;
-		for (j = 0; j < nr_parity; j++)
-			for (elem = meta->chains[j]->next; elem != NULL; elem = elem->next)
-				if (elem->row * meta->n + elem->col == currid)
-					depend[j] -= 1;
+			occur[ID(elem->row, elem->col)] ^= 1;
+		int currid = ID(head->row, head->col);
+		for (i = 0; i < nr_parity; i++)
+			for (elem = meta->chains[i]->next; elem != NULL; elem = elem->next)
+				if (ID(elem->row, elem->col) == currid)
+					if (!(--depend[i]))
+						queue[back++] = i;
 	}
+	if (back != nr_parity) return -1;
 	free(parity);
 	free(depend);
+	free(queue);
 	free(occur);
 	return 0;
 }
@@ -487,91 +514,6 @@ void erasure_initialize()
 	create_code(CODE_EXT_HCODE, 3, "exthcode", "Extended.H-code", ext_hcode_initialize);
 }
 
-void erasure_iocomplete(double time, sub_ioreq_t *subreq, stripe_head_t *sh)
-{
-	metadata_t *meta = (metadata_t*) subreq->meta;
-	if ((--subreq->out_reqs) == 0) {
-		// check state & reqflag
-		if ((subreq->flag & DISKSIM_READ) || subreq->state == STATE_WRITE) {
-			sh_release_stripe(time, meta->sctlr, subreq->stripeno);
-			ioreq_t *req = (ioreq_t*) subreq->reqctx;
-			if ((--req->out_reqs) == 0)
-				meta->comp_fn(time, (ioreq_t*) subreq->reqctx, NULL);
-		} else
-			erasure_maprequest(time, subreq, sh);
-	}
-}
-
-void erasure_maprequest(double time, sub_ioreq_t *subreq, stripe_head_t *sh)
-{
-	subreq->state += 1;
-	subreq->out_reqs = 1;
-	metadata_t *meta = (metadata_t*) subreq->meta;
-	int usize = meta->usize;
-	int begin = subreq->blkno, end = begin + subreq->bcount;
-	if (subreq->flag & DISKSIM_READ) {
-		int unitno = subreq->blkno / meta->usize, lo = unitno * usize;
-		while (lo < end && lo + usize > begin) {
-			sh_request_t *shreq = (sh_request_t*) disksim_malloc(sb_idx);
-			shreq->time = time;
-			shreq->flag = subreq->flag;
-			shreq->stripeno = subreq->stripeno;
-			shreq->devno = meta->map[unitno].col;
-			shreq->blkno = meta->map[unitno].row;
-			shreq->v_begin = max(0, begin - lo);
-			shreq->v_end = min(usize, end - lo);
-			shreq->reqctx = (void*) subreq;
-			shreq->meta = (void*) meta->sctlr;
-			subreq->out_reqs += 1;
-			sh_request_arrive(time, meta->sctlr, sh, shreq);
-			unitno += 1;
-			lo += usize;
-		}
-	} else {
-		int nr_total = meta->n * meta->w, unit_id;
-		int unitno = subreq->blkno / meta->usize, lo = unitno * usize;
-		memset(meta->page, 0, sizeof(page_t) * nr_total);
-		while (lo < end && lo + usize > begin) {
-			element_t *elem;
-			int vb = max(0, begin - lo), ve = min(usize, end - lo);
-			for (elem = meta->map + unitno; elem; elem = elem->next) {
-				page_t *pg = meta->page + unitno;
-				if (pg->state) {
-					pg->v_begin = min(pg->v_begin, vb);
-					pg->v_end = max(pg->v_end, ve);
-				} else {
-					pg->state = 1;
-					pg->v_begin = vb;
-					pg->v_end = ve;
-				}
-			}
-			unitno += 1;
-			lo += usize;
-		}
-		int flag = subreq->flag;
-		if (subreq->state == STATE_READ)
-			flag |= DISKSIM_READ;
-		for (unit_id = 0; unit_id < nr_total; unit_id++) {
-			page_t *pg = meta->page + unit_id;
-			if (meta->page[unit_id].state) {
-				sh_request_t *shreq = (sh_request_t*) disksim_malloc(sb_idx);
-				shreq->time = time;
-				shreq->flag = flag;
-				shreq->stripeno = subreq->stripeno;
-				shreq->devno = unit_id % meta->n;
-				shreq->blkno = unit_id / meta->n;
-				shreq->v_begin = pg->v_begin;
-				shreq->v_end = pg->v_end;
-				shreq->reqctx = (void*) subreq;
-				shreq->meta = (void*) meta->sctlr;
-				subreq->out_reqs += 1;
-				sh_request_arrive(time, meta->sctlr, sh, shreq);
-			}
-		}
-	}
-	erasure_iocomplete(time, subreq, sh);
-}
-
 void erasure_code_init(metadata_t *meta, int codetype, int disks, int usize, erasure_complete_t comp)
 {
 	meta->codetype = codetype;
@@ -586,15 +528,18 @@ void erasure_code_init(metadata_t *meta, int codetype, int disks, int usize, era
 				fprintf(stderr, "invalid disk number using %s\n", specs[code_id].name);
 				exit(-1);
 			}
-			erasure_make_table(meta);
+			if (erasure_make_table(meta) < 0) {
+				fprintf(stderr, "initialization failure\n");
+				exit(-1);
+			}
+			meta->sctlr = (stripe_ctlr_t*) malloc(sizeof(stripe_ctlr_t));
+			sh_init(meta->sctlr, 256, disks, meta->w, usize);
+			sh_set_mapreq_callback(meta->sctlr, erasure_maprequest);
+			sh_set_complete_callback(meta->sctlr, erasure_iocomplete);
 			return;
 		}
 	fprintf(stderr, "unrecognized codetype in erasure_init_code()\n");
 	exit(-1);
-	meta->sctlr = (stripe_ctlr_t*) malloc(sizeof(stripe_ctlr_t));
-	sh_init(meta->sctlr, 256, disks, meta->w, usize);
-	sh_set_mapreq_callback(meta->sctlr, erasure_maprequest);
-	sh_set_complete_callback(meta->sctlr, erasure_iocomplete);
 }
 
 void erasure_handle_request(double time, metadata_t *meta, ioreq_t *req)
@@ -607,10 +552,12 @@ void erasure_handle_request(double time, metadata_t *meta, ioreq_t *req)
 	while (curr < end) {
 		sub_ioreq_t *subreq = (sub_ioreq_t*) disksim_malloc(sb_idx);
 		subreq->state = STATE_BEGIN;
+		subreq->reqtype = req->reqtype;
 		subreq->reqno = req->reqno;
 		subreq->stripeno = stripe_no;
-		subreq->blkno = max(curr, req->blkno) - curr;
-		subreq->bcount = min(curr + stripe_sz, end) - subreq->blkno;
+		subreq->blkno = max(0, req->blkno - curr);
+		subreq->bcount = min(stripe_sz, end - curr) - subreq->blkno;
+		subreq->flag = req->flag;
 		subreq->reqctx = req;
 		subreq->meta = (void*)meta;
 		req->out_reqs += 1;
@@ -619,6 +566,88 @@ void erasure_handle_request(double time, metadata_t *meta, ioreq_t *req)
 		curr += stripe_sz;
 	}
 	if ((--req->out_reqs) == 0)
-		meta->comp_fn(time, req, NULL);
+		meta->comp_fn(time, req);
 }
 
+void erasure_maprequest(double time, sub_ioreq_t *subreq, stripe_head_t *sh)
+{
+	subreq->state += 1;
+	subreq->out_reqs = 1;
+	metadata_t *meta = (metadata_t*) subreq->meta;
+	int usize = meta->usize;
+	int begin = subreq->blkno, end = begin + subreq->bcount;
+	int flag = subreq->flag, pid;
+	int nr_total = meta->n * meta->w;
+	int did = subreq->blkno / meta->usize;
+	int lo = did * usize; // current region = [lo, lo + usize]
+	if (!(subreq->flag & DISKSIM_READ) && subreq->state == STATE_READ)
+		flag |= DISKSIM_READ;
+	meta->bitmap = 0;
+	while (lo < end && lo + usize > begin) {
+		int vb = max(0, begin - lo), ve = min(usize, end - lo);
+		sh_request_t *shreq = (sh_request_t*) disksim_malloc(sh_idx);
+		shreq->time = time;
+		shreq->flag = flag;
+		shreq->stripeno = subreq->stripeno;
+		shreq->devno = meta->loc_d[did].col;
+		shreq->blkno = meta->loc_d[did].row;
+		shreq->v_begin = vb;
+		shreq->v_end = ve;
+		shreq->reqctx = (void*) subreq;
+		shreq->meta = (void*) meta->sctlr;
+		subreq->out_reqs += 1;
+		sh_request_arrive(time, meta->sctlr, sh, shreq);
+		if (!(subreq->flag & DISKSIM_READ)) {
+			int i = 0, *par = meta->map_p[did];
+			while (par[i] != -1) {
+				pid = par[i++];
+				page_t *pg = meta->page + pid;
+				if (1 & (meta->bitmap >> pid)) {
+					pg->v_begin = min(pg->v_begin, vb);
+					pg->v_end = max(pg->v_end, ve);
+				} else {
+					meta->bitmap ^= 1ll << pid;
+					pg->v_begin = vb;
+					pg->v_end = ve;
+				}
+			}
+		}
+		did += 1;
+		lo += usize;
+	}
+	int nr_parity = meta->m * meta->w;
+	if (!(subreq->flag & DISKSIM_READ))
+		for (pid = 0; pid < nr_parity; pid++)
+			if (1 & (meta->bitmap >> pid)) {
+				page_t *pg = meta->page + pid;
+				sh_request_t *shreq = (sh_request_t*) disksim_malloc(sh_idx);
+				shreq->time = time;
+				shreq->flag = flag;
+				shreq->stripeno = subreq->stripeno;
+				shreq->devno = meta->chains[pid]->col;
+				shreq->blkno = meta->chains[pid]->row;
+				shreq->v_begin = pg->v_begin;
+				shreq->v_end = pg->v_end;
+				shreq->reqctx = (void*) subreq;
+				shreq->meta = (void*) meta->sctlr;
+				subreq->out_reqs += 1;
+				sh_request_arrive(time, meta->sctlr, sh, shreq);
+			}
+	erasure_iocomplete(time, subreq, sh);
+}
+
+void erasure_iocomplete(double time, sub_ioreq_t *subreq, stripe_head_t *sh)
+{
+	metadata_t *meta = (metadata_t*) subreq->meta;
+	if ((--subreq->out_reqs) == 0) {
+		// check state & reqflag
+		if ((subreq->flag & DISKSIM_READ) || subreq->state == STATE_WRITE) {
+			sh_release_stripe(time, meta->sctlr, subreq->stripeno);
+			ioreq_t *req = (ioreq_t*) subreq->reqctx;
+			if ((--req->out_reqs) == 0)
+				meta->comp_fn(time, (ioreq_t*) subreq->reqctx);
+			disksim_free(sb_idx, subreq);
+		} else
+			erasure_maprequest(time, subreq, sh);
+	}
+}

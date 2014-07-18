@@ -23,7 +23,7 @@ void timer_start(int index) {
 	gettimeofday(start + index, NULL);
 }
 
-void timer_end(int index) {
+void timer_stop(int index) {
 	gettimeofday(stop + index, NULL);
 	total_milli[index] += (stop[index].tv_sec - start[index].tv_sec) * 1000000ll
 			+ (stop[index].tv_usec - start[index].tv_usec);

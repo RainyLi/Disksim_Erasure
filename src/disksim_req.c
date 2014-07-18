@@ -8,17 +8,18 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "disksim_req.h"
+#include "disksim_global.h"
 #include "disksim_malloc.h"
 #include "disksim_interface.h"
+#include "disksim_req.h"
 
 extern struct disksim_interface *interface;
-extern int ht_idx, sh_idx, wt_idx, dr_idx;
+extern int sh_idx, wt_idx, dr_idx;
 
 void sh_init(stripe_ctlr_t *sctlr, int nr_stripes, int nr_disks, int nr_units, int u_size)
 {
 	int i;
-	sctlr->ht = (hash_table_t*) disksim_malloc(ht_idx);
+	sctlr->ht = (hash_table_t*) malloc(sizeof(hash_table_t));
 	ht_create(sctlr->ht, 10);
 	sctlr->inactive.prev = sctlr->inactive.next = &sctlr->inactive;
 	sctlr->nr_disks = nr_disks;
@@ -67,7 +68,6 @@ void sh_get_active_stripe(double time, stripe_ctlr_t *sctlr, sub_ioreq_t *subreq
 		sh->stripeno = stripeno;
 		ht_insert(sctlr->ht, stripeno, sh);
 		sh->users += 1;
-		list_del(&(sh->list));
 		if (subreq->reqtype == REQ_TYPE_NORMAL)
 			sctlr->mapreq_fn(time, subreq, sh);
 		return;
@@ -99,7 +99,7 @@ static void sh_send_request(double time, stripe_ctlr_t *sctlr, sh_request_t *shr
 	int base = (shreq->stripeno * sctlr->nr_units + shreq->blkno) * sctlr->u_size;
 	dr->start = time;
 	dr->flags = shreq->flag;
-	dr->devno = shreq->devno;
+	dr->devno = (shreq->devno + shreq->stripeno) % sctlr->nr_disks;
 	dr->blkno = base + shreq->v_begin;
 	dr->bytecount = (shreq->v_end - shreq->v_begin) * 512;
 	dr->reqctx = (void*) shreq;
@@ -123,8 +123,16 @@ void sh_request_arrive(double time, stripe_ctlr_t *sctlr, stripe_head_t *sh, sh_
 	}
 }
 
-void sh_complete_callback(double time, struct disksim_request *dr, void *ctx)
+static int lasttime = 0, iops = 0;
+void sh_request_complete(double time, struct disksim_request *dr)
 {
+	while ((lasttime + 1 ) * 1000. < time) {
+		printf("time %4d, IOPS %d\n", lasttime, iops);
+		lasttime += 1;
+		iops = 0;
+	}
+	fflush(stdout);
+	iops += 1;
 	sh_request_t *shreq = (sh_request_t*) dr->reqctx;
 	sub_ioreq_t *subreq = (sub_ioreq_t*) shreq->reqctx;
 	stripe_ctlr_t *sctlr = (stripe_ctlr_t*) shreq->meta;
@@ -135,5 +143,6 @@ void sh_complete_callback(double time, struct disksim_request *dr, void *ctx)
 		pg->v_begin = min(pg->v_begin, shreq->v_begin);
 		pg->v_end   = max(pg->v_end  , shreq->v_end  );
 	}
+	disksim_free(sh_idx, shreq);
 	sctlr->comp_fn(time, subreq, sh);
 }

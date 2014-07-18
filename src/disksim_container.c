@@ -16,9 +16,9 @@ extern int hn_idx;
 void ht_create(hash_table_t *ht, int order)
 {
 	ht->order = order;
-	ht->mask = 1 << order;
-	ht->slots = (hash_node_t**) malloc(sizeof(void) << order);
-	memset(ht->slots, 0, sizeof(void) << order);
+	ht->mask = (1 << order) - 1;
+	ht->slots = (hash_node_t**) malloc(sizeof(void*) << order);
+	memset(ht->slots, 0, sizeof(void*) << order);
 }
 
 void ht_insert(hash_table_t *ht, int key, void *value)
@@ -40,13 +40,14 @@ void ht_insert(hash_table_t *ht, int key, void *value)
 void ht_remove(hash_table_t *ht, int key)
 {
 	int offset = (key ^ (key >> ht->order)) & ht->mask;
-	hash_node_t *node, *prev = NULL;
+	hash_node_t *node, **prev = ht->slots + offset;
 	for (node = ht->slots[offset]; node != NULL; node = node->next) {
 		if (node->key == key) {
-			prev->next = node->next;
+			(*prev) = node->next;
 			disksim_free(hn_idx, node);
+			return;
 		}
-		prev = node;
+		prev = &(node->next);
 	}
 }
 

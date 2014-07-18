@@ -12,10 +12,14 @@
 #define REQ_TYPE_RECOVERY	1
 #define REQ_TYPE_MIGRATION	2
 
+#include <stdio.h>
 
 #include "disksim_container.h"
 #include "disksim_interface.h"
 #include "disksim_list.h"
+#include "disksim_malloc.h"
+
+#define DEBUG(msg) {puts(msg); fflush(stdout);}
 
 enum req_state {
 	STATE_BEGIN,
@@ -28,7 +32,7 @@ typedef struct ioreq {
 	double time;   // request start time
 	int reqtype;   // request type (normal/recovery/migration)
 	int reqno;     // request number
-	int blkno;     // request start location (in sectors)
+	long int blkno;// request start location (in sectors)
 	int bcount;    // request length (in sectors)
 	int flag;      // request flag, defined in disksim_global.h
 	int out_reqs;  // decrease to 0 means finished
@@ -39,7 +43,7 @@ typedef struct sub_ioreq {
 	int reqtype;   // request type (normal/recovery/migration)
 	int reqno;     // equal to main ioreq
 	int stripeno;  // stripe number
-	int blkno;     // start location in stripe (in sectors)
+	long int blkno;// start location in stripe (in sectors)
 	int bcount;    // request length (in sectors)
 	int flag;      // request flag
 	int out_reqs;  // decrease to 0 means finished
@@ -52,7 +56,7 @@ typedef struct sh_request {
 	int flag;
 	int stripeno; // stripe number
 	int devno;    // logical device number
-	int blkno;   // unit number
+	long int blkno; // unit number
 	int v_begin, v_end; // range
 	void *reqctx, *meta;
 } sh_request_t;
@@ -93,6 +97,18 @@ typedef struct stripe_ctlr {
 	sh_iocomplete_t comp_fn; // call this function when finishes requests
 } stripe_ctlr_t;
 
+extern int rq_idx;
+
+static inline ioreq_t* create_ioreq()
+{
+	return (ioreq_t*) disksim_malloc(rq_idx);
+}
+
+static inline void free_ioreq(ioreq_t *req)
+{
+	disksim_free(rq_idx, req);
+}
+
 void sh_init(stripe_ctlr_t *sctlr, int nr_stripes, int nr_disks, int nr_units, int u_size);
 void sh_set_mapreq_callback(stripe_ctlr_t *sctlr, sh_maprequest_t mapreq);
 void sh_set_complete_callback(stripe_ctlr_t *sctlr, sh_iocomplete_t comp);
@@ -100,6 +116,6 @@ void sh_set_complete_callback(stripe_ctlr_t *sctlr, sh_iocomplete_t comp);
 void sh_get_active_stripe(double time, stripe_ctlr_t *sctlr, sub_ioreq_t *subreq);
 void sh_release_stripe(double time, stripe_ctlr_t *sctlr, int stripeno);
 void sh_request_arrive(double time, stripe_ctlr_t *sctlr, stripe_head_t *sh, sh_request_t *shreq);
-void sh_complete_callback(double time, struct disksim_request *dr, void *ctx);
+void sh_request_complete(double time, struct disksim_request *dr);
 
 #endif /* DISKSIM_REQ_H_ */
