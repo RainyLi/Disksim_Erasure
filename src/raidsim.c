@@ -24,6 +24,7 @@
 #define EVENT_TRACE_FETCH		1
 #define EVENT_TRACE_RECON		2
 #define EVENT_TRACE_MAPREQ		3
+#define EVENT_DISK_FAILURE		4
 #define EVENT_IO_COMPLETE		5
 #define EVENT_IO_INTERNAL		6
 
@@ -35,12 +36,13 @@ static double currtime = 0;
 static double scale = 1;
 static int reqno = 0;
 static int disks = 12;
-static double stop = -1;
 static int unit = 16; // size in KB
+static int checkmode = 0;
+static int fail = -1;
+static double stop = -1;
 static long long limit = 0; // maximum operations
 static const char *code = "rdp";
 static const char *result = "";
-static const char *fail = "";
 static const char *parfile = "../valid/16disks.parv";
 static const char *outfile = "t.outv";
 static const char *inpfile = "";
@@ -122,6 +124,10 @@ int main(int argc, char **argv)
 		const char *flag = argv[p++];
 		if (!strcmp(flag, "-h") || !strcmp(flag, "--help"))
 			return usage(argv[0]);
+		if (!strcmp(flag, "--check")) {
+			checkmode = 1;
+			continue;
+		}
 		if (p == argc) {
 			fprintf(stderr, "require arguments after \"%s\" flag.\n", flag);
 			exit(-1);
@@ -144,7 +150,7 @@ int main(int argc, char **argv)
         else if (!strcmp(flag, "-a") || !strcmp(flag, "--append"))
         	result = argu;
         else if (!strcmp(flag, "-f") || !strcmp(flag, "--fail"))
-        	fail = argu;
+        	fail = atoi(argu);
         else if (!strcmp(flag, "-c") || !strcmp(flag, "--code"))
         	code = argu;
         else if (!strcmp(flag, "--scale"))
@@ -173,13 +179,16 @@ int main(int argc, char **argv)
 	event_queue_init(eventq);
 
 	meta = (metadata_t*) malloc(sizeof(metadata_t));
-	erasure_code_init(meta, get_code_id(code), disks, unit * 2, erasure_req_complete);
+	erasure_code_init(meta, get_code_id(code), disks, unit * 2,
+			erasure_req_complete, checkmode);
 
 	FILE *inp = fopen(inpfile, "r");
 	if (inp != NULL)
 		event_queue_add(eventq, create_event(0, EVENT_TRACE_FETCH, inp));
-	//if (stop > 0)
-	//	event_queue_add(eventq, create_event_node(stop, EVENT_STOP_SIM, NULL));
+	if (stop > 0)
+		event_queue_add(eventq, create_event(stop, EVENT_STOP_SIM, NULL));
+	if (fail >= 0)
+		event_queue_add(eventq, create_event(-1e-3, EVENT_DISK_FAILURE, (void*)fail));
 
 	timer_start(TIMER_GLOBAL);
 
@@ -202,6 +211,9 @@ int main(int argc, char **argv)
 		case EVENT_TRACE_MAPREQ:
 			//printf("time = %f, type = EVENT_TRACE_ITEM\n", node->time);
 			erasure_handle_request(node->time, meta, (ioreq_t*)node->ctx);
+			break;
+		case EVENT_DISK_FAILURE:
+			sh_set_disk_failure(node->time, meta->sctlr, (int)node->ctx);
 			break;
 		case EVENT_IO_INTERNAL:
 			//printf("time = %f, type = EVENT_IO_INTERNAL\n", node->time);
@@ -239,6 +251,7 @@ int main(int argc, char **argv)
 	printf("Code = %s\n", get_code_name(get_code_id(code)));
 	printf("Total Simulation Time = %.3f s\n", currtime / 1000.0);
 	printf("Experiment Duration = %.3f s\n", duration / 1000.0);
+
 
 	FILE *exp = fopen(result, "a");
 	if (exp != NULL) {

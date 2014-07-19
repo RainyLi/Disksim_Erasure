@@ -72,10 +72,10 @@ int get_code_id(const char *code);
 // class level initialization
 void erasure_initialize();
 // code level initialization
-void erasure_code_init(metadata_t *meta, int codetype, int disks, int usize, erasure_complete_t comp);
+void erasure_code_init(metadata_t *meta, int codetype, int disks, int usize, erasure_complete_t comp, int checkmode);
 void erasure_handle_request(double time, metadata_t *meta, ioreq_t *req);
 void erasure_maprequest(double time, sub_ioreq_t *subreq, stripe_head_t *sh);
-void erasure_degraded(double time, sub_ioreq_t *subreq, stripe_head_t *sh, int *erasures);
+void erasure_degraded(double time, sub_ioreq_t *subreq, stripe_head_t *sh, int *failed);
 void erasure_iocomplete(double time, sub_ioreq_t *subreq, stripe_head_t *sh);
 
 #endif /* DISKSIM_ERASURE_H_ */

@@ -27,13 +27,12 @@ void sh_init(stripe_ctlr_t *sctlr, int nr_disks, int nr_units, int u_size)
 	sctlr->waitreqs.prev = sctlr->waitreqs.next = &sctlr->waitreqs;
 	sctlr->nr_units = nr_units;
 	sctlr->u_size = u_size;
-	int nr_stripes = 256 * 1024 / (nr_units * nr_disks * u_size / 2);
+	int nr_stripes = 32 * 1024 / (nr_units * nr_disks * u_size / 2);
 	for (i = 0; i < nr_stripes; i++) {
 		stripe_head_t *sh = (stripe_head_t*) disksim_malloc(sh_idx);
 		sh->users = 0;
 		sh->stripeno = -1;
 		sh->page = (page_t*) malloc(sizeof(page_t) * nr_units * nr_disks);
-		memset(sh->page, 0, sizeof(page_t) * nr_units * nr_disks);
 		list_add_tail(&(sh->list), &(sctlr->inactive));
 	}
 	sctlr->fails = 0; // normal
@@ -77,9 +76,9 @@ static void sh_return_stripe(double time, stripe_ctlr_t *sctlr, sub_ioreq_t *sub
 {
 	int stripeno = subreq->stripeno;
 	if (subreq->reqtype == REQ_TYPE_NORMAL) {
-		if (sctlr->fails == 0 || stripeno < sctlr->rec_prog)
+		if (sctlr->fails == 0 || stripeno < sctlr->rec_prog) {
 			sctlr->mapreq_fn(time, subreq, sh);
-		else {
+		} else {
 			int i, disks = sctlr->nr_disks;
 			memset(sctlr->log_failed, 0, sizeof(int) * disks);
 			for (i = 0; i < disks; i++)
@@ -114,11 +113,18 @@ void sh_get_active_stripe(double time, stripe_ctlr_t *sctlr, sub_ioreq_t *subreq
 		sh_return_stripe(time, sctlr, subreq, sh);
 		return;
 	}
+	assert(0);
 	// sleep
 	wait_req_t *wait = (wait_req_t*) disksim_malloc(wt_idx);
 	wait->subreq = subreq;
 	list_add_tail(&(wait->list), &(sctlr->waitreqs));
 }
+
+void sh_redo_maprequest(double time, stripe_ctlr_t *sctlr, sub_ioreq_t *subreq, stripe_head_t *sh)
+{
+	sh_return_stripe(time, sctlr, subreq, sh);
+}
+
 
 void sh_release_stripe(double time, stripe_ctlr_t *sctlr, int stripeno)
 {
@@ -147,6 +153,7 @@ static void sh_send_request(double time, stripe_ctlr_t *sctlr, sh_request_t *shr
 	dr->reqctx = (void*) shreq;
 	if (sctlr->dev_failed[dr->devno]) {
 		fprintf(stderr, "invalid request: device %d is failed!\n", dr->devno);
+		fprintf(stderr, "log %d, stripeno %d, dev %d\n", shreq->devno, shreq->stripeno, dr->devno);
 		exit(-1);
 	}
 	disksim_interface_request_arrive(interface, time, dr);
@@ -158,13 +165,21 @@ void sh_request_arrive(double time, stripe_ctlr_t *sctlr, stripe_head_t *sh, sh_
 	int unit_id = shreq->devno * sctlr->nr_units + shreq->blkno;
 	page_t *pg = sh->page + unit_id;
 	if (shreq->flag & DISKSIM_READ) {
-		if (pg->state == 0 || shreq->v_begin < pg->v_begin || shreq->v_end > pg->v_end) // empty
+		if (pg->state == 0 || shreq->v_begin < pg->v_begin || shreq->v_end > pg->v_end) {
+			shreq->v_begin = 0;
+			shreq->v_end = sctlr->u_size;
 			sh_send_request(time, sctlr, shreq);
-		else
+		} else
 			sctlr->comp_fn(time, subreq, sh);
 	} else {
-		pg->v_begin = min(pg->v_begin, shreq->v_begin);
-		pg->v_end = max(pg->v_end, shreq->v_end);
+		if (pg->state == 0) {
+			pg->state = 1;
+			pg->v_begin = shreq->v_begin;
+			pg->v_end = shreq->v_end;
+		} else {
+			pg->v_begin = min(pg->v_begin, shreq->v_begin);
+			pg->v_end = max(pg->v_end, shreq->v_end);
+		}
 		sh_send_request(time, sctlr, shreq);
 	}
 }
@@ -176,13 +191,16 @@ void sh_request_complete(double time, struct disksim_request *dr)
 	stripe_ctlr_t *sctlr = (stripe_ctlr_t*) shreq->meta;
 	stripe_head_t *sh = (stripe_head_t*) ht_getvalue(sctlr->ht, subreq->stripeno);
 	if (shreq->flag & DISKSIM_READ) {
-		assert(shreq->blkno < sctlr->nr_units);
-		assert(shreq->devno < sctlr->nr_disks);
 		int unit_id = shreq->devno * sctlr->nr_units + shreq->blkno;
 		page_t *pg = sh->page + unit_id;
-		assert(pg != NULL);
-		pg->v_begin = min(pg->v_begin, shreq->v_begin);
-		pg->v_end   = max(pg->v_end  , shreq->v_end  );
+		if (pg->state == 0) {
+			pg->state = 1;
+			pg->v_begin = shreq->v_begin;
+			pg->v_end = shreq->v_end;
+		} else {
+			pg->v_begin = min(pg->v_begin, shreq->v_begin);
+			pg->v_end = max(pg->v_end, shreq->v_end);
+		}
 	}
 	disksim_free(sh_idx, shreq);
 	sctlr->comp_fn(time, subreq, sh);

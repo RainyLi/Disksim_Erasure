@@ -29,4 +29,7 @@ src/partial
 src/raidsim
 src/rms
 src/syssim
+.cproject
+.project
+test/*
 

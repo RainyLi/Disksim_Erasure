@@ -58,7 +58,6 @@ typedef struct sh_request {
 	int devno;    // logical device number
 	long int blkno; // unit number
 	int v_begin, v_end; // range
-	int is_parity;
 	void *reqctx, *meta;
 } sh_request_t;
 
@@ -125,6 +124,7 @@ void sh_set_disk_failure(double time, stripe_ctlr_t *sctlr, int devno);
 void sh_set_disk_repaired(double time, stripe_ctlr_t *sctlr, int devno);
 
 void sh_get_active_stripe(double time, stripe_ctlr_t *sctlr, sub_ioreq_t *subreq);
+void sh_redo_maprequest(double time, stripe_ctlr_t *sctlr, sub_ioreq_t *subreq, stripe_head_t *sh);
 void sh_release_stripe(double time, stripe_ctlr_t *sctlr, int stripeno);
 void sh_request_arrive(double time, stripe_ctlr_t *sctlr, stripe_head_t *sh, sh_request_t *shreq);
 void sh_request_complete(double time, struct disksim_request *dr);
