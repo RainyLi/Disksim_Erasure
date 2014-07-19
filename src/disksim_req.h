@@ -117,7 +117,7 @@ static inline void free_ioreq(ioreq_t *req)
 	disksim_free(rq_idx, req);
 }
 
-void sh_init(stripe_ctlr_t *sctlr, int nr_stripes, int nr_disks, int nr_units, int u_size);
+void sh_init(stripe_ctlr_t *sctlr, int nr_disks, int nr_units, int u_size);
 void sh_set_mapreq_callback(stripe_ctlr_t *sctlr, sh_maprequest_t mapreq);
 void sh_set_degraded_callback(stripe_ctlr_t *sctlr, sh_degraded_t degraded);
 void sh_set_complete_callback(stripe_ctlr_t *sctlr, sh_iocomplete_t comp);

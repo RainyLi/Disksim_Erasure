@@ -546,7 +546,7 @@ void erasure_code_init(metadata_t *meta, int codetype, int disks, int usize, era
 				exit(-1);
 			}
 			meta->sctlr = (stripe_ctlr_t*) malloc(sizeof(stripe_ctlr_t));
-			sh_init(meta->sctlr, 256, disks, meta->w, usize);
+			sh_init(meta->sctlr, disks, meta->w, usize);
 			sh_set_mapreq_callback(meta->sctlr, erasure_maprequest);
 			sh_set_complete_callback(meta->sctlr, erasure_iocomplete);
 			return;

@@ -17,7 +17,7 @@
 extern struct disksim_interface *interface;
 extern int sh_idx, wt_idx, dr_idx;
 
-void sh_init(stripe_ctlr_t *sctlr, int nr_stripes, int nr_disks, int nr_units, int u_size)
+void sh_init(stripe_ctlr_t *sctlr, int nr_disks, int nr_units, int u_size)
 {
 	int i;
 	sctlr->ht = (hash_table_t*) malloc(sizeof(hash_table_t));
@@ -27,12 +27,13 @@ void sh_init(stripe_ctlr_t *sctlr, int nr_stripes, int nr_disks, int nr_units, i
 	sctlr->waitreqs.prev = sctlr->waitreqs.next = &sctlr->waitreqs;
 	sctlr->nr_units = nr_units;
 	sctlr->u_size = u_size;
+	int nr_stripes = 256 * 1024 / (nr_units * nr_disks * u_size / 2);
 	for (i = 0; i < nr_stripes; i++) {
 		stripe_head_t *sh = (stripe_head_t*) disksim_malloc(sh_idx);
 		sh->users = 0;
 		sh->stripeno = -1;
-		sh->page = (page_t*) malloc(sizeof(page_t) * nr_units * u_size);
-		memset(sh->page, 0, sizeof(page_t) * nr_units * u_size);
+		sh->page = (page_t*) malloc(sizeof(page_t) * nr_units * nr_disks);
+		memset(sh->page, 0, sizeof(page_t) * nr_units * nr_disks);
 		list_add_tail(&(sh->list), &(sctlr->inactive));
 	}
 	sctlr->fails = 0; // normal
@@ -105,7 +106,7 @@ void sh_get_active_stripe(double time, stripe_ctlr_t *sctlr, sub_ioreq_t *subreq
 		list_del(&(sh->list));
 		if (sh->stripeno != -1) {
 			ht_remove(sctlr->ht, sh->stripeno);
-			memset(sh->page, 0, sizeof(page_t) * sctlr->nr_units * sctlr->u_size);
+			memset(sh->page, 0, sizeof(page_t) * sctlr->nr_units * sctlr->nr_disks);
 		}
 		sh->stripeno = stripeno;
 		ht_insert(sctlr->ht, stripeno, sh);
@@ -175,8 +176,11 @@ void sh_request_complete(double time, struct disksim_request *dr)
 	stripe_ctlr_t *sctlr = (stripe_ctlr_t*) shreq->meta;
 	stripe_head_t *sh = (stripe_head_t*) ht_getvalue(sctlr->ht, subreq->stripeno);
 	if (shreq->flag & DISKSIM_READ) {
+		assert(shreq->blkno < sctlr->nr_units);
+		assert(shreq->devno < sctlr->nr_disks);
 		int unit_id = shreq->devno * sctlr->nr_units + shreq->blkno;
 		page_t *pg = sh->page + unit_id;
+		assert(pg != NULL);
 		pg->v_begin = min(pg->v_begin, shreq->v_begin);
 		pg->v_end   = max(pg->v_end  , shreq->v_end  );
 	}
