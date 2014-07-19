@@ -762,6 +762,6 @@ void erasure_iocomplete(double time, sub_ioreq_t *subreq, stripe_head_t *sh)
 				meta->comp_fn(time, (ioreq_t*) subreq->reqctx);
 			disksim_free(sb_idx, subreq);
 		} else
-			sh_redo_maprequest(time, meta->sctlr, subreq, sh);
+			sh_redo_callback(time, meta->sctlr, subreq, sh);
 	}
 }

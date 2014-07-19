@@ -41,19 +41,19 @@ void sh_init(stripe_ctlr_t *sctlr, int nr_disks, int nr_units, int u_size)
 	memset(sctlr->dev_failed, 0, sizeof(int) * sctlr->nr_disks);
 }
 
-void sh_set_mapreq_callback(stripe_ctlr_t *sctlr, sh_maprequest_t mapreq)
+void sh_set_mapreq_callback(stripe_ctlr_t *sctlr, sh_callback_t mapreq)
 {
 	sctlr->mapreq_fn = mapreq;
 }
 
-void sh_set_degraded_callback(stripe_ctlr_t *sctlr, sh_degraded_t degraded)
+void sh_set_degraded_callback(stripe_ctlr_t *sctlr, sh_callback_t degraded)
 {
 	sctlr->degraded_fn = degraded;
 }
 
-void sh_set_complete_callback(stripe_ctlr_t *sctlr, sh_iocomplete_t comp)
+void sh_set_complete_callback(stripe_ctlr_t *sctlr, sh_callback_t comp)
 {
-	sctlr->comp_fn = comp;
+	sctlr->complete_fn = comp;
 }
 
 void sh_set_disk_failure(double time, stripe_ctlr_t *sctlr, int devno) {
@@ -120,7 +120,7 @@ void sh_get_active_stripe(double time, stripe_ctlr_t *sctlr, sub_ioreq_t *subreq
 	list_add_tail(&(wait->list), &(sctlr->waitreqs));
 }
 
-void sh_redo_maprequest(double time, stripe_ctlr_t *sctlr, sub_ioreq_t *subreq, stripe_head_t *sh)
+void sh_redo_callback(double time, stripe_ctlr_t *sctlr, sub_ioreq_t *subreq, stripe_head_t *sh)
 {
 	sh_return_stripe(time, sctlr, subreq, sh);
 }
@@ -170,7 +170,7 @@ void sh_request_arrive(double time, stripe_ctlr_t *sctlr, stripe_head_t *sh, sh_
 			shreq->v_end = sctlr->u_size;
 			sh_send_request(time, sctlr, shreq);
 		} else
-			sctlr->comp_fn(time, subreq, sh);
+			sctlr->complete_fn(time, subreq, sh);
 	} else {
 		if (pg->state == 0) {
 			pg->state = 1;
@@ -203,5 +203,5 @@ void sh_request_complete(double time, struct disksim_request *dr)
 		}
 	}
 	disksim_free(sh_idx, shreq);
-	sctlr->comp_fn(time, subreq, sh);
+	sctlr->complete_fn(time, subreq, sh);
 }
