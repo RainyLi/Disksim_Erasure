@@ -43,17 +43,17 @@ void sh_init(stripe_ctlr_t *sctlr, int nr_disks, int nr_units, int u_size)
 
 void sh_set_mapreq_callback(stripe_ctlr_t *sctlr, sh_callback_t mapreq)
 {
-	sctlr->mapreq_fn = mapreq;
+	sctlr->io_mapreq_fn = mapreq;
 }
 
 void sh_set_degraded_callback(stripe_ctlr_t *sctlr, sh_callback_t degraded)
 {
-	sctlr->degraded_fn = degraded;
+	sctlr->io_degraded_fn = degraded;
 }
 
 void sh_set_complete_callback(stripe_ctlr_t *sctlr, sh_callback_t comp)
 {
-	sctlr->complete_fn = comp;
+	sctlr->io_complete_fn = comp;
 }
 
 void sh_set_disk_failure(double time, stripe_ctlr_t *sctlr, int devno) {
@@ -77,14 +77,14 @@ static void sh_return_stripe(double time, stripe_ctlr_t *sctlr, sub_ioreq_t *sub
 	int stripeno = subreq->stripeno;
 	if (subreq->reqtype == REQ_TYPE_NORMAL) {
 		if (sctlr->fails == 0 || stripeno < sctlr->rec_prog) {
-			sctlr->mapreq_fn(time, subreq, sh);
+			sctlr->io_mapreq_fn(time, subreq, sh);
 		} else {
 			int i, disks = sctlr->nr_disks;
 			memset(sctlr->log_failed, 0, sizeof(int) * disks);
 			for (i = 0; i < disks; i++)
 				if (sctlr->dev_failed[i])
 					sctlr->log_failed[(i + disks - stripeno % disks) % disks] = 1;
-			sctlr->degraded_fn(time, subreq, sh, sctlr->log_failed);
+			sctlr->io_degraded_fn(time, subreq, sh, sctlr->log_failed);
 		}
 	}
 }
@@ -170,7 +170,7 @@ void sh_request_arrive(double time, stripe_ctlr_t *sctlr, stripe_head_t *sh, sh_
 			shreq->v_end = sctlr->u_size;
 			sh_send_request(time, sctlr, shreq);
 		} else
-			sctlr->complete_fn(time, subreq, sh);
+			sctlr->io_complete_fn(time, subreq, sh);
 	} else {
 		if (pg->state == 0) {
 			pg->state = 1;
@@ -203,5 +203,5 @@ void sh_request_complete(double time, struct disksim_request *dr)
 		}
 	}
 	disksim_free(sh_idx, shreq);
-	sctlr->complete_fn(time, subreq, sh);
+	sctlr->io_complete_fn(time, subreq, sh);
 }

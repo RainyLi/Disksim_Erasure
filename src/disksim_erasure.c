@@ -494,8 +494,10 @@ static int erasure_make_table(metadata_t *meta)
 	}
 	if (back != nr_parity) return -1;
 	meta->map_p2 = (int**) malloc(sizeof(void*) * meta->n * meta->w);
-	for (i = 0; i < nr_total; i++)
+	for (i = 0; i < nr_total; i++) {
 		meta->map_p2[i] = (int*) malloc(sizeof(int) * 4);
+		memset(meta->map_p2[i], 0, sizeof(int) * 4);
+	}
 	for (i = 0; i < nr_parity; i++)
 		for (elem = meta->chains[i]; elem; elem = elem->next) {
 			int uid = ID(elem->row, elem->col);
@@ -663,7 +665,7 @@ void erasure_maprequest(double time, sub_ioreq_t *subreq, stripe_head_t *sh)
 	erasure_iocomplete(time, subreq, sh);
 }
 
-void erasure_degraded(double time, sub_ioreq_t *subreq, stripe_head_t *sh, int *failed)
+void erasure_degraded(double time, sub_ioreq_t *subreq, stripe_head_t *sh, int fails, int *fd)
 {
 	subreq->state += 1;
 	subreq->out_reqs = 1;
@@ -681,7 +683,7 @@ void erasure_degraded(double time, sub_ioreq_t *subreq, stripe_head_t *sh, int *
 		int vb = max(0, begin - lo), ve = min(usize, end - lo);
 		element_t *elem = meta->loc_d + did;
 		int unit_id = ID(elem->row, elem->col);
-		if (failed[meta->loc_d[did].col]) {
+		if (fd[meta->loc_d[did].col]) {
 			if (subreq->flag & DISKSIM_READ) {
 				for (elem = meta->chains[meta->map_p2[unit_id][0]]; elem; elem = elem->next) {
 					int new_id = ID(elem->row, elem->col);
@@ -713,7 +715,7 @@ void erasure_degraded(double time, sub_ioreq_t *subreq, stripe_head_t *sh, int *
 			while (par[i] != -1) {
 				int pid = par[i++];
 				element_t *elem = meta->chains[pid];
-				if (!failed[elem->col]) {
+				if (!fd[elem->col]) {
 					int new_id = ID(elem->row, elem->col);
 					page_t *pg = meta->page + new_id;
 					if (pg->state) {

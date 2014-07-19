@@ -79,7 +79,9 @@ typedef struct wait_request {
 	struct list_head list; // wait list
 } wait_req_t;
 
-typedef void(*sh_callback_t)(double time, struct sub_ioreq *subreq, struct stripe_head *sh, int *erasures);
+typedef void(*sh_callback_t)(double time, sub_ioreq_t *subreq, stripe_head_t *sh);
+typedef void(*sh_callback_fail_t)(double time, sub_ioreq_t *subreq, stripe_head_t *sh, int fails, int *fd);
+typedef void(*sh_recovery_t)(double time, void *ctx);
 
 typedef struct stripe_ctlr {
 	int nr_disks; // number of devices
@@ -97,10 +99,16 @@ typedef struct stripe_ctlr {
 
 	hash_table_t *ht;
 
-	sh_callback_t mapreq_fn;   // call this function when stripe becomes active
-	sh_callback_t degraded_fn; // call this function when stripe becomes active
-	sh_callback_t complete_fn; // call this function when finishes requests
-	sh_callback_t recovery_fn; // call this function when start recovery
+	sh_callback_t io_mapreq_fn;   // stripe becomes active
+	sh_callback_fail_t io_degraded_fn; // stripe becomes active
+	sh_callback_t io_complete_fn; // finishes requests
+
+	sh_callback_t rec_req_fn;   // stripe becomes active
+	sh_callback_t rec_comp_fn;  // finishes requests
+	sh_recovery_t rec_start_fn; // start recovery
+	void *rec_ctx;
+
+	int *count; // number of handling requests
 } stripe_ctlr_t;
 
 extern int rq_idx;
@@ -119,6 +127,7 @@ void sh_init(stripe_ctlr_t *sctlr, int nr_disks, int nr_units, int u_size);
 void sh_set_mapreq_callback(stripe_ctlr_t *sctlr, sh_callback_t mapreq);
 void sh_set_degraded_callback(stripe_ctlr_t *sctlr, sh_callback_t degraded);
 void sh_set_complete_callback(stripe_ctlr_t *sctlr, sh_callback_t comp);
+void sh_set_recovery_callback(stripe_ctlr_t *sctlr, sh_recovery_t rec, void *ctx);
 void sh_set_disk_failure(double time, stripe_ctlr_t *sctlr, int devno);
 void sh_set_disk_repaired(double time, stripe_ctlr_t *sctlr, int devno);
 
