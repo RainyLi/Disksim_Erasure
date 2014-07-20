@@ -26,6 +26,8 @@
 #define CODE_RAID5		13	// RAID-5
 #define CODE_XICODE		14  // XI-code
 
+#define ID(row, col) ((row) * meta->n + (col))
+
 typedef void(*erasure_complete_t)(double time, ioreq_t *req);
 
 typedef struct element {

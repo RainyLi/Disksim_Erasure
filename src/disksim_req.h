@@ -8,10 +8,6 @@
 #ifndef DISKSIM_REQ_H_
 #define DISKSIM_REQ_H_
 
-#define REQ_TYPE_NORMAL		0
-#define REQ_TYPE_RECOVERY	1
-#define REQ_TYPE_MIGRATION	2
-
 #include <stdio.h>
 
 #include "disksim_container.h"
@@ -20,6 +16,10 @@
 #include "disksim_malloc.h"
 
 #define DEBUG(msg) {puts(msg); fflush(stdout);}
+
+#define REQ_TYPE_NORMAL		0
+#define REQ_TYPE_RECOVERY	1
+#define REQ_TYPE_MIGRATION	2
 
 enum req_state {
 	STATE_BEGIN,
@@ -30,7 +30,6 @@ enum req_state {
 
 typedef struct ioreq {
 	double time;   // request start time
-	int reqtype;   // request type (normal/recovery/migration)
 	int reqno;     // request number
 	long int blkno;// request start location (in sectors)
 	int bcount;    // request length (in sectors)
@@ -41,7 +40,6 @@ typedef struct ioreq {
 typedef struct sub_ioreq {
 	double time;   // request start time
 	int reqtype;   // request type (normal/recovery/migration)
-	int reqno;     // equal to main ioreq
 	int stripeno;  // stripe number
 	long int blkno;// start location in stripe (in sectors)
 	int bcount;    // request length (in sectors)
@@ -52,12 +50,12 @@ typedef struct sub_ioreq {
 } sub_ioreq_t;
 
 typedef struct sh_request {
-	double time;
-	int flag;
+	double time;  // request start time
 	int stripeno; // stripe number
 	int devno;    // logical device number
 	long int blkno; // unit number
 	int v_begin, v_end; // range
+	int flag;
 	void *reqctx, *meta;
 } sh_request_t;
 
@@ -80,8 +78,7 @@ typedef struct wait_request {
 } wait_req_t;
 
 typedef void(*sh_callback_t)(double time, sub_ioreq_t *subreq, stripe_head_t *sh);
-typedef void(*sh_callback_fail_t)(double time, sub_ioreq_t *subreq, stripe_head_t *sh, int fails, int *fd);
-typedef void(*sh_recovery_t)(double time, void *ctx);
+typedef void(*sh_callback2_t)(double time, sub_ioreq_t *subreq, stripe_head_t *sh, int fails, int *fd);
 
 typedef struct stripe_ctlr {
 	int nr_disks; // number of devices
@@ -100,12 +97,11 @@ typedef struct stripe_ctlr {
 	hash_table_t *ht;
 
 	sh_callback_t io_mapreq_fn;   // stripe becomes active
-	sh_callback_fail_t io_degraded_fn; // stripe becomes active
+	sh_callback2_t io_degraded_fn; // stripe becomes active
 	sh_callback_t io_complete_fn; // finishes requests
 
-	sh_callback_t rec_req_fn;   // stripe becomes active
+	sh_callback2_t rec_req_fn;   // stripe becomes active
 	sh_callback_t rec_comp_fn;  // finishes requests
-	sh_recovery_t rec_start_fn; // start recovery
 	void *rec_ctx;
 
 	int *count; // number of handling requests
@@ -124,10 +120,8 @@ static inline void free_ioreq(ioreq_t *req)
 }
 
 void sh_init(stripe_ctlr_t *sctlr, int nr_disks, int nr_units, int u_size);
-void sh_set_mapreq_callback(stripe_ctlr_t *sctlr, sh_callback_t mapreq);
-void sh_set_degraded_callback(stripe_ctlr_t *sctlr, sh_callback_t degraded);
-void sh_set_complete_callback(stripe_ctlr_t *sctlr, sh_callback_t comp);
-void sh_set_recovery_callback(stripe_ctlr_t *sctlr, sh_recovery_t rec, void *ctx);
+void sh_set_io_callbacks(stripe_ctlr_t *sctlr, sh_callback_t mapreq, sh_callback2_t degraded, sh_callback_t complete);
+void sh_set_rec_callbacks(stripe_ctlr_t *sctlr, sh_callback2_t recovery, sh_callback_t complete);
 void sh_set_disk_failure(double time, stripe_ctlr_t *sctlr, int devno);
 void sh_set_disk_repaired(double time, stripe_ctlr_t *sctlr, int devno);
 

@@ -27,8 +27,10 @@ src/disksim
 src/hplcomb
 src/partial
 src/raidsim
+src/armsim
 src/rms
 src/syssim
+src/stamps
 .cproject
 .project
 test/*

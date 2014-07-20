@@ -19,8 +19,6 @@
 static codespec_t specs[32];
 static int nr_codes = 0, code_id;
 
-#define ID(row, col) ((row) * meta->n + (col))
-
 extern int el_idx, sb_idx, sh_idx;
 
 const char* get_code_name(int code)
@@ -562,9 +560,7 @@ void erasure_code_init(metadata_t *meta, int codetype, int disks, int usize,
 			}
 			meta->sctlr = (stripe_ctlr_t*) malloc(sizeof(stripe_ctlr_t));
 			sh_init(meta->sctlr, disks, meta->w, usize);
-			sh_set_mapreq_callback(meta->sctlr, erasure_maprequest);
-			sh_set_degraded_callback(meta->sctlr, erasure_degraded);
-			sh_set_complete_callback(meta->sctlr, erasure_iocomplete);
+			sh_set_io_callbacks(meta->sctlr, erasure_maprequest, erasure_degraded, erasure_iocomplete);
 			return;
 		}
 	fprintf(stderr, "unrecognized codetype in erasure_code_init()\n");
@@ -580,9 +576,8 @@ void erasure_handle_request(double time, metadata_t *meta, ioreq_t *req)
 	int curr = stripe_no * stripe_sz;
 	while (curr < end) {
 		sub_ioreq_t *subreq = (sub_ioreq_t*) disksim_malloc(sb_idx);
+		subreq->reqtype = REQ_TYPE_NORMAL;
 		subreq->state = STATE_BEGIN;
-		subreq->reqtype = req->reqtype;
-		subreq->reqno = req->reqno;
 		subreq->stripeno = stripe_no;
 		subreq->blkno = max(0, req->blkno - curr);
 		subreq->bcount = min(stripe_sz, end - curr) - subreq->blkno;
@@ -605,8 +600,8 @@ void erasure_maprequest(double time, sub_ioreq_t *subreq, stripe_head_t *sh)
 	metadata_t *meta = (metadata_t*) subreq->meta;
 	int usize = meta->usize;
 	int begin = subreq->blkno, end = begin + subreq->bcount;
-	int flag = subreq->flag, pid;
-	int nr_total = meta->n * meta->w;
+	int flag = subreq->flag | DISKSIM_TIME_CRITICAL;
+	int nr_total = meta->n * meta->w, pid;
 	int did = subreq->blkno / meta->usize;
 	int lo = did * usize; // current region = [lo, lo + usize]
 	if (!(subreq->flag & DISKSIM_READ) && subreq->state == STATE_READ)
@@ -672,7 +667,7 @@ void erasure_degraded(double time, sub_ioreq_t *subreq, stripe_head_t *sh, int f
 	metadata_t *meta = (metadata_t*) subreq->meta;
 	int usize = meta->usize;
 	int begin = subreq->blkno, end = begin + subreq->bcount;
-	int flag = subreq->flag;
+	int flag = subreq->flag | DISKSIM_TIME_CRITICAL;
 	int nr_total = meta->n * meta->w;
 	int did = subreq->blkno / meta->usize;
 	int lo = did * usize; // current region = [lo, lo + usize]

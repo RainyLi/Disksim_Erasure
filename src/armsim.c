@@ -1,7 +1,7 @@
 /*
- * raidsim.c
+ * armsim.c
  *
- *  Created on: Mar 26, 2014
+ *  Created on: July 17, 2014
  *      Author: zyz915
  */
 
@@ -11,6 +11,7 @@
 #include <ctype.h>
 #include <time.h>
 
+#include "disksim_arm.h"
 #include "disksim_erasure.h"
 #include "disksim_event_queue.h"
 #include "disksim_global.h"
@@ -19,19 +20,22 @@
 #include "disksim_rand48.h"
 #include "disksim_req.h"
 #include "disksim_timer.h"
+#include "diskmodel/dm.h"
 
 #define EVENT_STOP_SIM			0
 #define EVENT_TRACE_FETCH		1
-#define EVENT_TRACE_RECON		2
-#define EVENT_TRACE_MAPREQ		3
-#define EVENT_DISK_FAILURE		4
+#define EVENT_TRACE_MAPREQ		2
+#define EVENT_DISK_FAILURE		3
 #define EVENT_IO_COMPLETE		5
 #define EVENT_IO_INTERNAL		6
+#define EVENT_ARM_INTERNAL		7
+#define EVENT_ARM_COMPLETE		8
 
 struct disksim_interface *interface;
 
 static event_queue_t *eventq;
 static metadata_t *meta; // erasure code metadata
+static arm_t *arm;
 static double currtime = 0;
 static double scale = 1;
 static int reqno = 0;
@@ -102,6 +106,17 @@ void ioreq_complete_callback(double time, ioreq_t *req)
 	disksim_free(rq_idx, req);
 }
 
+void arm_internal_callback(double time, void* ctx)
+{
+	event_queue_add(eventq, create_event(time, EVENT_ARM_INTERNAL, ctx));
+}
+
+void arm_complete_callback(double time)
+{
+	event_queue_add(eventq, create_event(time, EVENT_ARM_COMPLETE, (void*)fail));
+	stop = time;
+}
+
 void iface_complete_callback(double time, struct disksim_request *dr, void *ctx)
 {
 	event_queue_add(eventq, create_event(time, EVENT_IO_COMPLETE, (void*)dr));
@@ -119,6 +134,9 @@ void iface_descheduled_callback(double time, void *ctx)
 int main(int argc, char **argv)
 {
 	int i, p = 1;
+	int arm_method = 0;
+	int arm_thread = 1;
+	double arm_delay = 100;
 	while (p < argc) {
 		const char *flag = argv[p++];
 		if (!strcmp(flag, "-h") || !strcmp(flag, "--help"))
@@ -152,6 +170,12 @@ int main(int argc, char **argv)
         	fail = atoi(argu);
         else if (!strcmp(flag, "-c") || !strcmp(flag, "--code"))
         	code = argu;
+        else if (!strcmp(flag, "--method"))
+        	arm_method = atoi(argu);
+        else if (!strcmp(flag, "--delay"))
+        	arm_delay = atof(argu);
+        else if (!strcmp(flag, "--thread"))
+        	arm_thread = atoi(argu);
         else if (!strcmp(flag, "--scale"))
         	scale = atof(argu);
         else {
@@ -170,6 +194,9 @@ int main(int argc, char **argv)
 	malloc_initialize();
 	erasure_initialize();
 
+	struct dm_disk_if *dm = disksim_getdiskmodel(interface, 0);
+	int nr_sectors = dm->dm_sectors;
+
 	eventq = (event_queue_t*) malloc(sizeof(event_queue_t));
 	event_queue_init(eventq);
 
@@ -177,13 +204,18 @@ int main(int argc, char **argv)
 	erasure_code_init(meta, get_code_id(code), disks, unit * 2,
 			ioreq_complete_callback, checkmode);
 
+	arm = (arm_t*) malloc(sizeof(arm_t));
+	arm_init(arm, arm_method, arm_thread, nr_sectors, arm_delay,
+			meta, arm_internal_callback, arm_complete_callback);
+
+	// start initial events
 	FILE *inp = fopen(inpfile, "r");
 	if (inp != NULL)
 		event_queue_add(eventq, create_event(0, EVENT_TRACE_FETCH, inp));
 	if (stop > 0)
 		event_queue_add(eventq, create_event(stop, EVENT_STOP_SIM, NULL));
 	if (fail >= 0)
-		event_queue_add(eventq, create_event(-1e-3, EVENT_DISK_FAILURE, (void*)fail));
+		event_queue_add(eventq, create_event(0, EVENT_DISK_FAILURE, (void*)fail));
 
 	timer_start(TIMER_GLOBAL);
 
@@ -204,11 +236,20 @@ int main(int argc, char **argv)
 			trace_add_next((FILE*)node->ctx);
 			break;
 		case EVENT_TRACE_MAPREQ:
-			//printf("time = %f, type = EVENT_TRACE_ITEM\n", node->time);
+			//printf("time = %f, type = EVENT_TRACE_MAPREQ\n", node->time);
 			erasure_handle_request(node->time, meta, (ioreq_t*)node->ctx);
 			break;
 		case EVENT_DISK_FAILURE:
+			//printf("time = %f, type = EVENT_DISK_FAILURE\n", node->time);
 			sh_set_disk_failure(node->time, meta->sctlr, (int)node->ctx);
+			arm_run(node->time, arm);
+			break;
+		case EVENT_ARM_COMPLETE:
+			//printf("time = %f, type = EVENT_REC_COMPLETE\n", node->time);
+			sh_set_disk_repaired(node->time, meta->sctlr, (int)node->ctx);
+			break;
+		case EVENT_ARM_INTERNAL:
+			arm_internal_event(node->time, arm, node->ctx);
 			break;
 		case EVENT_IO_INTERNAL:
 			//printf("time = %f, type = EVENT_IO_INTERNAL\n", node->time);
@@ -246,7 +287,7 @@ int main(int argc, char **argv)
 	printf("Code = %s\n", get_code_name(get_code_id(code)));
 	printf("Total Simulation Time = %.3f s\n", currtime / 1000.0);
 	printf("Experiment Duration = %.3f s\n", duration / 1000.0);
-
+	printf("ARM Progress = %d\n", arm->completed);
 
 	FILE *exp = fopen(result, "a");
 	if (exp != NULL) {

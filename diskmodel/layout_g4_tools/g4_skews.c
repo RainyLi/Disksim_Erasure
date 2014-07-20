@@ -86,7 +86,7 @@ static char *nocache_over[] = {
 enum { GENTRACE, CALIB } mode = CALIB;
 
 void
-schedule_callback(disksim_interface_callback_t fn,
+iface_schedule_callback(disksim_interface_callback_t fn,
 				  double t,
 				  void *ctx)
 {
@@ -685,7 +685,7 @@ int main(int argc, char **argv)
 	ds->iface = disksim_interface_initialize(parv,
 				outv,
 				cb,
-				schedule_callback,
+				iface_schedule_callback,
 				deschedule_callback,
 				ds,
 				18,  // argc

@@ -69,9 +69,9 @@ disksim_iodriver DRIVER0 {
     Overlapping request scheme = 0,
     Sequential stream diff maximum = 0,
     Scheduling timeout scheme = 0,
-    Timeout time/weight = 30,
+    Timeout time/weight = 0,
     Timeout scheduling = 3,
-    Scheduling priority scheme = 1,
+    Scheduling priority scheme = 0,
     Priority scheduling = 3
   },
   Use queueing in subsystem = 0
