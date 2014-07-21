@@ -43,13 +43,13 @@ static int disks = 12;
 static int unit = 16; // size in KB
 static int checkmode = 0;
 static int fail = -1;
-static double stop = -1;
 static long long limit = 0; // maximum operations
 static const char *code = "rdp";
 static const char *result = "";
 static const char *parfile = "../valid/16disks.parv";
 static const char *outfile = "t.outv";
 static const char *inpfile = "";
+static int notrace = 0;
 
 extern int dr_idx, en_idx, rq_idx;
 
@@ -59,7 +59,6 @@ int usage(const char *main)
 	printf("  options are:\n");
 	printf("\t-n, --num     [number]\t number of disks\n");
 	printf("\t-u, --unit    [number]\t stripe unit size (KB)\n");
-	printf("\t-s, --stop    [number]\t stop simulation after some seconds\n");
 	printf("\t-i, --input   [string]\t input trace file\n");
 	printf("\t-o, --output  [string]\t DiskSim output file\n");
 	printf("\t-c, --code    [string]\t erasure code [rdp, evenodd, hcode, xcode, liberation, star, shcode]\n");
@@ -73,10 +72,9 @@ int usage(const char *main)
 void trace_add_next(FILE *f)
 {
 	static char line[201];
-	if (fgets(line, 200, f) == NULL) {
-		event_queue_add(eventq, create_event(currtime + 3000, EVENT_STOP_SIM, NULL));
-		return;
-	}
+	if (fgets(line, 200, f) == NULL)
+		notrace = 1;
+	if (notrace) return;
 	ioreq_t *req = create_ioreq();
 	memset(req, 0, sizeof(ioreq_t));
 	if (sscanf(line, "%lf%*d%ld%d%d", &req->time, &req->blkno, &req->bcount, &req->flag) != 4) {
@@ -84,7 +82,6 @@ void trace_add_next(FILE *f)
 		fprintf(stderr, "line: %s\n", line);
 		exit(-1);
 	}
-	if (stop > 0 && req->time > stop) return;
 	req->time *= scale;
 	req->reqno = ++reqno; // auto increment ID
 	event_queue_add(eventq, create_event(req->time, EVENT_TRACE_MAPREQ, req));
@@ -104,6 +101,8 @@ void ioreq_complete_callback(double time, ioreq_t *req)
 	sum += (time - req->time);
 	numreqs += 1;
 	disksim_free(rq_idx, req);
+	if (notrace && numreqs == reqno)
+		event_queue_add(eventq, create_event(time + 1e-3, EVENT_STOP_SIM, NULL));
 }
 
 void arm_internal_callback(double time, void* ctx)
@@ -114,7 +113,6 @@ void arm_internal_callback(double time, void* ctx)
 void arm_complete_callback(double time)
 {
 	event_queue_add(eventq, create_event(time, EVENT_ARM_COMPLETE, (void*)fail));
-	stop = time;
 }
 
 void iface_complete_callback(double time, struct disksim_request *dr, void *ctx)
@@ -131,12 +129,33 @@ void iface_descheduled_callback(double time, void *ctx)
 {
 }
 
+static int arm_method = 0;
+static int arm_thread = 2;
+static int arm_patterns = 64;
+static double arm_delay = 30;
+
+void print_stat(FILE *f) {
+	if (f == NULL) return;
+	fprintf(f, "===================================================\n");
+	fprintf(f, "Trace_File = %s\n", inpfile);
+	fprintf(f, "Disks = %d\n", disks);
+	fprintf(f, "Prime_Number = %d\n", meta->pr);
+	fprintf(f, "Unit_Size = %d\n", unit);
+	fprintf(f, "Avg_Response Time = %f ms\n", avg_response_time());
+	fprintf(f, "Code = %s\n", get_code_name(get_code_id(code)));
+	fprintf(f, "Total_Simulation_Time = %.3f s\n", currtime / 1000.0);
+	fprintf(f, "Experiment_Duration = %.3f s\n", timer_microsecond(TIMER_GLOBAL) / 1000.0);
+	fprintf(f, "Max_Stripes = %d\n", arm->max_stripes);
+	fprintf(f, "ARM_Progress = %d\n", arm->completed);
+	fprintf(f, "ARM_Threads = %d\n", arm_thread);
+	fprintf(f, "ARM_Method = %s\n", arm_get_method_name(arm_method));
+	fprintf(f, "ARM_Patterns = %d\n", arm_patterns);
+	fprintf(f, "ARM_Delay = %f\n", arm_delay);
+}
+
 int main(int argc, char **argv)
 {
 	int i, p = 1;
-	int arm_method = 0;
-	int arm_thread = 1;
-	double arm_delay = 100;
 	while (p < argc) {
 		const char *flag = argv[p++];
 		if (!strcmp(flag, "-h") || !strcmp(flag, "--help"))
@@ -160,8 +179,6 @@ int main(int argc, char **argv)
 			disks = atoi(argu);
 		else if (!strcmp(flag, "-u") || !strcmp(flag, "--unit"))
 			unit = atoi(argu);
-        else if (!strcmp(flag, "-s") || !strcmp(flag, "--stop"))
-        	stop = atof(argu) * 1000;
         else if (!strcmp(flag, "-l") || !strcmp(flag, "--limit"))
         	limit = atol(argu);
         else if (!strcmp(flag, "-a") || !strcmp(flag, "--append"))
@@ -176,6 +193,8 @@ int main(int argc, char **argv)
         	arm_delay = atof(argu);
         else if (!strcmp(flag, "--thread"))
         	arm_thread = atoi(argu);
+        else if (!strcmp(flag, "--patterns"))
+        	arm_patterns = atoi(argu);
         else if (!strcmp(flag, "--scale"))
         	scale = atof(argu);
         else {
@@ -205,15 +224,13 @@ int main(int argc, char **argv)
 			ioreq_complete_callback, checkmode);
 
 	arm = (arm_t*) malloc(sizeof(arm_t));
-	arm_init(arm, arm_method, arm_thread, nr_sectors, arm_delay,
+	arm_init(arm, arm_method, arm_thread, nr_sectors, arm_delay, arm_patterns,
 			meta, arm_internal_callback, arm_complete_callback);
 
 	// start initial events
 	FILE *inp = fopen(inpfile, "r");
 	if (inp != NULL)
 		event_queue_add(eventq, create_event(0, EVENT_TRACE_FETCH, inp));
-	if (stop > 0)
-		event_queue_add(eventq, create_event(stop, EVENT_STOP_SIM, NULL));
 	if (fail >= 0)
 		event_queue_add(eventq, create_event(0, EVENT_DISK_FAILURE, (void*)fail));
 
@@ -247,6 +264,7 @@ int main(int argc, char **argv)
 		case EVENT_ARM_COMPLETE:
 			//printf("time = %f, type = EVENT_REC_COMPLETE\n", node->time);
 			sh_set_disk_repaired(node->time, meta->sctlr, (int)node->ctx);
+			notrace = 1;
 			break;
 		case EVENT_ARM_INTERNAL:
 			arm_internal_event(node->time, arm, node->ctx);
@@ -274,34 +292,11 @@ int main(int argc, char **argv)
 		}
 	}
 	disksim_interface_shutdown(interface, currtime);
-
 	timer_stop(TIMER_GLOBAL);
-	long long duration = timer_microsecond(TIMER_GLOBAL);
 	printf("\n");
-	printf("===================================================\n");
-	printf("Trace File = %s\n", inpfile);
-	printf("Disks = %d\n", disks);
-	printf("Prime Number = %d\n", meta->pr);
-	printf("Unit Size = %d\n", unit);
-	printf("Avg. Response Time = %f ms\n", avg_response_time());
-	printf("Code = %s\n", get_code_name(get_code_id(code)));
-	printf("Total Simulation Time = %.3f s\n", currtime / 1000.0);
-	printf("Experiment Duration = %.3f s\n", duration / 1000.0);
-	printf("ARM Progress = %d\n", arm->completed);
 
-	FILE *exp = fopen(result, "a");
-	if (exp != NULL) {
-		fprintf(exp, "===================================================\n");
-		fprintf(exp, "Trace File = %s\n", inpfile);
-		fprintf(exp, "Disks = %d\n", disks);
-		fprintf(exp, "Prime Number = %d\n", meta->pr);
-		fprintf(exp, "Unit Size = %d\n", unit);
-		fprintf(exp, "Avg. Response Time = %f ms\n", avg_response_time());
-		fprintf(exp, "Code = %s\n", get_code_name(get_code_id(code)));
-		fprintf(exp, "Total Simulation Time = %.3f s\n", currtime / 1000.0);
-		fprintf(exp, "Experiment Duration = %.3f s\n", duration / 1000.0);
-		fclose(exp);
-	}
+	print_stat(stdout);
+	print_stat(fopen(result, "a"));
 	return 0;
 }
 

@@ -27,7 +27,7 @@ void sh_init(stripe_ctlr_t *sctlr, int nr_disks, int nr_units, int u_size)
 	sctlr->waitreqs.prev = sctlr->waitreqs.next = &sctlr->waitreqs;
 	sctlr->nr_units = nr_units;
 	sctlr->u_size = u_size;
-	int nr_stripes = 32 * 1024 / (nr_units * nr_disks * u_size / 2);
+	int nr_stripes = 128 * 1024 / (nr_units * nr_disks * u_size / 2);
 	for (i = 0; i < nr_stripes; i++) {
 		stripe_head_t *sh = (stripe_head_t*) disksim_malloc(sh_idx);
 		sh->users = 0;
@@ -161,7 +161,7 @@ static void sh_send_request(double time, stripe_ctlr_t *sctlr, sh_request_t *shr
 void sh_request_arrive(double time, stripe_ctlr_t *sctlr, stripe_head_t *sh, sh_request_t *shreq)
 {
 	sub_ioreq_t *subreq = (sub_ioreq_t*) shreq->reqctx;
-	int unit_id = shreq->devno * sctlr->nr_units + shreq->blkno;
+	int unit_id = shreq->blkno * sctlr->nr_disks + shreq->devno;
 	page_t *pg = sh->page + unit_id;
 	if (shreq->flag & DISKSIM_READ) {
 		if (pg->state == 0 || shreq->v_begin < pg->v_begin || shreq->v_end > pg->v_end) {
@@ -190,7 +190,7 @@ void sh_request_complete(double time, struct disksim_request *dr)
 	stripe_ctlr_t *sctlr = (stripe_ctlr_t*) shreq->meta;
 	stripe_head_t *sh = (stripe_head_t*) ht_getvalue(sctlr->ht, subreq->stripeno);
 	if (shreq->flag & DISKSIM_READ) {
-		int unit_id = shreq->devno * sctlr->nr_units + shreq->blkno;
+		int unit_id = shreq->blkno * sctlr->nr_disks + shreq->devno;
 		page_t *pg = sh->page + unit_id;
 		if (pg->state == 0) {
 			pg->state = 1;

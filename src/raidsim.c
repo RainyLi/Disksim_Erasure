@@ -39,13 +39,13 @@ static int disks = 12;
 static int unit = 16; // size in KB
 static int checkmode = 0;
 static int fail = -1;
-static double stop = -1;
 static long long limit = 0; // maximum operations
 static const char *code = "rdp";
 static const char *result = "";
 static const char *parfile = "../valid/16disks.parv";
 static const char *outfile = "t.outv";
 static const char *inpfile = "";
+static int notrace = 0;
 
 extern int dr_idx, en_idx, rq_idx;
 
@@ -70,7 +70,7 @@ void trace_add_next(FILE *f)
 {
 	static char line[201];
 	if (fgets(line, 200, f) == NULL) {
-		event_queue_add(eventq, create_event(currtime + 3000, EVENT_STOP_SIM, NULL));
+		notrace = 1;
 		return;
 	}
 	ioreq_t *req = create_ioreq();
@@ -80,7 +80,6 @@ void trace_add_next(FILE *f)
 		fprintf(stderr, "line: %s\n", line);
 		exit(-1);
 	}
-	if (stop > 0 && req->time > stop) return;
 	req->time *= scale;
 	req->reqno = ++reqno; // auto increment ID
 	event_queue_add(eventq, create_event(req->time, EVENT_TRACE_MAPREQ, req));
@@ -100,6 +99,8 @@ void ioreq_complete_callback(double time, ioreq_t *req)
 	sum += (time - req->time);
 	numreqs += 1;
 	disksim_free(rq_idx, req);
+	if (notrace && numreqs == reqno)
+		event_queue_add(eventq, create_event(time + 1e-3, EVENT_STOP_SIM, NULL));
 }
 
 void iface_complete_callback(double time, struct disksim_request *dr, void *ctx)
@@ -114,6 +115,19 @@ void iface_schedule_callback(disksim_interface_callback_t fn, double time, void 
 
 void iface_descheduled_callback(double time, void *ctx)
 {
+}
+
+void print_stat(FILE *f) {
+	if (f == NULL) return;
+	fprintf(f, "===================================================\n");
+	fprintf(f, "Trace File = %s\n", inpfile);
+	fprintf(f, "Disks = %d\n", disks);
+	fprintf(f, "Prime Number = %d\n", meta->pr);
+	fprintf(f, "Unit Size = %d\n", unit);
+	fprintf(f, "Avg. Response Time = %f ms\n", avg_response_time());
+	fprintf(f, "Code = %s\n", get_code_name(get_code_id(code)));
+	fprintf(f, "Total Simulation Time = %.3f s\n", currtime / 1000.0);
+	fprintf(f, "Experiment Duration = %.3f s\n", timer_microsecond(TIMER_GLOBAL) / 1000.0);
 }
 
 int main(int argc, char **argv)
@@ -142,8 +156,6 @@ int main(int argc, char **argv)
 			disks = atoi(argu);
 		else if (!strcmp(flag, "-u") || !strcmp(flag, "--unit"))
 			unit = atoi(argu);
-        else if (!strcmp(flag, "-s") || !strcmp(flag, "--stop"))
-        	stop = atof(argu) * 1000;
         else if (!strcmp(flag, "-l") || !strcmp(flag, "--limit"))
         	limit = atol(argu);
         else if (!strcmp(flag, "-a") || !strcmp(flag, "--append"))
@@ -180,8 +192,6 @@ int main(int argc, char **argv)
 	FILE *inp = fopen(inpfile, "r");
 	if (inp != NULL)
 		event_queue_add(eventq, create_event(0, EVENT_TRACE_FETCH, inp));
-	if (stop > 0)
-		event_queue_add(eventq, create_event(stop, EVENT_STOP_SIM, NULL));
 	if (fail >= 0)
 		event_queue_add(eventq, create_event(-1e-3, EVENT_DISK_FAILURE, (void*)fail));
 
@@ -232,35 +242,13 @@ int main(int argc, char **argv)
 			checkpoint += 60000;
 		}
 	}
-	disksim_interface_shutdown(interface, currtime);
-
-	timer_stop(TIMER_GLOBAL);
-	long long duration = timer_microsecond(TIMER_GLOBAL);
 	printf("\n");
-	printf("===================================================\n");
-	printf("Trace File = %s\n", inpfile);
-	printf("Disks = %d\n", disks);
-	printf("Prime Number = %d\n", meta->pr);
-	printf("Unit Size = %d\n", unit);
-	printf("Avg. Response Time = %f ms\n", avg_response_time());
-	printf("Code = %s\n", get_code_name(get_code_id(code)));
-	printf("Total Simulation Time = %.3f s\n", currtime / 1000.0);
-	printf("Experiment Duration = %.3f s\n", duration / 1000.0);
 
+	disksim_interface_shutdown(interface, currtime);
+	timer_stop(TIMER_GLOBAL);
 
-	FILE *exp = fopen(result, "a");
-	if (exp != NULL) {
-		fprintf(exp, "===================================================\n");
-		fprintf(exp, "Trace File = %s\n", inpfile);
-		fprintf(exp, "Disks = %d\n", disks);
-		fprintf(exp, "Prime Number = %d\n", meta->pr);
-		fprintf(exp, "Unit Size = %d\n", unit);
-		fprintf(exp, "Avg. Response Time = %f ms\n", avg_response_time());
-		fprintf(exp, "Code = %s\n", get_code_name(get_code_id(code)));
-		fprintf(exp, "Total Simulation Time = %.3f s\n", currtime / 1000.0);
-		fprintf(exp, "Experiment Duration = %.3f s\n", duration / 1000.0);
-		fclose(exp);
-	}
+	print_stat(stdout);
+	print_stat(fopen(result, "a"));
 	return 0;
 }
 
