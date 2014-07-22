@@ -166,14 +166,26 @@ static int arm_rdor(int c, int p)
 	return w;
 }
 
+static int arm_classify(int *distr, int n)
+{
+	int ret = n, i, maxi = 0;
+	for (i = 0; i < n; i++)
+		if (distr[i] > maxi) {
+			maxi = distr[i];
+			ret = i;
+		}
+	return ret;
+}
+
 static void arm_recovery(double time, sub_ioreq_t *subreq, stripe_head_t *sh, int fails, int *fd)
 {
 	arm_t *arm = (arm_t*) subreq->meta;
 	int pattern = 0;
 	int i, f_disk = 0, mask = (1 << arm->meta->w) - 1;
 	while (!fd[f_disk]) ++f_disk;
-	int *cache = arm->cache[f_disk], incache = 0;
 	int *cnt = arm->meta->sctlr->count;
+	int c = arm_classify(cnt, arm->meta->n);
+	int *cache = arm->cache[f_disk][c], incache = 0;
 	if (arm->method == ARM_NORMAL)
 		arm_do_recovery(time, sh, subreq, f_disk, pattern);
 	else if (arm->method == ARM_STATIC) {
@@ -204,7 +216,7 @@ static void arm_recovery(double time, sub_ioreq_t *subreq, stripe_head_t *sh, in
 				incache = 1;
 		}
 		if (!incache)
-			cache[(arm->cache_c[f_disk]++) % arm->patterns] = pattern;
+			cache[(arm->cache_c[f_disk][c]++) % arm->patterns] = pattern;
 		arm_do_recovery(time, sh, subreq, f_disk, pattern);
 	}
 }
@@ -212,7 +224,7 @@ static void arm_recovery(double time, sub_ioreq_t *subreq, stripe_head_t *sh, in
 void arm_init(arm_t *arm, int method, int threads, int max_sectors, double delay, int patterns,
 		metadata_t *meta, arm_internal_t internal, arm_complete_t complete)
 {
-	int i;
+	int i, j;
 	arm->method = method;
 	arm->threads = threads;
 	arm->delay = delay;
@@ -220,14 +232,18 @@ void arm_init(arm_t *arm, int method, int threads, int max_sectors, double delay
 	arm->patterns = patterns;
 	arm->map = (int*) malloc(sizeof(int) * meta->w * meta->n);
 	arm->distr = (int*) malloc(sizeof(int) * meta->n);
-	arm->cache_c = (int*) malloc(sizeof(int) * meta->n);
 	memset(arm->map, 0, sizeof(int) * meta->w * meta->n);
 	memset(arm->distr, 0, sizeof(int) * meta->n);
-	memset(arm->cache_c, 0, sizeof(int) * meta->n);
-	arm->cache = (int**) malloc(sizeof(void*) * meta->n);
+	arm->cache = (int***) malloc(sizeof(void*) * meta->n);
+	arm->cache_c = (int**) malloc(sizeof(void*) * meta->n);
 	for (i = 0; i < meta->n; i++) {
-		arm->cache[i] = (int*) malloc(sizeof(int) * patterns);
-		memset(arm->cache[i], -1, sizeof(int) * patterns);
+		arm->cache[i] = (int**) malloc(sizeof(void*) * (meta->n + 1));
+		for (j = 0; j < meta->n + 1; j++) {
+			arm->cache[i][j] = (int*) malloc(sizeof(int) * patterns);
+			memset(arm->cache[i][j], -1, sizeof(int) * patterns);
+		}
+		arm->cache_c[i] = (int*) malloc(sizeof(int) * (meta->n + 1));
+		memset(arm->cache_c[i], 0, sizeof(int) * (meta->n + 1));
 	}
 	arm->max_stripes = max_sectors / (meta->w * meta->usize);
 	sh_set_rec_callbacks(meta->sctlr, arm_recovery, arm_complete);

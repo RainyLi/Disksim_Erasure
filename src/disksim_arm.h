@@ -36,8 +36,8 @@ typedef struct arm_struct {
 	int progress;  // handled stripes
 	int completed; // completed stripes
 
-	int *cache_c; // a counter
-	int **cache;  // store best results
+	int **cache_c; // a counter
+	int ***cache;  // store best results
 
 	int *map, *distr; // temporary arrays
 } arm_t;
