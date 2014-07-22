@@ -12,10 +12,10 @@
 #include "disksim_erasure.h"
 
 #define ARM_NORMAL	0
-#define ARM_RDOR	1
-#define ARM_DO_SUM	3
-#define ARM_DO_MIX	4
+#define ARM_STATIC	1
 #define ARM_DO_MAX	2
+#define ARM_DO_MIX	3
+#define ARM_DO_SUM	4
 #define ARM_DO_STD	5
 
 typedef void(*arm_complete_t)(double time);

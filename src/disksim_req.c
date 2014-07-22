@@ -140,7 +140,8 @@ void sh_release_stripe(double time, stripe_ctlr_t *sctlr, int stripeno)
 			list_del(&(wait->list));
 			sh_get_active_stripe(time, sctlr, wait->subreq);
 			disksim_free(wt_idx, wait);
-		}
+		} else
+			memset(sh->page, 0, sizeof(page_t) * sctlr->nr_units * sctlr->nr_disks);
 	}
 }
 

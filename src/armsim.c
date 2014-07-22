@@ -141,7 +141,7 @@ void print_stat(FILE *f) {
 	fprintf(f, "Disks = %d\n", disks);
 	fprintf(f, "Prime_Number = %d\n", meta->pr);
 	fprintf(f, "Unit_Size = %d\n", unit);
-	fprintf(f, "Avg_Response Time = %f ms\n", avg_response_time());
+	fprintf(f, "Avg_Response_Time = %f ms\n", avg_response_time());
 	fprintf(f, "Code = %s\n", get_code_name(get_code_id(code)));
 	fprintf(f, "Total_Simulation_Time = %.3f s\n", currtime / 1000.0);
 	fprintf(f, "Experiment_Duration = %.3f s\n", timer_microsecond(TIMER_GLOBAL) / 1000.0);

@@ -38,8 +38,8 @@ static int arm_calculate(arm_t *arm, int disk, int *ptr, stripe_head_t *sh)
 			distr[uid % meta->n] += meta->usize;// * (1 - sh->page[uid].state);
 	int *cnt = meta->sctlr->count, maxi = 0, sum = 0;
 	for (c = 0; c < meta->n; c++) {
-		maxi = max(maxi, distr[c] + cnt[c]);
-		sum += distr[c];
+		maxi = max(maxi, distr[(c + sh->stripeno) % meta->n] + cnt[c]);
+		sum += distr[(c + sh->stripeno) % meta->n];
 	}
 	s_sum += sum;
 	s_num += 1;
@@ -84,6 +84,7 @@ static void arm_complete(double time, sub_ioreq_t *subreq, stripe_head_t *sh)
 			sh_release_stripe(time, arm->meta->sctlr, subreq->stripeno);
 			disksim_free(sb_idx, subreq);
 			arm->completed += 1;
+			arm->meta->sctlr->rec_prog++;
 			if (arm->completed == arm->max_stripes) {
 				arm->complete_fn(time);
 			} else
@@ -135,6 +136,16 @@ static void arm_do_recovery(double time, stripe_head_t *sh, sub_ioreq_t *subreq,
 	arm_complete(time, subreq, sh);
 }
 
+static int arm_mdrr(int c, int p)
+{
+	int r, ret = 0;
+	for (r = 0; r < ((p - 3) >> 1); r++)
+		ret ^= (r & 1) << r;
+	for (r = (p - 3) >> 1; r < p; r++)
+		ret ^= (!(r & 1)) << r;
+	return ret;
+}
+
 static int arm_rdor(int c, int p)
 {
 	int sp = 0, nsp, i, w;
@@ -165,8 +176,11 @@ static void arm_recovery(double time, sub_ioreq_t *subreq, stripe_head_t *sh, in
 	int *cnt = arm->meta->sctlr->count;
 	if (arm->method == ARM_NORMAL)
 		arm_do_recovery(time, sh, subreq, f_disk, pattern);
-	else if (arm->method == ARM_RDOR) {
-		pattern = arm_rdor(f_disk, arm->meta->pr);
+	else if (arm->method == ARM_STATIC) {
+		if (arm->meta->codetype == CODE_RDP)
+			pattern = arm_rdor(f_disk, arm->meta->pr);
+		if (arm->meta->codetype == CODE_XCODE)
+			pattern = arm_mdrr(f_disk, arm->meta->pr);
 		arm_do_recovery(time, sh, subreq, f_disk, pattern);
 	} else {
 		int score = arm_calculate(arm, f_disk, &pattern, sh);
@@ -237,15 +251,15 @@ const char* arm_get_method_name(int method)
 	case ARM_NORMAL:
 		return "nothing";
 	case ARM_DO_MAX:
-		return "minimize maximum";
-	case ARM_RDOR:
-		return "RDOR";
+		return "min.MAX";
+	case ARM_STATIC:
+		return "static";
 	case ARM_DO_SUM:
-		return "minimize sum";
+		return "min.SUM";
 	case ARM_DO_MIX:
-		return "minimize both";
+		return "min.BOTH";
 	case ARM_DO_STD:
-		return "minimize standard deviation";
+		return "min.STD";
 	default:
 		return "WRONG METHOD!";
 	}
