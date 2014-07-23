@@ -69,11 +69,17 @@ int usage(const char *main)
 	return 0;
 }
 
+void stop_all_processes()
+{
+	notrace = 1;
+	arm->semaphore -= 100;
+}
+
 void trace_add_next(FILE *f)
 {
 	static char line[201];
 	if (fgets(line, 200, f) == NULL)
-		notrace = 1;
+		stop_all_processes();
 	if (notrace) return;
 	ioreq_t *req = create_ioreq();
 	memset(req, 0, sizeof(ioreq_t));
@@ -101,7 +107,7 @@ void ioreq_complete_callback(double time, ioreq_t *req)
 	sum += (time - req->time);
 	numreqs += 1;
 	disksim_free(rq_idx, req);
-	if (notrace && numreqs == reqno)
+	if (notrace && (numreqs + 1 >= reqno))
 		event_queue_add(eventq, create_event(time + 1e-3, EVENT_STOP_SIM, NULL));
 }
 
@@ -130,9 +136,7 @@ void iface_descheduled_callback(double time, void *ctx)
 }
 
 static int arm_method = 0;
-static int arm_thread = 2;
 static int arm_patterns = 64;
-static double arm_delay = 30;
 
 void print_stat(FILE *f) {
 	if (f == NULL) return;
@@ -147,10 +151,8 @@ void print_stat(FILE *f) {
 	fprintf(f, "Experiment_Duration = %.3f s\n", timer_microsecond(TIMER_GLOBAL) / 1000.0);
 	fprintf(f, "Max_Stripes = %d\n", arm->max_stripes);
 	fprintf(f, "ARM_Progress = %d\n", arm->completed);
-	fprintf(f, "ARM_Threads = %d\n", arm_thread);
 	fprintf(f, "ARM_Method = %s\n", arm_get_method_name(arm_method));
 	fprintf(f, "ARM_Patterns = %d\n", arm_patterns);
-	fprintf(f, "ARM_Delay = %f\n", arm_delay);
 }
 
 int main(int argc, char **argv)
@@ -189,10 +191,6 @@ int main(int argc, char **argv)
         	code = argu;
         else if (!strcmp(flag, "--method"))
         	arm_method = atoi(argu);
-        else if (!strcmp(flag, "--delay"))
-        	arm_delay = atof(argu);
-        else if (!strcmp(flag, "--thread"))
-        	arm_thread = atoi(argu);
         else if (!strcmp(flag, "--patterns"))
         	arm_patterns = atoi(argu);
         else if (!strcmp(flag, "--scale"))
@@ -224,7 +222,7 @@ int main(int argc, char **argv)
 			ioreq_complete_callback, checkmode);
 
 	arm = (arm_t*) malloc(sizeof(arm_t));
-	arm_init(arm, arm_method, arm_thread, nr_sectors, arm_delay, arm_patterns,
+	arm_init(arm, arm_method, nr_sectors, arm_patterns,
 			meta, arm_internal_callback, arm_complete_callback);
 
 	// start initial events
@@ -264,10 +262,10 @@ int main(int argc, char **argv)
 		case EVENT_ARM_COMPLETE:
 			//printf("time = %f, type = EVENT_REC_COMPLETE\n", node->time);
 			sh_set_disk_repaired(node->time, meta->sctlr, (int)node->ctx);
-			notrace = 1;
+			stop_all_processes();
 			break;
 		case EVENT_ARM_INTERNAL:
-			arm_internal_event(node->time, arm, node->ctx);
+			arm_internal_event(arm, node->time, node->ctx);
 			break;
 		case EVENT_IO_INTERNAL:
 			//printf("time = %f, type = EVENT_IO_INTERNAL\n", node->time);

@@ -27,7 +27,7 @@ void sh_init(stripe_ctlr_t *sctlr, int nr_disks, int nr_units, int u_size)
 	sctlr->waitreqs.prev = sctlr->waitreqs.next = &sctlr->waitreqs;
 	sctlr->nr_units = nr_units;
 	sctlr->u_size = u_size;
-	int nr_stripes = 128 * 1024 / (nr_units * nr_disks * u_size / 2);
+	int nr_stripes = 64; //128 * 1024 / (nr_units * nr_disks * u_size / 2);
 	for (i = 0; i < nr_stripes; i++) {
 		stripe_head_t *sh = (stripe_head_t*) disksim_malloc(sh_idx);
 		sh->users = 0;

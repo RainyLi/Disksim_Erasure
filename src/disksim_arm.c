@@ -11,13 +11,16 @@
 #include "disksim_arm.h"
 #include "disksim_global.h"
 
-extern int sb_idx, sh_idx;
+extern int sb_idx, sh_idx, wt_idx;
 
-static int arm_calculate(arm_t *arm, int disk, int *ptr, stripe_head_t *sh)
+static void arm_calculate(arm_t *arm, int disk, int *ptr, stripe_head_t *sh)
 {
-	static long long s_sum = 0, s_num = 0;
 	metadata_t *meta = arm->meta;
 	int pat = *ptr; // pattern bitmap
+	if (pat == -1) {
+		ptr[1] = ptr[2] = 0x3fffffff;
+		return;
+	}
 	int *map = arm->map, *distr = arm->distr;
 	int nr_total = meta->w * meta->n;
 	int r, c, uid;
@@ -32,29 +35,17 @@ static int arm_calculate(arm_t *arm, int disk, int *ptr, stripe_head_t *sh)
 			if (elem->col != disk)
 				map[ID(elem->row, elem->col)] = 1;
 	}
-	*ptr = pat; // return actual pattern
+	ptr[0] = pat; // return actual pattern
 	for (uid = 0; uid < nr_total; uid++)
 		if (map[uid])
-			distr[uid % meta->n] += meta->usize;// * (1 - sh->page[uid].state);
+			distr[uid % meta->n] += meta->usize * (1 - sh->page[uid].state);
 	int *cnt = meta->sctlr->count, maxi = 0, sum = 0;
-	for (c = 0; c < meta->n; c++) {
-		maxi = max(maxi, distr[(c + sh->stripeno) % meta->n] + cnt[c]);
-		sum += distr[(c + sh->stripeno) % meta->n];
+	for (c = 0; c < meta->n; c++) { // c is logical
+		maxi = max(maxi, distr[c] + cnt[(c + sh->stripeno) % meta->n]);
+		sum += distr[c];
 	}
-	s_sum += sum;
-	s_num += 1;
-	switch (arm->method) {
-	case ARM_DO_MAX:
-		return maxi;
-	case ARM_DO_SUM:
-		return sum;
-	case ARM_DO_MIX:
-		return maxi + (s_sum < sum * s_num ? sum : 0);
-	default:
-		fprintf(stderr, "invalid method: %d\n", arm->method);
-		exit(-1);
-	}
-	return 0;
+	ptr[1] = sum;
+	ptr[2] = maxi;
 }
 
 static void arm_make_request(double time, arm_t *arm)
@@ -67,12 +58,14 @@ static void arm_make_request(double time, arm_t *arm)
 		subreq->stripeno = arm->progress++;
 		subreq->meta = (void*) arm;
 		subreq->reqctx = NULL;
-		if (arm->lastreq <= time) {
+		if (arm->semaphore >= 2) {
+			arm->semaphore -= 2;
 			sh_get_active_stripe(time, arm->meta->sctlr, subreq);
-			arm->lastreq = time;
-		} else
-			arm->internal_fn(arm->lastreq, (void*)subreq);
-		arm->lastreq += arm->delay;
+		} else {
+			wait_req_t *wait = (wait_req_t*) disksim_malloc(wt_idx);
+			wait->subreq = subreq;
+			list_add_tail(&(wait->list), &(arm->waitreqs));
+		}
 	}
 }
 
@@ -80,6 +73,8 @@ static void arm_complete(double time, sub_ioreq_t *subreq, stripe_head_t *sh)
 {
 	arm_t *arm = (arm_t*) subreq->meta;
 	if (!(--subreq->out_reqs)) {
+		arm->semaphore += 1;
+		arm->internal_fn(time, NULL);
 		if (subreq->state == STATE_WRITE) {
 			sh_release_stripe(time, arm->meta->sctlr, subreq->stripeno);
 			disksim_free(sb_idx, subreq);
@@ -107,7 +102,7 @@ static void arm_do_recovery(double time, stripe_head_t *sh, sub_ioreq_t *subreq,
 		for (r = 0; r < meta->w; r++) {
 			int ch = 1 & (pattern >> r);
 			uid = ID(r, disk);
-			while (meta->map_p2[uid][ch] == -1) --ch;
+			assert(meta->map_p2[uid][ch] != -1);
 			element_t *elem = meta->chains[meta->map_p2[uid][ch]];
 			for (; elem; elem = elem->next)
 				if (elem->col != disk)
@@ -177,15 +172,23 @@ static int arm_classify(int *distr, int n)
 	return ret;
 }
 
+static int arm_cmp(const void *a, const void *b)
+{
+	return (((int*)a)[1] != ((int*)b)[1]) ? ((int*)a)[1] - ((int*)b)[1] : ((int*)a)[2] - ((int*)b)[2];
+}
+
 static void arm_recovery(double time, sub_ioreq_t *subreq, stripe_head_t *sh, int fails, int *fd)
 {
 	arm_t *arm = (arm_t*) subreq->meta;
 	int pattern = 0;
 	int i, f_disk = 0, mask = (1 << arm->meta->w) - 1;
 	while (!fd[f_disk]) ++f_disk;
-	int *cnt = arm->meta->sctlr->count;
-	int c = arm_classify(cnt, arm->meta->n);
-	int *cache = arm->cache[f_disk][c], incache = 0;
+	int *cnt = arm->meta->sctlr->count, n = arm->meta->n;
+	assert(fails == 1 && (f_disk + sh->stripeno) % n == 0);
+	int c = arm_classify(cnt, n); // physical
+	if (c != n)
+		c = (c + n - sh->stripeno % n) % n; // logical
+	int *cache = arm->cache[f_disk][c];
 	if (arm->method == ARM_NORMAL)
 		arm_do_recovery(time, sh, subreq, f_disk, pattern);
 	else if (arm->method == ARM_STATIC) {
@@ -195,39 +198,42 @@ static void arm_recovery(double time, sub_ioreq_t *subreq, stripe_head_t *sh, in
 			pattern = arm_mdrr(f_disk, arm->meta->pr);
 		arm_do_recovery(time, sh, subreq, f_disk, pattern);
 	} else {
-		int score = arm_calculate(arm, f_disk, &pattern, sh);
-		for (i = 0; i < arm->patterns; i++) {
-			int pat = rand() & mask;
-			int cur = arm_calculate(arm, f_disk, &pat, sh);
-			if (cur < score) { // higher is better
-				score = cur;
-				pattern = pat;
+		int ptr = 0, fill = 0, patts = arm->patterns;
+		for (i = 0; i < patts; i++) {
+			arm->sort[ptr] = cache[i];
+			arm_calculate(arm, f_disk, arm->sort + ptr, sh);
+			ptr += 3;
+		}
+		for (i = 0; i < patts; i++) {
+			arm->sort[ptr] = rand() & mask;
+			arm_calculate(arm, f_disk, arm->sort + ptr, sh);
+			ptr += 3;
+		}
+		if (arm->method == ARM_DO_MAX) {
+			int temp;
+			for (i = 0; i < ptr; i += 3) {
+				temp = arm->sort[i + 1];
+				arm->sort[i + 1] = arm->sort[i + 2];
+				arm->sort[i + 2] = temp;
 			}
 		}
-		for (i = 0; i < arm->patterns; i++) {
-			int pat = cache[i];
-			if (pat == -1) continue;
-			int cur = arm_calculate(arm, f_disk, &pat, sh);
-			if (cur < score) { // smaller is better
-				score = cur;
-				pattern = pat;
-			}
-			if (pattern == cache[i])
-				incache = 1;
-		}
-		if (!incache)
-			cache[(arm->cache_c[f_disk][c]++) % arm->patterns] = pattern;
-		arm_do_recovery(time, sh, subreq, f_disk, pattern);
+		int hf_patts = patts / 2;
+		qsort(arm->sort + 6 * hf_patts, patts, sizeof(int) * 3, arm_cmp);
+		qsort(arm->sort + 3 * hf_patts, patts, sizeof(int) * 3, arm_cmp);
+		qsort(arm->sort + 0 * hf_patts, patts, sizeof(int) * 3, arm_cmp);
+		memset(cache, -1, sizeof(int) * patts);
+		for (i = 0; fill < patts && i < ptr; i += 3)
+			if (i == 0 || arm->sort[i] != arm->sort[i - 3])
+				cache[fill++] = arm->sort[i];
+		arm_do_recovery(time, sh, subreq, f_disk, arm->sort[0]);
 	}
 }
 
-void arm_init(arm_t *arm, int method, int threads, int max_sectors, double delay, int patterns,
+void arm_init(arm_t *arm, int method, int max_sectors, int patterns,
 		metadata_t *meta, arm_internal_t internal, arm_complete_t complete)
 {
 	int i, j;
 	arm->method = method;
-	arm->threads = threads;
-	arm->delay = delay;
 	arm->meta = meta;
 	arm->patterns = patterns;
 	arm->map = (int*) malloc(sizeof(int) * meta->w * meta->n);
@@ -235,16 +241,14 @@ void arm_init(arm_t *arm, int method, int threads, int max_sectors, double delay
 	memset(arm->map, 0, sizeof(int) * meta->w * meta->n);
 	memset(arm->distr, 0, sizeof(int) * meta->n);
 	arm->cache = (int***) malloc(sizeof(void*) * meta->n);
-	arm->cache_c = (int**) malloc(sizeof(void*) * meta->n);
 	for (i = 0; i < meta->n; i++) {
 		arm->cache[i] = (int**) malloc(sizeof(void*) * (meta->n + 1));
 		for (j = 0; j < meta->n + 1; j++) {
 			arm->cache[i][j] = (int*) malloc(sizeof(int) * patterns);
 			memset(arm->cache[i][j], -1, sizeof(int) * patterns);
 		}
-		arm->cache_c[i] = (int*) malloc(sizeof(int) * (meta->n + 1));
-		memset(arm->cache_c[i], 0, sizeof(int) * (meta->n + 1));
 	}
+	arm->sort = (int*) malloc(sizeof(int) * patterns * 6); //
 	arm->max_stripes = max_sectors / (meta->w * meta->usize);
 	sh_set_rec_callbacks(meta->sctlr, arm_recovery, arm_complete);
 	arm->internal_fn = internal;
@@ -255,9 +259,11 @@ void arm_run(double time, arm_t *arm)
 {
 	arm->progress = 0;
 	arm->completed = 0;
-	arm->lastreq = 0;
+	arm->semaphore = 2;
+	arm->waitreqs.prev = &arm->waitreqs;
+	arm->waitreqs.next = &arm->waitreqs;
 	int i;
-	for (i = 0; i < arm->threads; i++)
+	for (i = 0; i < 2; i++)
 		arm_make_request(time, arm);
 }
 
@@ -272,8 +278,6 @@ const char* arm_get_method_name(int method)
 		return "static";
 	case ARM_DO_SUM:
 		return "min.SUM";
-	case ARM_DO_MIX:
-		return "min.BOTH";
 	case ARM_DO_STD:
 		return "min.STD";
 	default:
@@ -281,7 +285,13 @@ const char* arm_get_method_name(int method)
 	}
 }
 
-void arm_internal_event(double time, arm_t *arm, void* ctx)
+void arm_internal_event(arm_t *arm, double time, void* ctx)
 {
-	sh_get_active_stripe(time, arm->meta->sctlr, (sub_ioreq_t*)ctx);
+	if (arm->semaphore >= 2 && !list_empty(&(arm->waitreqs))) {
+		arm->semaphore -= 2;
+		wait_req_t *wait = list_entry(arm->waitreqs.next, wait_req_t, list);
+		list_del(&(wait->list));
+		sh_get_active_stripe(time, arm->meta->sctlr, wait->subreq);
+		disksim_free(wt_idx, wait);
+	}
 }

@@ -60,19 +60,19 @@ disksim_iodriver DRIVER0 {
   type = 1,
   Constant access time = 0.0,
   Scheduler = disksim_ioqueue {
-    Scheduling policy = 3,
-    Cylinder mapping strategy = 1,
+    Scheduling policy = 1,
+    Cylinder mapping strategy = 5,
     Write initiation delay = 0.0,
     Read initiation delay = 0.0,
     Sequential stream scheme = 0,
     Maximum concat size = 0,
     Overlapping request scheme = 0,
     Sequential stream diff maximum = 0,
-    Scheduling timeout scheme = 0,
-    Timeout time/weight = 0,
-    Timeout scheduling = 3,
-    Scheduling priority scheme = 0,
-    Priority scheduling = 3
+    Scheduling timeout scheme = 1,
+    Timeout time/weight = 50,
+    Timeout scheduling = 1,
+    Scheduling priority scheme = 1,
+    Priority scheduling = 1
   },
   Use queueing in subsystem = 0
 }
