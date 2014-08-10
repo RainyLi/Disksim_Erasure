@@ -133,10 +133,10 @@ syssim: syssim_driver.o libdisksim.a
 	$(CC) $(CFLAGS) -o $@ syssim_driver.o disksim_interface.o $(LDFLAGS)
 
 raidsim: $(MODULEDEPS) libdisksim.a raidsim.o
-	$(CC) -g $(CFLAGS) -o $@ raidsim.o $(LDFLAGS) -lm
+	$(CC) $(CFLAGS) -o $@ raidsim.o $(LDFLAGS) -lm
 
 armsim: $(MODULEDEPS) libdisksim.a armsim.o
-	$(CC) -g $(CFLAGS) -o $@ armsim.o $(LDFLAGS) -lm
+	$(CC) $(CFLAGS) -o $@ armsim.o $(LDFLAGS) -lm
 	
 ########################################################################
 

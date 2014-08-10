@@ -423,6 +423,36 @@ static int cyclic_initialize(metadata_t *meta)
 	return 0;
 }
 
+static int hdd1_initialize(metadata_t *meta)
+{
+	int r, c, p = meta->pr = meta->n - 1;
+	if (!check_prime(p)) return -1;
+	meta->w = p - 1;
+	meta->chains = (element_t**) malloc(meta->w * meta->m * sizeof(void*));
+	memset(meta->chains, 0, meta->w * meta->m * sizeof(void*));
+	for (r = 0; r < p - 2; r++) {
+		element_t *elem = NULL;
+		for (c = 0; c < p; c++)
+			if (r + c != p - 1)
+				elem = create_elem(r, c, elem);
+		meta->chains[r] = create_elem(r, p - r- 1, elem);
+	}
+	for (c = 0; c < p; c++) {
+		element_t *elem = NULL;
+		for (r = 0; r < p - 2; r++)
+			elem = create_elem(r, (p - 2 + c - r) % p, elem);
+		meta->chains[p - 2 + c] = create_elem(p - 2, c, elem);
+	}
+	for (r = 0; r < p - 1; r++) {
+		element_t *elem = NULL;
+		for (c = 0; c < p; c++)
+			if ((c - r + 1) % p)
+				elem = create_elem((c + p - r) % p, c, elem);
+		meta->chains[meta->w * 2 + r] = create_elem(r, p, elem);
+	}
+	return 0;
+}
+
 static int raid5_initialize(metadata_t *meta)
 {
 	int c;
@@ -540,6 +570,7 @@ void erasure_initialize()
 	create_code(CODE_CODE56, 2, "code56", "Code.5-6", code56_initialize);
 	create_code(CODE_STAR, 3, "star", "STAR", star_initialize);
 	create_code(CODE_TRIPLE, 3, "triple", "Triple-Star", triple_initialize);
+	create_code(CODE_HDD1, 3, "hdd1", "HDD1", hdd1_initialize);
 	create_code(CODE_EXT_HCODE, 3, "exthcode", "Extended.H-code", ext_hcode_initialize);
 	create_code(CODE_XICODE, 3, "xicode", "XI-code", xicode_initialize);
 }
@@ -557,7 +588,7 @@ void erasure_code_init(metadata_t *meta, int codetype, int disks, int usize,
 		if (meta->codetype == specs[code_id].codeID) {
 			if (specs[code_id].init(meta) < 0) {
 				fprintf(stderr, "invalid disk number using %s\n", specs[code_id].name);
-				exit(-1);
+				exit(0);
 			}
 			if (checkmode) {
 				print_chains(meta);
@@ -565,7 +596,7 @@ void erasure_code_init(metadata_t *meta, int codetype, int disks, int usize,
 			}
 			if (erasure_make_table(meta) < 0) {
 				fprintf(stderr, "initialization failure\n");
-				exit(-1);
+				exit(0);
 			}
 			meta->sctlr = (stripe_ctlr_t*) malloc(sizeof(stripe_ctlr_t));
 			sh_init(meta->sctlr, disks, meta->w, usize);

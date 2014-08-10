@@ -25,6 +25,7 @@
 #define CODE_RAID0		12	// RAID-0
 #define CODE_RAID5		13	// RAID-5
 #define CODE_XICODE		14  // XI-code
+#define CODE_HDD1		15  // HDD1
 
 #define ID(row, col) ((row) * meta->n + (col))
 

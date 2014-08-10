@@ -106,73 +106,68 @@ disksim_ctlr CTLR0 {
 source cheetah9LP.diskspecs
 
 instantiate [ statfoo ] as Stats
-instantiate [ ctlr0 .. ctlr26 ] as CTLR0
-instantiate [ bus0 .. bus3 ] as BUS0
-instantiate [ disk0 .. disk23 ] as SEAGATE_ST39102LW_validate
+instantiate [ ctlr0 .. ctlr35 ] as CTLR0
+instantiate [ bus0 .. bus4 ] as BUS0
+instantiate [ disk0 .. disk31 ] as SEAGATE_ST39102LW_validate
 instantiate [ driver0 ] as DRIVER0
-instantiate [ bus4 .. bus27 ] as BUS1
+instantiate [ bus5 .. bus36 ] as BUS1
 
 topology disksim_iodriver driver0 [
   disksim_bus bus0 [
     disksim_ctlr ctlr0 [
       disksim_bus bus1 [
-        disksim_ctlr ctlr3 [
-          disksim_bus bus4 [
-            disksim_disk disk0 []
-          ]
-        ],
         disksim_ctlr ctlr4 [
           disksim_bus bus5 [
-            disksim_disk disk3 []
+            disksim_disk disk0 []
           ]
         ],
         disksim_ctlr ctlr5 [
           disksim_bus bus6 [
-            disksim_disk disk6 []
+            disksim_disk disk1 []
           ]
         ],
         disksim_ctlr ctlr6 [
           disksim_bus bus7 [
-            disksim_disk disk9 []
+            disksim_disk disk2 []
           ]
         ],
         disksim_ctlr ctlr7 [
           disksim_bus bus8 [
-            disksim_disk disk12 []
+            disksim_disk disk3 []
           ]
         ],
         disksim_ctlr ctlr8 [
           disksim_bus bus9 [
-            disksim_disk disk15 []
+            disksim_disk disk4 []
           ]
         ],
         disksim_ctlr ctlr9 [
           disksim_bus bus10 [
-            disksim_disk disk18 []
+            disksim_disk disk5 []
           ]
         ],
         disksim_ctlr ctlr10 [
           disksim_bus bus11 [
-            disksim_disk disk21 []
+            disksim_disk disk6 []
+          ]
+        ],
+        disksim_ctlr ctlr11 [
+          disksim_bus bus12 [
+            disksim_disk disk7 []
           ]
         ] 
       ]
     ],
     disksim_ctlr ctlr1 [
       disksim_bus bus2 [
-        disksim_ctlr ctlr11 [
-          disksim_bus bus12 [
-            disksim_disk disk1 []
-          ]
-        ],
         disksim_ctlr ctlr12 [
           disksim_bus bus13 [
-            disksim_disk disk4 []
+            disksim_disk disk8 []
           ]
         ],
         disksim_ctlr ctlr13 [
           disksim_bus bus14 [
-            disksim_disk disk7 []
+            disksim_disk disk9 []
           ]
         ],
         disksim_ctlr ctlr14 [
@@ -182,66 +177,115 @@ topology disksim_iodriver driver0 [
         ],
         disksim_ctlr ctlr15 [
           disksim_bus bus16 [
-            disksim_disk disk13 []
+            disksim_disk disk11 []
           ]
         ],
         disksim_ctlr ctlr16 [
           disksim_bus bus17 [
-            disksim_disk disk16 []
+            disksim_disk disk12 []
           ]
         ],
         disksim_ctlr ctlr17 [
           disksim_bus bus18 [
-            disksim_disk disk19 []
+            disksim_disk disk13 []
           ]
         ],
         disksim_ctlr ctlr18 [
           disksim_bus bus19 [
-            disksim_disk disk22 []
+            disksim_disk disk14 []
+          ]
+        ],
+        disksim_ctlr ctlr19 [
+          disksim_bus bus20 [
+            disksim_disk disk15 []
           ]
         ] 
       ]
     ],
     disksim_ctlr ctlr2 [
       disksim_bus bus3 [
-        disksim_ctlr ctlr19 [
-          disksim_bus bus20 [
-            disksim_disk disk2 []
-          ]
-        ],
         disksim_ctlr ctlr20 [
           disksim_bus bus21 [
-            disksim_disk disk5 []
+            disksim_disk disk16 []
           ]
         ],
         disksim_ctlr ctlr21 [
           disksim_bus bus22 [
-            disksim_disk disk8 []
+            disksim_disk disk17 []
           ]
         ],
         disksim_ctlr ctlr22 [
           disksim_bus bus23 [
-            disksim_disk disk11 []
+            disksim_disk disk18 []
           ]
         ],
         disksim_ctlr ctlr23 [
           disksim_bus bus24 [
-            disksim_disk disk14 []
+            disksim_disk disk19 []
           ]
         ],
         disksim_ctlr ctlr24 [
           disksim_bus bus25 [
-            disksim_disk disk17 []
+            disksim_disk disk20 []
           ]
         ],
         disksim_ctlr ctlr25 [
           disksim_bus bus26 [
-            disksim_disk disk20 []
+            disksim_disk disk21 []
           ]
         ],
         disksim_ctlr ctlr26 [
           disksim_bus bus27 [
+            disksim_disk disk22 []
+          ]
+        ],
+        disksim_ctlr ctlr27 [
+          disksim_bus bus28 [
             disksim_disk disk23 []
+          ]
+        ] 
+      ]
+    ],
+    disksim_ctlr ctlr3 [
+      disksim_bus bus4 [
+        disksim_ctlr ctlr28 [
+          disksim_bus bus29 [
+            disksim_disk disk24 []
+          ]
+        ],
+        disksim_ctlr ctlr29 [
+          disksim_bus bus30 [
+            disksim_disk disk25 []
+          ]
+        ],
+        disksim_ctlr ctlr30 [
+          disksim_bus bus31 [
+            disksim_disk disk26 []
+          ]
+        ],
+        disksim_ctlr ctlr31 [
+          disksim_bus bus32 [
+            disksim_disk disk27 []
+          ]
+        ],
+        disksim_ctlr ctlr32 [
+          disksim_bus bus33 [
+            disksim_disk disk28 []
+          ]
+        ],
+        disksim_ctlr ctlr33 [
+          disksim_bus bus34 [
+            disksim_disk disk29 []
+          ]
+        ],
+        disksim_ctlr ctlr34 [
+          disksim_bus bus35 [
+            disksim_disk disk30 []
+          ]
+        ],
+        disksim_ctlr ctlr35 [
+          disksim_bus bus36 [
+            disksim_disk disk31 []
           ]
         ] 
       ]
@@ -253,7 +297,7 @@ disksim_logorg org0 {
   Addressing mode = Parts,
   Distribution scheme = Asis,
   Redundancy scheme = Noredun,
-  devices = [ disk0 .. disk23 ],
+  devices = [ disk0 .. disk31 ],
   Number of copies = 2,
   Stripe unit  =  32,
   Synch writes for safety =  1,
