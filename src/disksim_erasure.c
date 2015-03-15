@@ -15,6 +15,7 @@
 #include "disksim_malloc.h"
 #include "disksim_req.h"
 #include "disksim_reqflags.h"
+#include "crs.h"
 
 static codespec_t specs[32];
 static int nr_codes = 0, code_id;
@@ -453,6 +454,35 @@ static int hdd1_initialize(metadata_t *meta)
 	return 0;
 }
 
+static int crs_initialize(metadata_t *meta)
+{
+	int r, c, p = meta->pr = meta->n;
+	int m = meta->m, n = meta->n;
+	meta->w = 3;
+	while ((1 << meta->w) < n) meta->w++;
+	int w = meta->w, k = n - m;
+	meta->chains = (element_t**) malloc(meta->w * meta->m * sizeof(void*));
+	memset(meta->chains, 0, meta->w * meta->m * sizeof(void*));
+	cauchy_setup_tables(w);
+	int *mat = cauchy_good_general_coding_matrix(k, m, w);
+	for (r = 0; r < m * w; r++) {
+		element_t *elem = NULL;
+		int rr = r / w;
+		int mr = r % w;
+		for (c = 0; c < k * w; c++) {
+			int cc = c / w;
+			int mc = c % w;
+			int v = mat[rr * k + cc], t;
+			for (t = 0; t < mc; t++)
+				v = cauchy_mult(v, 2);
+			if (1 & (v >> mr))
+				elem = create_elem(mc, cc, elem);
+		}
+		meta->chains[r] = create_elem(mr, rr + k, elem);
+	}
+	return 0;
+}
+
 static int raid5_initialize(metadata_t *meta)
 {
 	int c;
@@ -573,6 +603,7 @@ void erasure_initialize()
 	create_code(CODE_HDD1, 3, "hdd1", "HDD1", hdd1_initialize);
 	create_code(CODE_EXT_HCODE, 3, "exthcode", "Extended.H-code", ext_hcode_initialize);
 	create_code(CODE_XICODE, 3, "xicode", "XI-code", xicode_initialize);
+	create_code(CODE_CRS, 3, "crs", "Cauchy_RS", crs_initialize);
 }
 
 void erasure_code_init(metadata_t *meta, int codetype, int disks, int usize,
