@@ -61,10 +61,10 @@ int usage(const char *main)
 	printf("\t-u, --unit    [number]\t stripe unit size (KB)\n");
 	printf("\t-i, --input   [string]\t input trace file\n");
 	printf("\t-o, --output  [string]\t DiskSim output file\n");
-	printf("\t-c, --code    [string]\t erasure code [rdp, evenodd, hcode, xcode, liberation, star, shcode]\n");
-	printf("\t-p, --parv    [string]\t parv file\n");
+	printf("\t-c, --code    [string]\t erasure code [rdp, xcode]\n");
 	printf("\t-a, --append  [string]\t append results to file\n");
 	printf("\t-f, --failure [string]\t set failed disks separated by ','\n");
+	printf("\t    --method  [number]\t 0=nothing, 1=static, 2=dynamic\n");
 	printf("\t-h, --help            \t help information\n");
 	return 0;
 }
