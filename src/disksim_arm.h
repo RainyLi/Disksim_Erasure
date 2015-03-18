@@ -32,7 +32,6 @@ typedef struct arm_struct {
 	int progress;  // handled stripes
 	int completed; // completed stripes
 
-	int semaphore;
 	struct list_head waitreqs;
 
 	int ***cache;  // store best results
@@ -48,6 +47,6 @@ void arm_run(double time, arm_t *arm);
 
 const char* arm_get_method_name(int method);
 
-void arm_internal_event(arm_t *arm, double time, void* ctx);
+//void arm_internal_event(arm_t *arm, double time, void* ctx);
 
 #endif /* DISKSIM_ARM_H_ */

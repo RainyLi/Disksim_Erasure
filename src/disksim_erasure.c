@@ -489,8 +489,16 @@ static int raid5_initialize(metadata_t *meta)
 	meta->w = 1;
 	meta->chains = (element_t**) malloc(meta->w * meta->m * sizeof(void*));
 	memset(meta->chains, 0, meta->w * meta->m * sizeof(void*));
-	for (c = 0l; c < meta->n; c++)
+	for (c = 0; c < meta->n; c++)
 		meta->chains[0] = create_elem(0, c, meta->chains[0]);
+	return 0;
+}
+
+static int raid0_initialize(metadata_t *meta)
+{
+	meta->w = 1;
+	meta->chains = (element_t**) malloc(meta->w * meta->m * sizeof(void*));
+	memset(meta->chains, 0, meta->w * meta->m * sizeof(void*));
 	return 0;
 }
 
@@ -589,6 +597,7 @@ static void create_code(int code, int level, const char *flag, const char *name,
 
 void erasure_initialize()
 {
+	create_code(CODE_RAID0, 0, "raid0", "RAID-0", raid0_initialize);
 	create_code(CODE_RAID5, 1,"raid5", "RAID-5", raid5_initialize);
 	create_code(CODE_RDP, 2, "rdp", "RDP", rdp_initialize);
 	create_code(CODE_EVENODD, 2, "evenodd", "EVENODD", evenodd_initialize);
@@ -669,6 +678,8 @@ void erasure_maprequest(double time, sub_ioreq_t *subreq, stripe_head_t *sh)
 	subreq->state += 1;
 	subreq->out_reqs = 1;
 	metadata_t *meta = (metadata_t*) subreq->meta;
+	if (meta->codetype == CODE_RAID0)
+		subreq->state += 1;
 	int usize = meta->usize;
 	int begin = subreq->blkno, end = begin + subreq->bcount;
 	int flag = subreq->flag | DISKSIM_TIME_CRITICAL;

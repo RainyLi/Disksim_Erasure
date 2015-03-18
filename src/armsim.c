@@ -72,7 +72,6 @@ int usage(const char *main)
 void stop_all_processes()
 {
 	notrace = 1;
-	arm->semaphore -= 100;
 }
 
 void trace_add_next(FILE *f)
@@ -263,9 +262,6 @@ int main(int argc, char **argv)
 			//printf("time = %f, type = EVENT_REC_COMPLETE\n", node->time);
 			sh_set_disk_repaired(node->time, meta->sctlr, (int)node->ctx);
 			stop_all_processes();
-			break;
-		case EVENT_ARM_INTERNAL:
-			arm_internal_event(arm, node->time, node->ctx);
 			break;
 		case EVENT_IO_INTERNAL:
 			//printf("time = %f, type = EVENT_IO_INTERNAL\n", node->time);

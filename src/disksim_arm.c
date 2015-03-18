@@ -58,14 +58,7 @@ static void arm_make_request(double time, arm_t *arm)
 		subreq->stripeno = arm->progress++;
 		subreq->meta = (void*) arm;
 		subreq->reqctx = NULL;
-		if (arm->semaphore >= 2) {
-			arm->semaphore -= 2;
-			sh_get_active_stripe(time, arm->meta->sctlr, subreq);
-		} else {
-			wait_req_t *wait = (wait_req_t*) disksim_malloc(wt_idx);
-			wait->subreq = subreq;
-			list_add_tail(&(wait->list), &(arm->waitreqs));
-		}
+		sh_get_active_stripe(time, arm->meta->sctlr, subreq);
 	}
 }
 
@@ -73,7 +66,6 @@ static void arm_complete(double time, sub_ioreq_t *subreq, stripe_head_t *sh)
 {
 	arm_t *arm = (arm_t*) subreq->meta;
 	if (!(--subreq->out_reqs)) {
-		arm->semaphore += 1;
 		arm->internal_fn(time, NULL);
 		if (subreq->state == STATE_WRITE) {
 			sh_release_stripe(time, arm->meta->sctlr, subreq->stripeno);
@@ -259,7 +251,6 @@ void arm_run(double time, arm_t *arm)
 {
 	arm->progress = 0;
 	arm->completed = 0;
-	arm->semaphore = 2;
 	arm->waitreqs.prev = &arm->waitreqs;
 	arm->waitreqs.next = &arm->waitreqs;
 	int i;
@@ -282,16 +273,5 @@ const char* arm_get_method_name(int method)
 		return "min.STD";
 	default:
 		return "WRONG METHOD!";
-	}
-}
-
-void arm_internal_event(arm_t *arm, double time, void* ctx)
-{
-	if (arm->semaphore >= 2 && !list_empty(&(arm->waitreqs))) {
-		arm->semaphore -= 2;
-		wait_req_t *wait = list_entry(arm->waitreqs.next, wait_req_t, list);
-		list_del(&(wait->list));
-		sh_get_active_stripe(time, arm->meta->sctlr, wait->subreq);
-		disksim_free(wt_idx, wait);
 	}
 }
