@@ -11,7 +11,7 @@
 #include "disksim_arm.h"
 #include "disksim_global.h"
 
-extern int sb_idx, sh_idx, wt_idx;
+extern int sb_idx, sh_idx;
 
 static void arm_calculate(arm_t *arm, int disk, int *ptr, stripe_head_t *sh)
 {
@@ -66,7 +66,7 @@ static void arm_complete(double time, sub_ioreq_t *subreq, stripe_head_t *sh)
 {
 	arm_t *arm = (arm_t*) subreq->meta;
 	if (!(--subreq->out_reqs)) {
-		arm->internal_fn(time, NULL);
+		//arm->internal_fn(time, NULL);
 		if (subreq->state == STATE_WRITE) {
 			sh_release_stripe(time, arm->meta->sctlr, subreq->stripeno);
 			disksim_free(sb_idx, subreq);
@@ -201,7 +201,7 @@ static void arm_recovery(double time, sub_ioreq_t *subreq, stripe_head_t *sh, in
 			arm_calculate(arm, f_disk, arm->sort + ptr, sh);
 			ptr += 3;
 		}
-		if (arm->method == ARM_DO_MAX) {
+		if (arm->method == ARM_DYNAMIC) {
 			int temp;
 			for (i = 0; i < ptr; i += 3) {
 				temp = arm->sort[i + 1];
@@ -243,7 +243,7 @@ void arm_init(arm_t *arm, int method, int max_sectors, int patterns,
 	arm->sort = (int*) malloc(sizeof(int) * patterns * 6); //
 	arm->max_stripes = max_sectors / (meta->w * meta->usize);
 	sh_set_rec_callbacks(meta->sctlr, arm_recovery, arm_complete);
-	arm->internal_fn = internal;
+	//arm->internal_fn = internal;
 	arm->complete_fn = complete;
 }
 
@@ -253,9 +253,7 @@ void arm_run(double time, arm_t *arm)
 	arm->completed = 0;
 	arm->waitreqs.prev = &arm->waitreqs;
 	arm->waitreqs.next = &arm->waitreqs;
-	int i;
-	for (i = 0; i < 2; i++)
-		arm_make_request(time, arm);
+	arm_make_request(time, arm);
 }
 
 const char* arm_get_method_name(int method)
@@ -263,14 +261,10 @@ const char* arm_get_method_name(int method)
 	switch (method) {
 	case ARM_NORMAL:
 		return "nothing";
-	case ARM_DO_MAX:
-		return "min.MAX";
 	case ARM_STATIC:
 		return "static";
-	case ARM_DO_SUM:
-		return "min.SUM";
-	case ARM_DO_STD:
-		return "min.STD";
+	case ARM_DYNAMIC:
+		return "dynamic";
 	default:
 		return "WRONG METHOD!";
 	}

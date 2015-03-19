@@ -28,7 +28,6 @@
 #define EVENT_DISK_FAILURE		3
 #define EVENT_IO_COMPLETE		5
 #define EVENT_IO_INTERNAL		6
-#define EVENT_ARM_INTERNAL		7
 #define EVENT_ARM_COMPLETE		8
 
 struct disksim_interface *interface;
@@ -110,10 +109,10 @@ void ioreq_complete_callback(double time, ioreq_t *req)
 		event_queue_add(eventq, create_event(time + 1e-3, EVENT_STOP_SIM, NULL));
 }
 
-void arm_internal_callback(double time, void* ctx)
-{
-	event_queue_add(eventq, create_event(time, EVENT_ARM_INTERNAL, ctx));
-}
+//void arm_internal_callback(double time, void* ctx)
+//{
+//	event_queue_add(eventq, create_event(time, EVENT_ARM_INTERNAL, ctx));
+//}
 
 void arm_complete_callback(double time)
 {
@@ -222,7 +221,7 @@ int main(int argc, char **argv)
 
 	arm = (arm_t*) malloc(sizeof(arm_t));
 	arm_init(arm, arm_method, nr_sectors, arm_patterns,
-			meta, arm_internal_callback, arm_complete_callback);
+			meta, NULL, arm_complete_callback);
 
 	// start initial events
 	FILE *inp = fopen(inpfile, "r");
@@ -274,7 +273,7 @@ int main(int argc, char **argv)
 			disksim_free(dr_idx, node->ctx);
 			break;
 		default:
-			printf("time = %f, type = INVALID\n", node->time);
+			printf("time = %f, type = INVALID (%d)\n", node->time, node->type);
 			exit(-1);
 		}
 		disksim_free(en_idx, node);

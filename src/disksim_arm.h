@@ -13,9 +13,7 @@
 
 #define ARM_NORMAL	0
 #define ARM_STATIC	1
-#define ARM_DO_MAX	2
-#define ARM_DO_SUM	3
-#define ARM_DO_STD	4
+#define ARM_DYNAMIC	2
 
 typedef void(*arm_complete_t)(double time);
 typedef void(*arm_internal_t)(double time, void *ctx);
@@ -25,7 +23,7 @@ typedef struct arm_struct {
 	int max_stripes;
 
 	metadata_t *meta;
-	arm_internal_t internal_fn;
+	//arm_internal_t internal_fn;
 	arm_complete_t complete_fn;
 
 	int patterns;
