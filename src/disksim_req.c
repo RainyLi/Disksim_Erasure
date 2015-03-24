@@ -152,8 +152,8 @@ static void sh_send_request(double time, stripe_ctlr_t *sctlr, sh_request_t *shr
 	dr->start = time;
 	dr->flags = shreq->flag;
 	dr->devno = (shreq->devno + shreq->stripeno) % sctlr->nr_disks;
-	dr->blkno = base + shreq->v_begin;
-	dr->bytecount = (shreq->v_end - shreq->v_begin) * 512;
+	dr->blkno = base;
+	dr->bytecount = sctlr->u_size * 512;
 	dr->reqctx = (void*) shreq;
 	sctlr->count[dr->devno] += dr->bytecount >> 9;
 	disksim_interface_request_arrive(interface, time, dr);
@@ -165,21 +165,12 @@ void sh_request_arrive(double time, stripe_ctlr_t *sctlr, stripe_head_t *sh, sh_
 	int unit_id = shreq->blkno * sctlr->nr_disks + shreq->devno;
 	page_t *pg = sh->page + unit_id;
 	if (shreq->flag & DISKSIM_READ) {
-		if (pg->state == 0 || shreq->v_begin < pg->v_begin || shreq->v_end > pg->v_end) {
-			shreq->v_begin = 0;
-			shreq->v_end = sctlr->u_size;
+		if (pg->state == 0) {
 			sh_send_request(time, sctlr, shreq);
 		} else
 			sctlr->io_complete_fn(time, subreq, sh);
 	} else {
-		if (pg->state == 0) {
-			pg->state = 1;
-			pg->v_begin = shreq->v_begin;
-			pg->v_end = shreq->v_end;
-		} else {
-			pg->v_begin = min(pg->v_begin, shreq->v_begin);
-			pg->v_end = max(pg->v_end, shreq->v_end);
-		}
+		pg->state = 1;
 		sh_send_request(time, sctlr, shreq);
 	}
 }
@@ -193,14 +184,7 @@ void sh_request_complete(double time, struct disksim_request *dr)
 	if (shreq->flag & DISKSIM_READ) {
 		int unit_id = shreq->blkno * sctlr->nr_disks + shreq->devno;
 		page_t *pg = sh->page + unit_id;
-		if (pg->state == 0) {
-			pg->state = 1;
-			pg->v_begin = shreq->v_begin;
-			pg->v_end = shreq->v_end;
-		} else {
-			pg->v_begin = min(pg->v_begin, shreq->v_begin);
-			pg->v_end = max(pg->v_end, shreq->v_end);
-		}
+		pg->state = 1;
 	}
 	sctlr->count[dr->devno] -= dr->bytecount >> 9;
 	if (subreq->reqtype == REQ_TYPE_NORMAL)

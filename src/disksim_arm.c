@@ -113,8 +113,6 @@ static void arm_do_recovery(double time, stripe_head_t *sh, sub_ioreq_t *subreq,
 			shreq->stripeno = subreq->stripeno;
 			shreq->devno = uid % meta->n;
 			shreq->blkno = uid / meta->n;
-			shreq->v_begin = 0;
-			shreq->v_end = meta->usize;
 			shreq->reqctx = (void*) subreq;
 			shreq->meta = (void*) sctlr;
 			subreq->out_reqs += 1;

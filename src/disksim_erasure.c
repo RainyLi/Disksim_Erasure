@@ -697,8 +697,6 @@ void erasure_maprequest(double time, sub_ioreq_t *subreq, stripe_head_t *sh)
 		shreq->stripeno = subreq->stripeno;
 		shreq->devno = meta->loc_d[did].col;
 		shreq->blkno = meta->loc_d[did].row;
-		shreq->v_begin = vb;
-		shreq->v_end = ve;
 		shreq->reqctx = (void*) subreq;
 		shreq->meta = (void*) meta->sctlr;
 		subreq->out_reqs += 1;
@@ -708,14 +706,7 @@ void erasure_maprequest(double time, sub_ioreq_t *subreq, stripe_head_t *sh)
 			while (par[i] != -1) {
 				pid = par[i++];
 				page_t *pg = meta->page + pid;
-				if (1 & (meta->bitmap >> pid)) {
-					pg->v_begin = min(pg->v_begin, vb);
-					pg->v_end = max(pg->v_end, ve);
-				} else {
-					meta->bitmap ^= 1ll << pid;
-					pg->v_begin = vb;
-					pg->v_end = ve;
-				}
+				meta->bitmap |= 1ll << pid;
 			}
 		}
 		did += 1;
@@ -732,8 +723,6 @@ void erasure_maprequest(double time, sub_ioreq_t *subreq, stripe_head_t *sh)
 				shreq->stripeno = subreq->stripeno;
 				shreq->devno = meta->chains[pid]->col;
 				shreq->blkno = meta->chains[pid]->row;
-				shreq->v_begin = pg->v_begin;
-				shreq->v_end = pg->v_end;
 				shreq->reqctx = (void*) subreq;
 				shreq->meta = (void*) meta->sctlr;
 				subreq->out_reqs += 1;
@@ -766,26 +755,12 @@ void erasure_degraded(double time, sub_ioreq_t *subreq, stripe_head_t *sh, int f
 					int new_id = ID(elem->row, elem->col);
 					if (new_id == unit_id) continue;
 					page_t *pg = meta->page + new_id;
-					if (pg->state) {
-						pg->v_begin = min(pg->v_begin, vb);
-						pg->v_end = max(pg->v_end, ve);
-					} else {
-						pg->state = 1;
-						pg->v_begin = vb;
-						pg->v_end = ve;
-					}
+					pg->state = 1;
 				}
 			} // do not handle write!
 		} else {
 			page_t *pg = meta->page + unit_id;
-			if (pg->state) {
-				pg->v_begin = min(pg->v_begin, vb);
-				pg->v_end = max(pg->v_end, ve);
-			} else {
-				pg->state = 1;
-				pg->v_begin = vb;
-				pg->v_end = ve;
-			}
+			pg->state = 1;
 		}
 		if (!(subreq->flag & DISKSIM_READ)) {
 			int i = 0, *par = meta->map_p[did];
@@ -795,14 +770,7 @@ void erasure_degraded(double time, sub_ioreq_t *subreq, stripe_head_t *sh, int f
 				if (!fd[elem->col]) {
 					int new_id = ID(elem->row, elem->col);
 					page_t *pg = meta->page + new_id;
-					if (pg->state) {
-						pg->v_begin = min(pg->v_begin, vb);
-						pg->v_end = max(pg->v_end, ve);
-					} else {
-						pg->state = 1;
-						pg->v_begin = vb;
-						pg->v_end = ve;
-					}
+					pg->state = 1;
 				}
 			}
 		}
@@ -819,8 +787,6 @@ void erasure_degraded(double time, sub_ioreq_t *subreq, stripe_head_t *sh, int f
 		shreq->stripeno = subreq->stripeno;
 		shreq->devno = new_id % meta->n;
 		shreq->blkno = new_id / meta->n;
-		shreq->v_begin = pg->v_begin;
-		shreq->v_end = pg->v_end;
 		shreq->reqctx = (void*) subreq;
 		shreq->meta = (void*) meta->sctlr;
 		subreq->out_reqs += 1;

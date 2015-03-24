@@ -54,14 +54,12 @@ typedef struct sh_request {
 	int stripeno; // stripe number
 	int devno;    // logical device number
 	long int blkno; // unit number
-	int v_begin, v_end; // range
 	int flag;
 	void *reqctx, *meta;
 } sh_request_t;
 
 typedef struct page {
 	int state; // 0=empty, 1=filled
-	int v_begin, v_end; // filled range
 } page_t;
 
 typedef struct stripe_head {
