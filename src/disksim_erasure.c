@@ -666,6 +666,7 @@ void erasure_handle_request(double time, metadata_t *meta, ioreq_t *req)
 		subreq->meta = (void*)meta;
 		req->out_reqs += 1;
 		sh_get_active_stripe(time, meta->sctlr, subreq);
+		sh_add_history(meta->sctlr, subreq->stripeno);
 		stripe_no += 1;
 		curr += stripe_sz;
 	}

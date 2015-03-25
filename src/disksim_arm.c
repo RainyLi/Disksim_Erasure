@@ -50,12 +50,12 @@ static void arm_calculate(arm_t *arm, int disk, int *ptr, stripe_head_t *sh)
 
 static void arm_make_request(double time, arm_t *arm)
 {
-	if (arm->progress < arm->max_stripes) {
+	if (sh_has_next_stripe(arm->meta->sctlr)) {
 		sub_ioreq_t *subreq = (sub_ioreq_t*) disksim_malloc(sb_idx);
 		subreq->time = time;
 		subreq->reqtype = REQ_TYPE_RECOVERY;
 		subreq->state = STATE_BEGIN;
-		subreq->stripeno = arm->progress++;
+		subreq->stripeno = sh_get_next_stripe(arm->meta->sctlr);
 		subreq->meta = (void*) arm;
 		subreq->reqctx = NULL;
 		sh_get_active_stripe(time, arm->meta->sctlr, subreq);
@@ -70,9 +70,8 @@ static void arm_complete(double time, sub_ioreq_t *subreq, stripe_head_t *sh)
 		if (subreq->state == STATE_WRITE) {
 			sh_release_stripe(time, arm->meta->sctlr, subreq->stripeno);
 			disksim_free(sb_idx, subreq);
-			arm->completed += 1;
-			arm->meta->sctlr->rec_prog++;
-			if (arm->completed == arm->max_stripes) {
+			sh_complete_stripe(arm->meta->sctlr, subreq->stripeno);
+			if (sh_is_recovery_completed(arm->meta->sctlr)) {
 				arm->complete_fn(time);
 			} else
 				arm_make_request(time, arm);
@@ -240,6 +239,7 @@ void arm_init(arm_t *arm, int method, int max_sectors, int patterns,
 	}
 	arm->sort = (int*) malloc(sizeof(int) * patterns * 6); //
 	arm->max_stripes = max_sectors / (meta->w * meta->usize);
+	arm->meta->sctlr->max_stripes = arm->max_stripes;
 	sh_set_rec_callbacks(meta->sctlr, arm_recovery, arm_complete);
 	//arm->internal_fn = internal;
 	arm->complete_fn = complete;
@@ -247,11 +247,20 @@ void arm_init(arm_t *arm, int method, int max_sectors, int patterns,
 
 void arm_run(double time, arm_t *arm)
 {
-	arm->progress = 0;
-	arm->completed = 0;
 	arm->waitreqs.prev = &arm->waitreqs;
 	arm->waitreqs.next = &arm->waitreqs;
 	arm_make_request(time, arm);
+}
+
+void arm_set_disk_failure(double time, arm_t *arm, int disk)
+{
+	sh_set_disk_failure(time, arm->meta->sctlr, disk);
+	sh_initialize_recovery(arm->meta->sctlr, arm->method);
+}
+
+void arm_set_disk_repaired(double time, arm_t *arm, int disk)
+{
+	sh_set_disk_failure(time, arm->meta->sctlr, disk);
 }
 
 const char* arm_get_method_name(int method)

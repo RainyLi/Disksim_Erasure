@@ -27,8 +27,8 @@ void sh_init(stripe_ctlr_t *sctlr, int nr_disks, int nr_units, int u_size)
 	sctlr->waitreqs.prev = sctlr->waitreqs.next = &sctlr->waitreqs;
 	sctlr->nr_units = nr_units;
 	sctlr->u_size = u_size;
-	int nr_stripes = 128;
-	for (i = 0; i < nr_stripes; i++) {
+	int nr_stripe_head = 128;
+	for (i = 0; i < nr_stripe_head; i++) {
 		stripe_head_t *sh = (stripe_head_t*) disksim_malloc(sh_idx);
 		sh->users = 0;
 		sh->stripeno = -1;
@@ -62,8 +62,6 @@ void sh_set_disk_failure(double time, stripe_ctlr_t *sctlr, int devno) {
 		sctlr->dev_failed[devno] = 1;
 		sctlr->fails += 1;
 	}
-	if (sctlr->fails)
-		sctlr->rec_prog = 0;
 }
 
 void sh_set_disk_repaired(double time, stripe_ctlr_t *sctlr, int devno) {
@@ -84,7 +82,7 @@ static void sh_return_stripe(double time, stripe_ctlr_t *sctlr, sub_ioreq_t *sub
 				sctlr->log_failed[(i + disks - stripeno % disks) % disks] = 1;
 	}
 	if (subreq->reqtype == REQ_TYPE_NORMAL) {
-		if (sctlr->fails == 0 || stripeno < sctlr->rec_prog)
+		if (sh_is_stripe_recovered(sctlr, stripeno))
 			sctlr->io_mapreq_fn(time, subreq, sh);
 		else
 			sctlr->io_degraded_fn(time, subreq, sh, sctlr->fails, sctlr->log_failed);
@@ -192,4 +190,39 @@ void sh_request_complete(double time, struct disksim_request *dr)
 	if (subreq->reqtype == REQ_TYPE_RECOVERY)
 		sctlr->rec_comp_fn(time, subreq, sh);
 	disksim_free(sh_idx, shreq);
+}
+
+void sh_initialize_recovery(stripe_ctlr_t *sctlr, int method)
+{
+	sctlr->rec_prog = 0;
+	sctlr->method = method;
+}
+
+int sh_is_recovery_completed(stripe_ctlr_t *sctlr)
+{
+	return (sctlr->rec_prog == sctlr->max_stripes);
+}
+
+int sh_has_next_stripe(stripe_ctlr_t *sctlr)
+{
+	return (sctlr->rec_prog < sctlr->max_stripes);
+}
+
+int sh_is_stripe_recovered(stripe_ctlr_t *sctlr, int stripeno)
+{
+	return stripeno < sctlr->rec_prog;
+}
+
+int sh_get_next_stripe(stripe_ctlr_t *sctlr)
+{
+	return sctlr->rec_prog;
+}
+
+void sh_complete_stripe(stripe_ctlr_t *sctlr, int stripeno)
+{
+	sctlr->rec_prog++;
+}
+
+void sh_add_history(stripe_ctlr_t *sctlr, int stripeno)
+{
 }

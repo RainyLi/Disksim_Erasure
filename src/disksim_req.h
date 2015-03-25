@@ -85,11 +85,13 @@ typedef struct stripe_ctlr {
 
 	int fails;   // number of failed disks
 	int rec_prog; // progress of recovery
+	int max_stripes; // max number of stripes
+	int method; // method (normal, static, dynamic)
+
 	int *dev_failed; // failed devices
 	int *log_failed; // failed logical devices
 
 	struct list_head inactive; // inactive queue
-
 	struct list_head waitreqs; // no enough stripe_head
 
 	hash_table_t *ht;
@@ -128,5 +130,15 @@ void sh_redo_callback(double time, stripe_ctlr_t *sctlr, sub_ioreq_t *subreq, st
 void sh_release_stripe(double time, stripe_ctlr_t *sctlr, int stripeno);
 void sh_request_arrive(double time, stripe_ctlr_t *sctlr, stripe_head_t *sh, sh_request_t *shreq);
 void sh_request_complete(double time, struct disksim_request *dr);
+
+/* add strategy */
+void sh_initialize_recovery(stripe_ctlr_t *sctlr, int method);
+int  sh_is_recovery_completed(stripe_ctlr_t *sctlr);
+int  sh_has_next_stripe(stripe_ctlr_t *sctlr);
+
+int  sh_get_next_stripe(stripe_ctlr_t *sctlr);
+int  sh_is_stripe_recovered(stripe_ctlr_t *sctlr, int stripeno);
+void sh_complete_stripe(stripe_ctlr_t *sctlr, int stripeno);
+void sh_add_history(stripe_ctlr_t *sctlr, int stripeno);
 
 #endif /* DISKSIM_REQ_H_ */

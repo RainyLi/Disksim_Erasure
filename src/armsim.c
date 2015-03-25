@@ -134,7 +134,7 @@ void iface_descheduled_callback(double time, void *ctx)
 }
 
 static int arm_method = 0;
-static int arm_patterns = 64;
+static int arm_patterns = 256;
 
 void print_stat(FILE *f) {
 	if (f == NULL) return;
@@ -148,9 +148,7 @@ void print_stat(FILE *f) {
 	fprintf(f, "Total_Simulation_Time = %.3f s\n", currtime / 1000.0);
 	fprintf(f, "Experiment_Duration = %.3f s\n", timer_microsecond(TIMER_GLOBAL) / 1000.0);
 	fprintf(f, "Max_Stripes = %d\n", arm->max_stripes);
-	fprintf(f, "ARM_Progress = %d\n", arm->completed);
 	fprintf(f, "ARM_Method = %s\n", arm_get_method_name(arm_method));
-	fprintf(f, "ARM_Patterns = %d\n", arm_patterns);
 }
 
 int main(int argc, char **argv)
@@ -254,12 +252,12 @@ int main(int argc, char **argv)
 			break;
 		case EVENT_DISK_FAILURE:
 			//printf("time = %f, type = EVENT_DISK_FAILURE\n", node->time);
-			sh_set_disk_failure(node->time, meta->sctlr, (int)node->ctx);
+			arm_set_disk_failure(node->time, arm, (int)node->ctx);
 			arm_run(node->time, arm);
 			break;
 		case EVENT_ARM_COMPLETE:
 			//printf("time = %f, type = EVENT_REC_COMPLETE\n", node->time);
-			sh_set_disk_repaired(node->time, meta->sctlr, (int)node->ctx);
+			arm_set_disk_repaired(node->time, arm, (int)node->ctx);
 			stop_all_processes();
 			break;
 		case EVENT_IO_INTERNAL:

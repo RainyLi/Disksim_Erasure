@@ -34,4 +34,7 @@ src/stamps
 .cproject
 .project
 test/*
+valid/*.outv
+valid/*.trace
+valid/stamps
 

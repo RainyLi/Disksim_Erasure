@@ -27,8 +27,6 @@ typedef struct arm_struct {
 	arm_complete_t complete_fn;
 
 	int patterns;
-	int progress;  // handled stripes
-	int completed; // completed stripes
 
 	struct list_head waitreqs;
 
@@ -42,6 +40,10 @@ void arm_init(arm_t *arm, int method, int max_sectors, int patterns,
 		metadata_t *meta, arm_internal_t internal, arm_complete_t complete);
 
 void arm_run(double time, arm_t *arm);
+
+void arm_set_disk_failure(double time, arm_t *arm, int disk);
+
+void arm_set_disk_repaired(double time, arm_t *arm, int disk);
 
 const char* arm_get_method_name(int method);
 
