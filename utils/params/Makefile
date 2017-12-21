@@ -31,10 +31,10 @@ all: $(TARGETS)
 
 include .paths
 
-DISKSIM_CFLAGS=-I../../src
-DISKSIM_LDFLAGS=-L../../src -ldisksim
+DISKSIM_CFLAGS=-I../../src -m32
+DISKSIM_LDFLAGS=-L../../src -ldisksim -m32
 
-CFLAGS = -g \
+CFLAGS = -g -m32\
         $(DISKSIM_CFLAGS) \
         $(DISKMODEL_CFLAGS) \
         $(LIBPARAM_CFLAGS) \
@@ -43,7 +43,7 @@ CFLAGS = -g \
 LDFLAGS = $(DISKSIM_LDFLAGS) \
 	  $(DISKMODEL_LDFLAGS) \
           $(LIBPARAM_LDFLAGS) \
-          $(LIBDDBG_LDFLAGS) -lm
+          $(LIBDDBG_LDFLAGS) -lm -m32
 
 TARGETS = merge_blocks libparam_to_v3
 all: $(TARGETS)

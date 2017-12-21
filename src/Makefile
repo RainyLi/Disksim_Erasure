@@ -32,7 +32,7 @@ FLEX = flex
 
 include .paths
 
-LDFLAGS = -lm -L. -ldisksim $(DISKMODEL_LDFLAGS) $(MEMSMODEL_LDFLAGS) \
+LDFLAGS = -lm -m32 -L. -ldisksim $(DISKMODEL_LDFLAGS) $(MEMSMODEL_LDFLAGS) \
                             $(LIBPARAM_LDFLAGS) $(LIBDDBG_LDFLAGS) 
 
 HP_FAST_OFLAGS = +O4
@@ -41,12 +41,12 @@ FREEBLOCKS_OFLAGS =
 DEBUG_OFLAGS = -g -DASSERTS # -DDEBUG=1
 PROF_OFLAGS = -g -DASSERTS -p
 GPROF_OFLAGS = -g -DASSERTS -pg
-CFLAGS = -I. $(DISKMODEL_CFLAGS) $(LIBPARAM_CFLAGS) $(LIBDDBG_CFLAGS) $(DEBUG_OFLAGS) $(FREEBLOCKS_OFLAGS) $(MEMSMODEL_CFLAGS) -D_INLINE 
+CFLAGS = -I. -m32 $(DISKMODEL_CFLAGS) $(LIBPARAM_CFLAGS) $(LIBDDBG_CFLAGS) $(DEBUG_OFLAGS) $(FREEBLOCKS_OFLAGS) $(MEMSMODEL_CFLAGS) -D_INLINE 
 
 FBSYSSIM_OFLAGS = -O6 -fomit-frame-pointer -fexpensive-optimizations -fschedule-insns2
 
 #CC = cc
-CC = gcc -Wall -Wno-unused -MD
+CC = gcc -m32 -Wall -Wno-unused -MD
 # because purify spits out warnings on stdout...
 CC-DEP = gcc $(LIBPARAM_CFLAGS) $(DISKMODEL_CFLAGS)
 
