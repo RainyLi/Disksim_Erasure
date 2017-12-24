@@ -117,7 +117,9 @@ void iface_descheduled_callback(double time, void *ctx)
 {
 }
 
+
 void print_stat(FILE *f) {
+/*
 	if (f == NULL) return;
 	fprintf(f, "===================================================\n");
 	fprintf(f, "Trace File = %s\n", inpfile);
@@ -128,6 +130,82 @@ void print_stat(FILE *f) {
 	fprintf(f, "Code = %s\n", get_code_name(get_code_id(code)));
 	fprintf(f, "Total Simulation Time = %.3f s\n", currtime / 1000.0);
 	fprintf(f, "Experiment Duration = %.3f s\n", timer_microsecond(TIMER_GLOBAL) / 1000.0);
+*/
+
+	//fprintf(f, "===================================================\n");
+	char* start;
+	char* end;
+
+	
+	if (f == NULL) return;
+	//fprintf(f, "inpfile=%s\n", inpfile);
+	
+	//print code
+	start=strstr(inpfile, "trace/");
+	start=start+6;
+	end=strstr(inpfile,"_p");
+	while(start!=end){
+	    fprintf(f, "%c", *start);
+	    start++;
+	}
+	fprintf(f, ",");
+
+	//print prime
+	start=strstr(inpfile, "p=");
+	start=start+2;
+	end=strstr(start,"_");
+	while(start!=end){
+	    fprintf(f, "%c", *start);
+	    start++;
+	}
+	fprintf(f, ",");
+
+	//print error
+	start=strstr(inpfile, "error=");
+	start=start+6;
+	end=strstr(start,"_");
+	while(start!=end){
+	    fprintf(f, "%c", *start);
+	    start++;
+	}
+	fprintf(f, ",");
+
+	//print stripe
+	start=strstr(inpfile, "stripe=");
+	start=start+7;
+	end=strstr(start,"_");
+	while(start!=end){
+	    fprintf(f, "%c", *start);
+	    start++;
+	}
+	fprintf(f, ",");
+
+	//print cache size
+	start=strstr(inpfile, "cache=");
+
+	if (start==NULL)
+		fprintf(f, "0,-,");
+
+	else{
+		start=start+6;
+		end=strstr(start,"_");
+		while(start!=end){
+	    		fprintf(f, "%c", *start);
+	    		start++;
+		}
+		fprintf(f, ",");
+
+		//print cache method
+		start=end+1;
+		end=strstr(start,".trace");
+		while(start!=end){
+	    		fprintf(f, "%c", *start);
+	    		start++;
+		}
+		fprintf(f, ",");
+
+	}
+	fprintf(f, "%.3f\n", currtime / 1000.0);
 }
 
 int main(int argc, char **argv)
@@ -171,6 +249,8 @@ int main(int argc, char **argv)
         	exit(0);
         }
 	}
+
+	fprintf(stdout, "inpfile=%s\n", inpfile);
 
 	interface = disksim_interface_initialize(
 			parfile, outfile, iface_complete_callback,
@@ -247,7 +327,10 @@ int main(int argc, char **argv)
 	disksim_interface_shutdown(interface, currtime);
 	timer_stop(TIMER_GLOBAL);
 
-	print_stat(stdout);
+	//print_stat(stdout);
+	//print_stat(fopen(result, "a"));
+
+	//print_stat(stdout);
 	print_stat(fopen(result, "a"));
 	return 0;
 }
