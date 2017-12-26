@@ -205,7 +205,7 @@ void print_stat(FILE *f) {
 		fprintf(f, ",");
 
 	}
-	fprintf(f, "%.3f\n", currtime / 1000.0);
+	fprintf(f, "%.6f\n", currtime);
 }
 
 int main(int argc, char **argv)
@@ -250,7 +250,7 @@ int main(int argc, char **argv)
         }
 	}
 
-	fprintf(stdout, "inpfile=%s\n", inpfile);
+	//fprintf(stdout, "inpfile=%s\n", inpfile);
 
 	interface = disksim_interface_initialize(
 			parfile, outfile, iface_complete_callback,
@@ -276,6 +276,8 @@ int main(int argc, char **argv)
 		event_queue_add(eventq, create_event(-1e-3, EVENT_DISK_FAILURE, (void*)fail));
 
 	timer_start(TIMER_GLOBAL);
+
+	//printf("simulation start\n");
 
 	int stopsim = 0;
 	double checkpoint = 0, last_internal = 0;
@@ -329,8 +331,9 @@ int main(int argc, char **argv)
 
 	//print_stat(stdout);
 	//print_stat(fopen(result, "a"));
-
-	//print_stat(stdout);
+	
+	//printf("start output\n");
+	print_stat(stdout);
 	print_stat(fopen(result, "a"));
 	return 0;
 }
